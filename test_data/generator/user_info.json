@@ -1,0 +1,40 @@
+[{
+  "name": "Color",
+  "enum": {
+    "values": [{
+      "name": "RED",
+      "value": 10
+    }, {
+      "name": "GREEN",
+      "value": 2
+    }, {
+      "name": "BLUE",
+      "value": 1
+    }]
+  }
+}, {
+  "name": "UserInfo",
+  "message": {
+    "fields": [{
+      "name": "isPaid",
+      "type": "boolean"
+    }, {
+      "name": "paidSince",
+      "type": "number"
+    }, {
+      "name": "nickname",
+      "type": "string"
+    }, {
+      "name": "nicknameHistory",
+      "type": "string",
+      "isArray": true
+    }, {
+      "name": "backgroundColor",
+      "type": "Color"
+    }, {
+      "name": "colorHistory",
+      "type": "Color",
+      "isArray": true
+    }]
+  }
+}]

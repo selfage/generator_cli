@@ -1,0 +1,35 @@
+[{
+  "name": "Shop",
+  "enum": {
+    "values": [{
+      "name": "Supermarket",
+      "value": 1
+    }, {
+      "name": "Clothing",
+      "value": 2
+    }]
+  }
+}, {
+  "name": "Cart",
+  "observable": {
+    "fields": [{
+      "name": "userId",
+      "type": "string"
+    }, {
+      "name": "shop",
+      "type": "Shop"
+    }, {
+      "name": "coupons",
+      "type": "string",
+      "isArray": true
+    }, {
+      "name": "items",
+      "type": "Item",
+      "isArray": true,
+      "import": "./item"
+    }, {
+      "name": "created",
+      "type": "number"
+    }]
+  }
+}]

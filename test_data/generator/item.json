@@ -1,0 +1,33 @@
+[{
+  "name": "ProductCategory",
+  "enum": {
+    "values": [{
+      "name": "Veges",
+      "value": 1
+    }, {
+      "name": "Meat",
+      "value": 2
+    }, {
+      "name": "Beverage",
+      "value": 3
+    }]
+  }
+}, {
+  "name": "Item",
+  "observable": {
+    "fields": [{
+      "name": "productName",
+      "type": "string"
+    }, {
+      "name": "productCategory",
+      "type": "ProductCategory"
+    }, {
+      "name": "price",
+      "type": "Money",
+      "import": "./inside/money"
+    }, {
+      "name": "quantity",
+      "type": "number"
+    }]
+  }
+}]

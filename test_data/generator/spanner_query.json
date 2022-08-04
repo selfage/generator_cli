@@ -1,0 +1,23 @@
+[{
+  "name": "QueryCart",
+  "spannerSql": {
+    "sql": "SELECT * FROM Cart"
+  }
+}, {
+  "name": "QueryCartOfUser",
+  "spannerSql": {
+    "sql": "SELECT * FROM Cart WHERE userId = @userId",
+    "params": [{
+      "name": "userId",
+      "type": "string"
+    }],
+    "outputColumns": [{
+      "name": "shop",
+      "type": "int53"
+    }, {
+      "name": "coupons",
+      "type": "string",
+      "isArray": true
+    }]
+  }
+}]

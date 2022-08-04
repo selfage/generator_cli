@@ -1,0 +1,81 @@
+[{
+  "name": "Priority",
+  "enum": {
+    "values": [{
+      "name": "HIGH",
+      "value": 1
+    }, {
+      "name": "DEFAULT",
+      "value": 2
+    }]
+  }
+}, {
+  "name": "Payload",
+  "message": {
+    "fields": [{
+      "name": "operation",
+      "type": "string"
+    }, {
+      "name": "userId",
+      "type": "string"
+    }]
+  }
+}, {
+  "name": "Task",
+  "message": {
+    "fields": [{
+      "name": "id",
+      "type": "string"
+    }, {
+      "name": "payload",
+      "type": "Payload"
+    }, {
+      "name": "tags",
+      "type": "string",
+      "isArray": true
+    }, {
+      "name": "done",
+      "type": "boolean"
+    }, {
+      "name": "priority",
+      "type": "Priority"
+    }, {
+      "name": "created",
+      "type": "number"
+    }],
+    "datastore": {
+      "output": "./inside/task_model",
+      "key": "id",
+      "queries": [{
+        "name": "TaskDone",
+        "filters": [{
+          "fieldName": "done",
+          "operator": "="
+        }],
+        "orderings": [{
+          "fieldName": "created",
+          "descending": true
+        }]
+      }, {
+        "name": "TaskDonePriority",
+        "filters": [{
+          "fieldName": "done",
+          "operator": "<="
+        }],
+        "orderings": [{
+          "fieldName": "priority",
+          "descending": false
+        }, {
+          "fieldName": "created",
+          "descending": true
+        }]
+      }, {
+        "name": "Tags",
+        "filters": [{
+          "fieldName": "tags",
+          "operator": "="
+        }]
+      }]
+    }
+  }
+}]

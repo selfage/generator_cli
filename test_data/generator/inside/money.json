@@ -1,0 +1,12 @@
+[{
+  "name": "Money",
+  "message": {
+    "fields": [{
+      "name": "integral",
+      "type": "number"
+    }, {
+      "name": "nano",
+      "type": "number"
+    }]
+  }
+}]
