@@ -186,8 +186,8 @@ TEST_RUNNER.run({
       },
       tearDown: async () => {
         await Promise.all([
-          unlinkSilently("./test_data/generate/generator/spanner_query.js"),
-          unlinkSilently("./test_data/generate/generator/spanner_query.ts"),
+          unlinkSilently("./test_data/generator/spanner_query.js"),
+          unlinkSilently("./test_data/generator/spanner_query.ts"),
         ]);
       },
     },
