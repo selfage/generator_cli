@@ -66,6 +66,7 @@ export let GET_COMMENTS: ServiceDescriptor = {
         assertThat(
           contentMap.get("./web/client").toString(),
           eq(`import { GetCommentsRequest, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
+import { WebServiceRequest } from '@selfage/service_descriptor';
 
 export interface GetCommentsClientRequest {
   body: GetCommentsRequest;
@@ -85,6 +86,7 @@ export function newGetCommentsServiceRequest(
         assertThat(
           contentMap.get("./backend/handler").toString(),
           eq(`import { GetCommentsRequest, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
+import { ServiceHandler } from '@selfage/service_descriptor';
 
 export interface GetCommentsHandlerRequest {
   requestId: string;
@@ -176,6 +178,7 @@ export let GET_HISTORY: ServiceDescriptor = {
         assertThat(
           contentMap.get("./web/client").toString(),
           eq(`import { GetHistoryequest } from '../interface/request';
+import { WebServiceRequest } from '@selfage/service_descriptor';
 import { GetHistoryResponse } from '../interface/response';
 import { GET_HISTORY } from '../interface/get_history';
 
@@ -198,6 +201,7 @@ export function newGetHistoryServiceRequest(
           contentMap.get("./backend/handler").toString(),
           eq(`import { GetHistoryequest } from '../interface/request';
 import { UserSession } from '../interface/user_session';
+import { ServiceHandler } from '@selfage/service_descriptor';
 import { GetHistoryResponse } from '../interface/response';
 import { GET_HISTORY } from '../interface/get_history';
 
@@ -236,7 +240,7 @@ export abstract class GetHistoryHandlerInterface
               key: "s",
               type: "UploadFileRequestSide",
             },
-            body: "blob",
+            body: "bytes",
             response: "UploadFileResponse",
             outputWebClient: "./client",
             outputHandler: "./handler",
@@ -254,7 +258,7 @@ export let GET_HISTORY: ServiceDescriptor = {
   name: "GetHistory",
   path: "/upload_file",
   body: {
-    primitiveType: PrimitveTypeForBody.BLOB,
+    primitiveType: PrimitveTypeForBody.BYTES,
   },
   side: {
     key: "s",
@@ -270,6 +274,7 @@ export let GET_HISTORY: ServiceDescriptor = {
         assertThat(
           contentMap.get("./interface/client").toString(),
           eq(`import { UploadFileRequestSide, UploadFileResponse, GET_HISTORY } from './upload_file';
+import { WebServiceRequest } from '@selfage/service_descriptor';
 
 export interface GetHistoryClientRequest {
   body: Blob;
@@ -291,6 +296,7 @@ export function newGetHistoryServiceRequest(
           contentMap.get("./interface/handler").toString(),
           eq(`import { Readable } from 'stream';
 import { UploadFileRequestSide, UploadFileResponse, GET_HISTORY } from './upload_file';
+import { ServiceHandler } from '@selfage/service_descriptor';
 
 export interface GetHistoryHandlerRequest {
   requestId: string;

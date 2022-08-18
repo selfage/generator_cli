@@ -24,7 +24,7 @@
     }, {
       "name": "price",
       "type": "Money",
-      "import": "./inside/money"
+      "import": "./sub/money"
     }, {
       "name": "quantity",
       "type": "number"

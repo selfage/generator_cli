@@ -1,0 +1,42 @@
+[{
+  "name": "UserSession",
+  "message": {
+    "fields": [{
+      "name": "userId",
+      "type": "string"
+    }, {
+      "name": "expirationTime",
+      "type": "number"
+    }]
+  }
+}, {
+  "name": "GetComments",
+  "service": {
+    "path": "/GetComments",
+    "body": "GetCommentsRequest",
+    "importBody": "./sub/get_comments",
+    "response": "GetCommentsResponse",
+    "importResponse": "./sub/get_comments",
+    "outputWebClient": "./client",
+    "outputHandler": "./handler"
+  }
+}, {
+  "name": "UploadFile",
+  "service": {
+    "path": "/UploadFile",
+    "signedUserSession": {
+      "key": "su",
+      "type": "UserSession"
+    },
+    "side": {
+      "key": "sd",
+      "type": "UploadFileRequestSide",
+      "import": "./sub/upload_file"
+    },
+    "body": "bytes",
+    "response": "UploadFileResponse",
+    "importResponse": "./sub/upload_file",
+    "outputWebClient": "./client",
+    "outputHandler": "./handler"
+  }
+}]

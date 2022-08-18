@@ -21,11 +21,11 @@
     }, {
       "name": "coupons",
       "type": "string",
-      "isArray": true
+      "asArray": "normal"
     }, {
       "name": "items",
       "type": "Item",
-      "isArray": true,
+      "asArray": "observable",
       "import": "./item"
     }, {
       "name": "created",

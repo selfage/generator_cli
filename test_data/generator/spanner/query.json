@@ -1,9 +1,4 @@
 [{
-  "name": "QueryCart",
-  "spannerSql": {
-    "sql": "SELECT * FROM Cart"
-  }
-}, {
   "name": "QueryCartOfUser",
   "spannerSql": {
     "sql": "SELECT * FROM Cart WHERE userId = @userId",

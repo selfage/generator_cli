@@ -1,0 +1,20 @@
+[{
+  "name": "UploadFileRequestSide",
+  "message": {
+    "fields": [{
+      "name": "fileName",
+      "type": "string"
+    }]
+  }
+}, {
+  "name": "UploadFileResponse",
+  "message": {
+    "fields": [{
+      "name": "bytesSent",
+      "type": "number"
+    }, {
+      "name": "success",
+      "type": "boolean"
+    }]
+  }
+}]

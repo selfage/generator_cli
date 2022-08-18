@@ -92,12 +92,12 @@ export interface ServiceDefinition {
   signedUserSession?: ServiceSearchParamDefinition;
   // Prefer `body` when possible. It will be sent as a URL search param.
   side?: ServiceSearchParamDefinition;
-  // The body in a HTTP request. Support either 'blob' or the name of a message.
+  // The body in a HTTP request. Support either 'bytes' or the name of a message.
   body: string;
   // Resolves import path the same way as Node. Do not include '.json'.
   importBody?: string;
-  // Support either 'blob' or the name of a message.
-  response?: string;
+  // Support only the name of a message.
+  response: string;
   // Resolves import path the same way as Node. Do not include '.json'.
   importResponse?: string;
   // The path to output the generated web client interfaces, relative to the

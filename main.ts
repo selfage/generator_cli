@@ -39,7 +39,6 @@ async function main(): Promise<void> {
     ).parse();
 
   let options = program.opts();
-  console.log(options);
   generate(options.definition, options.indexFile, options.dryRun);
 }
 

@@ -1,6 +1,6 @@
 import fs = require("fs");
 import { generate } from "./generator";
-import { TEST_RUNNER, TestCase } from "@selfage/test_runner";
+import { TEST_RUNNER } from "@selfage/test_runner";
 import { spawnSync } from "child_process";
 
 function assertCompile(file: string): void {
@@ -16,14 +16,6 @@ function assertCompile(file: string): void {
   }
 }
 
-async function unlinkSilently(path: string): Promise<void> {
-  try {
-    await fs.promises.unlink(path);
-  } catch (e) {
-    // Swallow errors.
-  }
-}
-
 TEST_RUNNER.run({
   name: "GeneratorTest",
   cases: [
@@ -31,164 +23,110 @@ TEST_RUNNER.run({
       name: "GenerateMessage",
       execute: () => {
         // Execute
-        generate("./test_data/generator/inside/credit_card");
+        generate("./test_data/generator/message/sub/credit_card");
 
         // Verify
-        assertCompile("./test_data/generator/inside/credit_card.ts");
+        assertCompile("./test_data/generator/message/sub/credit_card.ts");
 
         // Execute
-        generate("./test_data/generator/user_info");
+        generate("./test_data/generator/message/user_info");
 
         // Verify
-        assertCompile("./test_data/generator/user_info.ts");
+        assertCompile("./test_data/generator/message/user_info.ts");
 
         // Execute
-        generate("./test_data/generator/user");
+        generate("./test_data/generator/message/user");
 
         // Verify
-        assertCompile("./test_data/generator/user.ts");
-      },
-      tearDown: async () => {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/inside/credit_card.ts"),
-          unlinkSilently("./test_data/generator/inside/credit_card.js"),
-          unlinkSilently("./test_data/generator/user_info.ts"),
-          unlinkSilently("./test_data/generator/user_info.js"),
-          unlinkSilently("./test_data/generator/user.ts"),
-          unlinkSilently("./test_data/generator/user.js"),
-        ]);
+        assertCompile("./test_data/generator/message/user.ts");
       },
     },
     {
       name: "GenerateObservable",
       execute: () => {
         // Execute
-        generate("./test_data/generator/inside/money");
+        generate("./test_data/generator/observable/sub/money");
 
         // Verify
-        assertCompile("./test_data/generator/inside/money.ts");
+        assertCompile("./test_data/generator/observable/sub/money.ts");
 
         // Execute
-        generate("./test_data/generator/item");
+        generate("./test_data/generator/observable/item");
 
         // Verify
-        assertCompile("./test_data/generator/item.ts");
+        assertCompile("./test_data/generator/observable/item.ts");
 
         // Execute
-        generate("./test_data/generator/cart");
+        generate("./test_data/generator/observable/cart");
 
         // Verify
-        assertCompile("./test_data/generator/cart.ts");
-      },
-      tearDown: async () => {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/inside/money.ts"),
-          unlinkSilently("./test_data/generator/inside/money.js"),
-          unlinkSilently("./test_data/generator/item.ts"),
-          unlinkSilently("./test_data/generator/item.js"),
-          unlinkSilently("./test_data/generator/cart.ts"),
-          unlinkSilently("./test_data/generator/cart.js"),
-        ]);
+        assertCompile("./test_data/generator/observable/cart.ts");
       },
     },
-    new (class implements TestCase {
-      public name = "GenerateDatastoreModel";
-
-      private originalIndexes: Buffer;
-      public execute() {
+    {
+      name: "GenerateDatastoreModel",
+      execute: () => {
         // Prepare
-        this.originalIndexes = fs.readFileSync(
-          "./test_data/generator/index.yaml"
-        );
-
-        // Execute
-        generate("./test_data/generator/task", "./test_data/generator/index");
-
-        // Verify
-        assertCompile("./test_data/generator/inside/task_model.ts");
-      }
-      public async tearDown() {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/task.ts"),
-          unlinkSilently("./test_data/generator/task.js"),
-          unlinkSilently("./test_data/generator/inside/task_model.ts"),
-          unlinkSilently("./test_data/generator/inside/task_model.js"),
-          fs.promises.writeFile(
-            "./test_data/generator/index.yaml",
-            this.originalIndexes
-          ),
-        ]);
-      }
-    })(),
-    new (class implements TestCase {
-      public name = "GenerateDatastoreModelWithPackageJsonFile";
-
-      private originalIndexes: Buffer;
-      public execute() {
-        // Prepare
-        this.originalIndexes = fs.readFileSync(
-          "./test_data/generator/index.yaml"
+        fs.writeFileSync(
+          "./test_data/generator/datastore/index.yaml",
+          fs.readFileSync("./test_data/generator/datastore/original_index.yaml")
         );
 
         // Execute
         generate(
-          "./test_data/generator/task",
-          undefined,
-          undefined,
-          "./test_data/generator/package.json"
+          "./test_data/generator/datastore/task",
+          "./test_data/generator/datastore/index"
         );
 
         // Verify
-        assertCompile("./test_data/generator/inside/task_model.ts");
-      }
-      public async tearDown() {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/task.ts"),
-          unlinkSilently("./test_data/generator/task.js"),
-          unlinkSilently("./test_data/generator/inside/task_model.ts"),
-          unlinkSilently("./test_data/generator/inside/task_model.js"),
-          fs.promises.writeFile(
-            "./test_data/generator/index.yaml",
-            this.originalIndexes
-          ),
-        ]);
-      }
-    })(),
+        assertCompile("./test_data/generator/datastore/sub/task_model.ts");
+      },
+    },
     {
-      name: "GenerateServiceDescriptor",
+      name: "GenerateDatastoreModelWithPackageJsonFile",
       execute: () => {
         // Prepare
-        generate("./test_data/generator/inside/history");
+        fs.writeFileSync(
+          "./test_data/generator/datastore/index.yaml",
+          fs.readFileSync("./test_data/generator/datastore/original_index.yaml")
+        );
 
         // Execute
-        generate("./test_data/generator/service");
+        generate(
+          "./test_data/generator/datastore/task",
+          undefined,
+          undefined,
+          "./test_data/generator/datastore/package.json"
+        );
 
         // Verify
-        assertCompile("./test_data/generator/service.ts");
-      },
-      tearDown: async () => {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/service.ts"),
-          unlinkSilently("./test_data/generator/service.js"),
-          unlinkSilently("./test_data/generator/inside/history.ts"),
-          unlinkSilently("./test_data/generator/inside/history.js"),
-        ]);
+        assertCompile("./test_data/generator/datastore/sub/task_model.ts");
       },
     },
     {
       name: "GenerateSpannerSql",
       execute: () => {
         // Execute
-        generate("./test_data/generator/spanner_query");
+        generate("./test_data/generator/spanner/query");
 
         // Verify
-        assertCompile("./test_data/generator/spanner_query.ts");
+        assertCompile("./test_data/generator/spanner/query.ts");
       },
-      tearDown: async () => {
-        await Promise.all([
-          unlinkSilently("./test_data/generator/spanner_query.js"),
-          unlinkSilently("./test_data/generator/spanner_query.ts"),
-        ]);
+    },
+    {
+      name: "GenerateServiceDescriptor",
+      execute: () => {
+        // Prepare
+        generate("./test_data/generator/service/sub/get_comments");
+        generate("./test_data/generator/service/sub/upload_file");
+
+        // Execute
+        generate("./test_data/generator/service/service");
+
+        // Verify
+        assertCompile("./test_data/generator/service/service.ts");
+        assertCompile("./test_data/generator/service/client.ts");
+        assertCompile("./test_data/generator/service/handler.ts");
       },
     },
   ],

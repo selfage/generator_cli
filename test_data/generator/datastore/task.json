@@ -44,7 +44,7 @@
       "type": "number"
     }],
     "datastore": {
-      "output": "./inside/task_model",
+      "output": "./sub/task_model",
       "key": "id",
       "queries": [{
         "name": "TaskDone",

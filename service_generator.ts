@@ -9,8 +9,8 @@ import {
   transitImport,
 } from "./util";
 
-let PRIMITIVE_TYPE_BLOB = "blob";
-let PRIMITIVE_TYPES = new Set<string>([PRIMITIVE_TYPE_BLOB]);
+let PRIMITIVE_TYPE_BYTES = "bytes";
+let PRIMITIVE_TYPES = new Set<string>([PRIMITIVE_TYPE_BYTES]);
 
 export function generateServiceDescriptor(
   modulePath: string,
@@ -123,7 +123,7 @@ function generateWebClient(
 export interface ${serviceName}ClientRequest {`);
 
   if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
-    if (serviceDefinition.body === PRIMITIVE_TYPE_BLOB) {
+    if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
       outputWebClientContentBuilder.push(`
   body: Blob;`);
     } else {
@@ -152,6 +152,7 @@ export interface ${serviceName}ClientRequest {`);
 }
 `);
 
+  outputWebClientContentBuilder.importFromServiceDescriptor('WebServiceRequest');
   outputWebClientContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
     serviceDefinition.response
@@ -192,7 +193,7 @@ export interface ${serviceName}HandlerRequest {
   requestId: string;`);
 
   if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
-    if (serviceDefinition.body === PRIMITIVE_TYPE_BLOB) {
+    if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
       outputHandlerContentBuilder.importFromPath("stream", "Readable");
       outputHandlerContentBuilder.push(`
   body: Readable;`);
@@ -234,6 +235,7 @@ export interface ${serviceName}HandlerRequest {
 }
 `);
 
+outputHandlerContentBuilder.importFromServiceDescriptor('ServiceHandler');
   outputHandlerContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
     serviceDefinition.response

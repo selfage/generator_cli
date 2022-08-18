@@ -12,7 +12,7 @@
       "name": "creditCards",
       "type": "CreditCard",
       "isArray": true,
-      "import": "./inside/credit_card"
+      "import": "./sub/credit_card"
     }]
   }
 }]

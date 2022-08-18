@@ -39,7 +39,7 @@
     "@selfage/nested_error": "^1.0.6",
     "@selfage/observable": "^1.0.0",
     "@selfage/observable_array": "^2.0.0",
-    "@selfage/service_descriptor": "^3.4.0",
+    "@selfage/service_descriptor": "^3.4.1",
     "@selfage/test_matcher": "^1.0.3",
     "@selfage/test_runner": "^3.0.2",
     "@selfage/tsconfig": "^1.0.7",
