@@ -14,13 +14,12 @@ It can generate messages, observables, Google Datastore client, Google Spanner S
 
 ```
 $ geneage -h
-Usage: geneage [options]
+Usage: geneage [options] <definitionFile>
 
 Generate various TypeScript codes from the definition file written in JSON.
 
 Options:
   -V, --version                 output the version number
-  -d, --definition <file>       The definition file written in JSON. Do not include ".json".
   -i, --index-file <indexFile>  The index yaml file for Google Cloud Datastore composite index. Its file ext can be neglected and is always fixed as .yaml. Requried only if
                                 your definition file includes a datastore definition. You can also add '"datastoreIndex": "./your/index_file"' to your package.json file to
                                 save typings.
@@ -32,7 +31,7 @@ Options:
 
 All code generation examples can be found under `test_data/generator/` directory.
 
-Another example to use index file when generating datastore clients is `$ geneage -d test_data/generator/datastore/task -i test_data/generator/datastore/index`, where `test_data/generator/datastore/task.json` is the input, and `test_data/generator/datastore/task.ts` and `test_data/generator/datastore/task_model.ts` are the output, while `test_data/generator/datastore/index` is both the input and output.
+Another example to use index file when generating datastore clients is `$ geneage test_data/generator/datastore/task -i test_data/generator/datastore/index`, where `test_data/generator/datastore/task.json` is the input, and `test_data/generator/datastore/task.ts` and `test_data/generator/datastore/task_model.ts` are the output, while `test_data/generator/datastore/index` is both the input and output.
 
 ## Message
 
@@ -42,7 +41,7 @@ TypeScript uses interfaces to describe objects at compiling time, checking for i
 
 The runtime lib [@selfage/message](https://github.com/selfage/message) can parse, copy and merge messages, while validate each field. It requires generated `MessageDescriptor`s.
 
-Examples can be found under `test_data/generator/message`. E.g. `$ geneage -d test_data/generator/message/user_info`, where `test_data/generator/message/user_info.json` is the input and `test_data/generator/message/user_info.ts` is the output.
+Examples can be found under `test_data/generator/message`. E.g. `$ geneage test_data/generator/message/user_info`, where `test_data/generator/message/user_info.json` is the input and `test_data/generator/message/user_info.ts` is the output.
 
 JSON definition files are like TypeScript interface but a little bit verbose. The supported `type`s are `string`, `boolean` and `number`, `enum`s, and `message`s.
 
@@ -52,7 +51,7 @@ An observable object exposes events/callbacks to observe every state change.
 
 The runtime lib [@selfage/observable](https://github.com/selfage/observable) can parse, copy and merge observable. It requires generated `ObservableDescriptor`s.
 
-Examples can be found under `test_data/generator/observable`. E.g. `$ geneage -d test_data/generator/observable/item`, where `test_data/generator/observable/item.json` is the input and `test_data/generator/observable/item.ts` is the output.
+Examples can be found under `test_data/generator/observable`. E.g. `$ geneage test_data/generator/observable/item`, where `test_data/generator/observable/item.json` is the input and `test_data/generator/observable/item.ts` is the output.
 
 Note that there are two types of arrays here, `normal` and `observable`, which should be self-explanatory. The supported `type`s are `string`, `boolean` and `number`, `enum`s, `message`s, and `observable`s.
 
@@ -60,7 +59,7 @@ Note that there are two types of arrays here, `normal` and `observable`, which s
 
 The runtime lib [selfage/datastore_client](https://github.com/selfage/datastore_client) provides type-safe Google Cloud Datastore APIs as a thin layer on top of `@google-cloud/datastore`, though requires generated `DatastoreModelDescriptor`s and `QueryBuilder`s.
 
-Examples can be found under `test_data/generator/datastore`. E.g., `$ geneage -d test_data/generator/datastore/task -i test_data/generator/datastore/index`, where `test_data/generator/datastore/task.json` is the input, and `test_data/generator/datastore/task.ts` and `test_data/generator/datastore/task_model.ts` are the output, while `test_data/generator/datastore/index` is both the input and output.
+Examples can be found under `test_data/generator/datastore`. E.g., `$ geneage test_data/generator/datastore/task -i test_data/generator/datastore/index`, where `test_data/generator/datastore/task.json` is the input, and `test_data/generator/datastore/task.ts` and `test_data/generator/datastore/task_model.ts` are the output, while `test_data/generator/datastore/index` is both the input and output.
 
 A few notes about  `index.yaml`.
 
@@ -72,7 +71,7 @@ A few notes about  `index.yaml`.
 
 The runtime lib is Google's standard client `@google-cloud/spanner`. Though you can handcraft SQL queries, this CLI helps you prepare params and parse output with type-safe interfaces.
 
-Examples can be found under `test_data/generator/spanner`. E.g., `$ geneage -d test_data/generator/spanner/query`, where `test_data/generator/spanner/query.json` is the input and `test_data/generator/spanner/query.ts` is the output.
+Examples can be found under `test_data/generator/spanner`. E.g., `$ geneage test_data/generator/spanner/query`, where `test_data/generator/spanner/query.json` is the input and `test_data/generator/spanner/query.ts` is the output.
 
 The SQL syntax is exactly the same as documented by Spanner. You only need to spell out the types of params and output columns. Unfortunately, it's not capable of validating the SQL syntax or making sure the types you spelled out are matching your database's definition.
 
@@ -88,7 +87,7 @@ The supported `type`s are `string`, `bool`, `int53`, `float`, `timestamp`, and `
 
 There are two runtime libs, [@selfage/web_service_client](https://github.com/selfage/web_service_client) to be used in web browsers for calling to backend services via HTTP, and [@selfage/service_handler](https://github.com/selfage/web_service_client) to be used in backend servers for implementing HTTP service handlers.
 
-Examples can be found under `test_data/generator/service`. E.g., `$ geneage -d test_data/generator/service/service`, `test_data/generator/service/service.json` is the input, and `test_data/generator/service/service.ts`, `test_data/generator/service/client.ts`, and `test_data/generator/service/handler.ts` are the output.
+Examples can be found under `test_data/generator/service`. E.g., `$ geneage test_data/generator/service/service`, `test_data/generator/service/service.json` is the input, and `test_data/generator/service/service.ts`, `test_data/generator/service/client.ts`, and `test_data/generator/service/handler.ts` are the output.
 
 `response` can only be a `message`. `body` refers to the HTTP body in a request, and it can be either `bytes` or another `message`. Both `response` and `body` fields are required.
 

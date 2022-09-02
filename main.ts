@@ -15,14 +15,11 @@ async function main(): Promise<void> {
   );
   let program = new Command();
   program
+    .version(packageConfig.version)
     .description(
       `Generate various TypeScript codes from the definition file written in JSON.`
     )
-    .version(packageConfig.version)
-    .requiredOption(
-      "-d, --definition <file>",
-      `The definition file written in JSON. Do not include ".json".`
-    )
+    .argument("<definitionFile>")
     .option(
       "-i, --index-file <indexFile>",
       `The index yaml file for Google Cloud Datastore composite index. Its ` +
@@ -36,10 +33,11 @@ async function main(): Promise<void> {
       "--dry-run",
       "Print the generated content instead of writing it to the destination " +
         "file."
-    ).parse();
-
-  let options = program.opts();
-  generate(options.definition, options.indexFile, options.dryRun);
+    )
+    .action((definitionFile, options) => {
+      generate(definitionFile, options.indexFile, options.dryRun);
+    })
+    .parse();
 }
 
 main();

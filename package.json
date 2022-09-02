@@ -1,6 +1,6 @@
 {
   "name": "@selfage/generator_cli",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Code generation for message, observable, service, and etc.",
   "repository": {
     "type": "git",
@@ -44,7 +44,7 @@
     "@selfage/observable_array": "^2.0.0",
     "@selfage/service_descriptor": "^3.4.1",
     "@selfage/test_matcher": "^1.0.3",
-    "@selfage/test_runner": "^3.0.2",
+    "@selfage/test_runner": "^4.0.0",
     "@selfage/tsconfig": "^1.0.7",
     "@types/node": "^16.3.3",
     "@types/resolve": "^1.19.0"
