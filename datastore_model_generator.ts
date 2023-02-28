@@ -12,8 +12,8 @@ import {
   generateComment,
   normalizeRelativePathForNode,
   reverseImport,
-  toCapitalized,
-  toUpperSnaked,
+  toInitialUppercased,
+  toUppercaseSnaked,
   transitImport,
 } from "./util";
 
@@ -40,7 +40,7 @@ export function generateDatastoreModel(
   );
   let outputContentBuilder = OutputContentBuilder.get(contentMap, outputPath);
   let importMessagePath = reverseImport(modulePath, outputPath);
-  let messageDescriptorName = toUpperSnaked(messageName);
+  let messageDescriptorName = toUppercaseSnaked(messageName);
 
   let fieldToDefinitions = new Map<string, MessageFieldDefinition>();
   let excludedIndexes = new Set<string>();
@@ -128,7 +128,7 @@ export class ${query.name}QueryBuilder {
           );
         }
         indexContentList.push(`
-  public ${OPERATOR_NAME_MAP.get(filter.operator)}${toCapitalized(
+  public ${OPERATOR_NAME_MAP.get(filter.operator)}${toInitialUppercased(
           filter.fieldName
         )}(value: ${fieldDefinition.type}): this {
     this.datastoreQuery.filters.push({

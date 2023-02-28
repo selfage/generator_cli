@@ -41,6 +41,24 @@ export class OutputContentBuilder {
     this.importFromPath("@selfage/service_descriptor", ...namedImports);
   }
 
+  public importFromWebServiceClientInterface(
+    ...namedImports: Array<string>
+  ): void {
+    this.importFromPath(
+      "@selfage/service_descriptor/web_service_client_interface",
+      ...namedImports
+    );
+  }
+
+  public importFromServiceHandlerInterface(
+    ...namedImports: Array<string>
+  ): void {
+    this.importFromPath(
+      "@selfage/service_descriptor/service_handler_interface",
+      ...namedImports
+    );
+  }
+
   public importFromObservableArray(...namedImports: Array<string>): void {
     this.importFromPath("@selfage/observable_array", ...namedImports);
   }

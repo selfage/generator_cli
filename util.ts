@@ -10,11 +10,15 @@ export function generateComment(comment: string): string {
   }
 }
 
-export function toCapitalized(name: string): string {
+export function toInitialUppercased(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-export function toUpperSnaked(name: string): string {
+export function toInitalLowercased(name: string): string {
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+export function toUppercaseSnaked(name: string): string {
   let upperCaseSnakedName = new Array<string>();
   upperCaseSnakedName.push(name.charAt(0));
   for (let i = 1; i < name.length; i++) {

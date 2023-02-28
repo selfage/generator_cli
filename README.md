@@ -85,13 +85,13 @@ The supported `type`s are `string`, `bool`, `int53`, `float`, `timestamp`, and `
 
 ## Service client & handler
 
-There are two runtime libs, [@selfage/web_service_client](https://github.com/selfage/web_service_client) to be used in web browsers for calling to backend services via HTTP, and [@selfage/service_handler](https://github.com/selfage/web_service_client) to be used in backend servers for implementing HTTP service handlers.
+There are two runtime libs, [@selfage/web_service_client](https://github.com/selfage/web_service_client) to be used in web browsers for calling to backend services via HTTP, and [@selfage/service_handler](https://github.com/selfage/service_handler) to be used in backend servers for implementing HTTP service handlers.
 
 Examples can be found under `test_data/generator/service`. E.g., `$ geneage test_data/generator/service/service`, `test_data/generator/service/service.json` is the input, and `test_data/generator/service/service.ts`, `test_data/generator/service/client.ts`, and `test_data/generator/service/handler.ts` are the output.
 
 `response` can only be a `message`. `body` refers to the HTTP body in a request, and it can be either `bytes` or another `message`. Both `response` and `body` fields are required.
 
-`side` and `signedUserSession` will be encoded to URL params, where keys are specified by their `key` field, and values are encoded from their `type` field which can only be another `message`.
+`metadata` will be encoded to URL query params, and `auth` will be added to headers, where keys are specified by their `key` fields, and values are encoded from their `type` field which can only be another `message`.
 
 ## Other usage
 

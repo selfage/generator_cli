@@ -1,6 +1,6 @@
 import { EnumDefinition } from "./definition";
 import { OutputContentBuilder } from "./output_content_builder";
-import { generateComment, toUpperSnaked } from "./util";
+import { generateComment, toUppercaseSnaked } from "./util";
 
 export function generateEnumDescriptor(
   modulePath: string,
@@ -20,7 +20,7 @@ export enum ${enumName} {`);
 `);
 
   outputContentBuilder.importFromMessageDescriptor("EnumDescriptor");
-  let descriptorName = toUpperSnaked(enumName);
+  let descriptorName = toUppercaseSnaked(enumName);
   outputContentBuilder.push(`
 export let ${descriptorName}: EnumDescriptor<${enumName}> = {
   name: '${enumName}',

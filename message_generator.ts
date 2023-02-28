@@ -1,7 +1,7 @@
 import { MessageDefinition } from "./definition";
 import { OutputContentBuilder } from "./output_content_builder";
 import { TypeLoader } from "./type_loader";
-import { generateComment, toUpperSnaked } from "./util";
+import { generateComment, toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
 
@@ -30,7 +30,7 @@ export interface ${messageName} {`);
 `);
 
   outputContentBuilder.importFromMessageDescriptor("MessageDescriptor");
-  let descriptorName = toUpperSnaked(messageName);
+  let descriptorName = toUppercaseSnaked(messageName);
   outputContentBuilder.push(`
 export let ${descriptorName}: MessageDescriptor<${messageName}> = {
   name: '${messageName}',
@@ -50,7 +50,7 @@ export let ${descriptorName}: MessageDescriptor<${messageName}> = {
       }
 
       if (typeDefinition.enum) {
-        let enumDescriptorName = toUpperSnaked(field.type);
+        let enumDescriptorName = toUppercaseSnaked(field.type);
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
@@ -59,7 +59,7 @@ export let ${descriptorName}: MessageDescriptor<${messageName}> = {
         outputContentBuilder.push(`
       enumType: ${enumDescriptorName},`);
       } else if (typeDefinition.message) {
-        let messageDescriptorName = toUpperSnaked(field.type);
+        let messageDescriptorName = toUppercaseSnaked(field.type);
         outputContentBuilder.importFromPath(
           field.import,
           field.type,

@@ -5,7 +5,8 @@ import { TypeLoader } from "./type_loader";
 import {
   normalizeRelativePathForNode,
   reverseImport,
-  toUpperSnaked,
+  toInitalLowercased,
+  toUppercaseSnaked,
   transitImport,
 } from "./util";
 
@@ -19,7 +20,7 @@ export function generateServiceDescriptor(
   typeLoader: TypeLoader,
   contentMap: Map<string, OutputContentBuilder>
 ): void {
-  let serviceDescriptorName = toUpperSnaked(serviceName);
+  let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
   outputContentBuilder.importFromServiceDescriptor("ServiceDescriptor");
   outputContentBuilder.push(`
@@ -44,7 +45,7 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
       );
     }
 
-    let requestDescriptorName = toUpperSnaked(serviceDefinition.body);
+    let requestDescriptorName = toUppercaseSnaked(serviceDefinition.body);
     outputContentBuilder.importFromPath(
       serviceDefinition.importBody,
       requestDescriptorName
@@ -55,35 +56,33 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
   },`);
   }
 
-  if (serviceDefinition.signedUserSession) {
-    let signedUserSessionDescriptorName = toUpperSnaked(
-      serviceDefinition.signedUserSession.type
-    );
+  if (serviceDefinition.auth) {
+    let authDescriptorName = toUppercaseSnaked(serviceDefinition.auth.type);
     outputContentBuilder.importFromPath(
-      serviceDefinition.signedUserSession.import,
-      signedUserSessionDescriptorName
+      serviceDefinition.auth.import,
+      authDescriptorName
     );
     outputContentBuilder.push(`
-  signedUserSession: {
-    key: "${serviceDefinition.signedUserSession.key}",
-    type: ${signedUserSessionDescriptorName}
+  auth: {
+    key: "${serviceDefinition.auth.key}",
+    type: ${authDescriptorName}
   },`);
   }
 
-  if (serviceDefinition.side) {
-    let sideDescriptorName = toUpperSnaked(serviceDefinition.side.type);
+  if (serviceDefinition.metadata) {
+    let sideDescriptorName = toUppercaseSnaked(serviceDefinition.metadata.type);
     outputContentBuilder.importFromPath(
-      serviceDefinition.side.import,
+      serviceDefinition.metadata.import,
       sideDescriptorName
     );
     outputContentBuilder.push(`
   side: {
-    key: "${serviceDefinition.side.key}",
+    key: "${serviceDefinition.metadata.key}",
     type: ${sideDescriptorName},
   },`);
   }
 
-  let responseDescriptorName = toUpperSnaked(serviceDefinition.response);
+  let responseDescriptorName = toUppercaseSnaked(serviceDefinition.response);
   outputContentBuilder.importFromPath(
     serviceDefinition.importResponse,
     responseDescriptorName
@@ -110,7 +109,7 @@ function generateWebClient(
   serviceDefinition: ServiceDefinition,
   contentMap: Map<string, OutputContentBuilder>
 ): void {
-  let serviceDescriptorName = toUpperSnaked(serviceName);
+  let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputWebClientPath = normalizeRelativePathForNode(
     path.join(path.dirname(modulePath), serviceDefinition.outputWebClient)
   );
@@ -119,13 +118,18 @@ function generateWebClient(
     outputWebClientPath
   );
   let importDescriptorPath = reverseImport(modulePath, outputWebClientPath);
+
+  outputWebClientContentBuilder.importFromWebServiceClientInterface(
+    "WebServiceClientInterface"
+  );
   outputWebClientContentBuilder.push(`
-export interface ${serviceName}ClientRequest {`);
+export function ${toInitalLowercased(serviceName)}(
+  client: WebServiceClientInterface,`);
 
   if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
     if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
       outputWebClientContentBuilder.push(`
-  body: Blob;`);
+  body: Blob,`);
     } else {
       throw new Error(
         `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating web client.`
@@ -137,22 +141,18 @@ export interface ${serviceName}ClientRequest {`);
       serviceDefinition.body
     );
     outputWebClientContentBuilder.push(`
-  body: ${serviceDefinition.body};`);
+  body: ${serviceDefinition.body},`);
   }
 
-  if (serviceDefinition.side) {
+  if (serviceDefinition.metadata) {
     outputWebClientContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.side.import),
-      serviceDefinition.side.type
+      transitImport(importDescriptorPath, serviceDefinition.metadata.import),
+      serviceDefinition.metadata.type
     );
     outputWebClientContentBuilder.push(`
-  side: ${serviceDefinition.side.type};`);
+  metadata: ${serviceDefinition.metadata.type},`);
   }
-  outputWebClientContentBuilder.push(`
-}
-`);
 
-  outputWebClientContentBuilder.importFromServiceDescriptor('WebServiceRequest');
   outputWebClientContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
     serviceDefinition.response
@@ -162,13 +162,18 @@ export interface ${serviceName}ClientRequest {`);
     serviceDescriptorName
   );
   outputWebClientContentBuilder.push(`
-export function new${serviceName}ServiceRequest(
-  request: ${serviceName}ClientRequest
-): WebServiceRequest<${serviceName}ClientRequest, ${serviceDefinition.response}> {
-  return {
+): Promise<${serviceDefinition.response}> {
+  return client.send({
     descriptor: ${serviceDescriptorName},
-    request,
-  };
+    body,`);
+
+  if (serviceDefinition.metadata) {
+    outputWebClientContentBuilder.push(`
+    metadata,`);
+  }
+
+  outputWebClientContentBuilder.push(`
+  });
 }
 `);
 }
@@ -179,7 +184,7 @@ function generateHandler(
   serviceDefinition: ServiceDefinition,
   contentMap: Map<string, OutputContentBuilder>
 ): void {
-  let serviceDescriptorName = toUpperSnaked(serviceName);
+  let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputHandlerPath = normalizeRelativePathForNode(
     path.join(path.dirname(modulePath), serviceDefinition.outputHandler)
   );
@@ -188,15 +193,25 @@ function generateHandler(
     outputHandlerPath
   );
   let importDescriptorPath = reverseImport(modulePath, outputHandlerPath);
+
+  outputHandlerContentBuilder.importFromServiceHandlerInterface(
+    "ServiceHandlerInterface"
+  );
+  outputHandlerContentBuilder.importFromPath(
+    importDescriptorPath,
+    serviceDescriptorName
+  );
   outputHandlerContentBuilder.push(`
-export interface ${serviceName}HandlerRequest {
-  requestId: string;`);
+export abstract class ${serviceName}HandlerInterface implements ServiceHandlerInterface {
+  public descriptor = ${serviceDescriptorName};
+  public abstract handle(
+    requestId: string,`);
 
   if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
     if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
       outputHandlerContentBuilder.importFromPath("stream", "Readable");
       outputHandlerContentBuilder.push(`
-  body: Readable;`);
+    body: Readable,`);
     } else {
       throw new Error(
         `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating handler.`
@@ -208,49 +223,32 @@ export interface ${serviceName}HandlerRequest {
       serviceDefinition.body
     );
     outputHandlerContentBuilder.push(`
-  body: ${serviceDefinition.body};`);
+    body: ${serviceDefinition.body},`);
   }
 
-  if (serviceDefinition.signedUserSession) {
+  if (serviceDefinition.metadata) {
     outputHandlerContentBuilder.importFromPath(
-      transitImport(
-        importDescriptorPath,
-        serviceDefinition.signedUserSession.import
-      ),
-      serviceDefinition.signedUserSession.type
+      transitImport(importDescriptorPath, serviceDefinition.metadata.import),
+      serviceDefinition.metadata.type
     );
     outputHandlerContentBuilder.push(`
-  userSession: ${serviceDefinition.signedUserSession.type}`);
+      metadata: ${serviceDefinition.metadata.type},`);
   }
 
-  if (serviceDefinition.side) {
+  if (serviceDefinition.auth) {
     outputHandlerContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.side.import),
-      serviceDefinition.side.type
+      transitImport(importDescriptorPath, serviceDefinition.auth.import),
+      serviceDefinition.auth.type
     );
     outputHandlerContentBuilder.push(`
-  side: ${serviceDefinition.side.type};`);
+    auth: ${serviceDefinition.auth.type},`);
   }
-  outputHandlerContentBuilder.push(`
-}
-`);
 
-outputHandlerContentBuilder.importFromServiceDescriptor('ServiceHandler');
   outputHandlerContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
     serviceDefinition.response
   );
-  outputHandlerContentBuilder.importFromPath(
-    importDescriptorPath,
-    serviceDescriptorName
-  );
   outputHandlerContentBuilder.push(`
-export abstract class ${serviceName}HandlerInterface
-  implements ServiceHandler<${serviceName}HandlerRequest, ${serviceDefinition.response}>
-{
-  public descriptor = ${serviceDescriptorName};
-  public abstract handle(
-    args: ${serviceName}HandlerRequest
   ): Promise<${serviceDefinition.response}>;
 }
 `);

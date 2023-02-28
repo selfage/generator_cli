@@ -76,7 +76,7 @@ export interface ObservableDefinition {
   comment?: string;
 }
 
-export interface ServiceSearchParamDefinition {
+export interface KeyValueParamDefinition {
   // The key of the search param.
   key: string;
   // Can only be the name of a message.
@@ -88,14 +88,14 @@ export interface ServiceSearchParamDefinition {
 export interface ServiceDefinition {
   // The pathname of a url. Must start with "/".
   path: string;
-  // It will be sent as a URL search param.
-  signedUserSession?: ServiceSearchParamDefinition;
-  // Prefer `body` when possible. It will be sent as a URL search param.
-  side?: ServiceSearchParamDefinition;
   // The body in a HTTP request. Support either 'bytes' or the name of a message.
   body: string;
   // Resolves import path the same way as Node. Do not include '.json'.
   importBody?: string;
+  // Authorization related information. E.g. a user session.  
+  auth?: KeyValueParamDefinition;
+  // Prefer `body` when possible. Often used when body is a bytes stream.
+  metadata?: KeyValueParamDefinition;
   // Support only the name of a message.
   response: string;
   // Resolves import path the same way as Node. Do not include '.json'.

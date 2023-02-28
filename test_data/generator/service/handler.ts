@@ -1,35 +1,21 @@
+import { ServiceHandlerInterface } from '@selfage/service_descriptor/service_handler_interface';
+import { GET_COMMENTS, UPLOAD_FILE } from './service';
 import { GetCommentsRequest, GetCommentsResponse } from './sub/get_comments';
-import { ServiceHandler } from '@selfage/service_descriptor';
-import { GET_COMMENTS, UserSession, UPLOAD_FILE } from './service';
 import { Readable } from 'stream';
-import { UploadFileRequestSide, UploadFileResponse } from './sub/upload_file';
+import { UploadFileResponse } from './sub/upload_file';
 
-export interface GetCommentsHandlerRequest {
-  requestId: string;
-  body: GetCommentsRequest;
-}
-
-export abstract class GetCommentsHandlerInterface
-  implements ServiceHandler<GetCommentsHandlerRequest, GetCommentsResponse>
-{
+export abstract class GetCommentsHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
-    args: GetCommentsHandlerRequest
+    requestId: string,
+    body: GetCommentsRequest,
   ): Promise<GetCommentsResponse>;
 }
 
-export interface UploadFileHandlerRequest {
-  requestId: string;
-  body: Readable;
-  userSession: UserSession
-  side: UploadFileRequestSide;
-}
-
-export abstract class UploadFileHandlerInterface
-  implements ServiceHandler<UploadFileHandlerRequest, UploadFileResponse>
-{
+export abstract class UploadFileHandlerInterface implements ServiceHandlerInterface {
   public descriptor = UPLOAD_FILE;
   public abstract handle(
-    args: UploadFileHandlerRequest
+    requestId: string,
+    body: Readable,
   ): Promise<UploadFileResponse>;
 }

@@ -19,9 +19,9 @@ TEST_RUNNER.run({
             importPath?: string
           ): Definition {
             this.called.increment("getDefinition");
-            assertThat(typeName, eq("GetCommentsRequest"), `typeName`);
+            assertThat(typeName, eq("GetCommentsRequestBody"), `typeName`);
             assertThat(importPath, eq(undefined), `importPath`);
-            return { name: "GetCommentsRequest", message: { fields: [] } };
+            return { name: "GetCommentsRequestBody", message: { fields: [] } };
           }
         })();
 
@@ -31,7 +31,7 @@ TEST_RUNNER.run({
           "GetComments",
           {
             path: "/get_comments",
-            body: "GetCommentsRequest",
+            body: "GetCommentsRequestBody",
             response: "GetCommentsResponse",
             outputWebClient: "../web/client",
             outputHandler: "../backend/handler",
@@ -54,7 +54,7 @@ export let GET_COMMENTS: ServiceDescriptor = {
   name: "GetComments",
   path: "/get_comments",
   body: {
-    messageType: GET_COMMENTS_REQUEST,
+    messageType: GET_COMMENTS_REQUEST_BODY,
   },
   response: {
     messageType: GET_COMMENTS_RESPONSE,
@@ -65,40 +65,31 @@ export let GET_COMMENTS: ServiceDescriptor = {
         );
         assertThat(
           contentMap.get("./web/client").toString(),
-          eq(`import { GetCommentsRequest, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
-import { WebServiceRequest } from '@selfage/service_descriptor';
+          eq(`import { WebServiceClientInterface } from '@selfage/service_descriptor/web_service_client_interface';
+import { GetCommentsRequestBody, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
 
-export interface GetCommentsClientRequest {
-  body: GetCommentsRequest;
-}
-
-export function newGetCommentsServiceRequest(
-  request: GetCommentsClientRequest
-): WebServiceRequest<GetCommentsClientRequest, GetCommentsResponse> {
-  return {
+export function getComments(
+  client: WebServiceClientInterface,
+  body: GetCommentsRequestBody,
+): Promise<GetCommentsResponse> {
+  return client.send({
     descriptor: GET_COMMENTS,
-    request,
-  };
+    body,
+  });
 }
 `),
           "output web client content"
         );
         assertThat(
           contentMap.get("./backend/handler").toString(),
-          eq(`import { GetCommentsRequest, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
-import { ServiceHandler } from '@selfage/service_descriptor';
+          eq(`import { ServiceHandlerInterface } from '@selfage/service_descriptor/service_handler_interface';
+import { GET_COMMENTS, GetCommentsRequestBody, GetCommentsResponse } from '../interface/get_comments';
 
-export interface GetCommentsHandlerRequest {
-  requestId: string;
-  body: GetCommentsRequest;
-}
-
-export abstract class GetCommentsHandlerInterface
-  implements ServiceHandler<GetCommentsHandlerRequest, GetCommentsResponse>
-{
+export abstract class GetCommentsHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
-    args: GetCommentsHandlerRequest
+    requestId: string,
+    body: GetCommentsRequestBody,
   ): Promise<GetCommentsResponse>;
 }
 `),
@@ -117,9 +108,9 @@ export abstract class GetCommentsHandlerInterface
             importPath?: string
           ): Definition {
             this.called.increment("getDefinition");
-            assertThat(typeName, eq("GetHistoryequest"), `typeName`);
+            assertThat(typeName, eq("GetHistoryRequestBody"), `typeName`);
             assertThat(importPath, eq("./request"), `importPath`);
-            return { name: "GetCommentsRequest", message: { fields: [] } };
+            return { name: "GetHistoryRequestBody", message: { fields: [] } };
           }
         })();
 
@@ -129,12 +120,12 @@ export abstract class GetCommentsHandlerInterface
           "GetHistory",
           {
             path: "/get_history",
-            signedUserSession: {
+            auth: {
               key: "s",
               type: "UserSession",
               import: "./user_session",
             },
-            body: "GetHistoryequest",
+            body: "GetHistoryRequestBody",
             importBody: "./request",
             response: "GetHistoryResponse",
             importResponse: "./response",
@@ -154,7 +145,7 @@ export abstract class GetCommentsHandlerInterface
         assertThat(
           contentMap.get("./interface/get_history").toString(),
           eq(`import { ServiceDescriptor } from '@selfage/service_descriptor';
-import { GET_HISTORYEQUEST } from './request';
+import { GET_HISTORY_REQUEST_BODY } from './request';
 import { USER_SESSION } from './user_session';
 import { GET_HISTORY_RESPONSE } from './response';
 
@@ -162,9 +153,9 @@ export let GET_HISTORY: ServiceDescriptor = {
   name: "GetHistory",
   path: "/get_history",
   body: {
-    messageType: GET_HISTORYEQUEST,
+    messageType: GET_HISTORY_REQUEST_BODY,
   },
-  signedUserSession: {
+  auth: {
     key: "s",
     type: USER_SESSION
   },
@@ -177,46 +168,37 @@ export let GET_HISTORY: ServiceDescriptor = {
         );
         assertThat(
           contentMap.get("./web/client").toString(),
-          eq(`import { GetHistoryequest } from '../interface/request';
-import { WebServiceRequest } from '@selfage/service_descriptor';
+          eq(`import { WebServiceClientInterface } from '@selfage/service_descriptor/web_service_client_interface';
+import { GetHistoryRequestBody } from '../interface/request';
 import { GetHistoryResponse } from '../interface/response';
 import { GET_HISTORY } from '../interface/get_history';
 
-export interface GetHistoryClientRequest {
-  body: GetHistoryequest;
-}
-
-export function newGetHistoryServiceRequest(
-  request: GetHistoryClientRequest
-): WebServiceRequest<GetHistoryClientRequest, GetHistoryResponse> {
-  return {
+export function getHistory(
+  client: WebServiceClientInterface,
+  body: GetHistoryRequestBody,
+): Promise<GetHistoryResponse> {
+  return client.send({
     descriptor: GET_HISTORY,
-    request,
-  };
+    body,
+  });
 }
 `),
           "output web client content"
         );
         assertThat(
           contentMap.get("./backend/handler").toString(),
-          eq(`import { GetHistoryequest } from '../interface/request';
-import { UserSession } from '../interface/user_session';
-import { ServiceHandler } from '@selfage/service_descriptor';
-import { GetHistoryResponse } from '../interface/response';
+          eq(`import { ServiceHandlerInterface } from '@selfage/service_descriptor/service_handler_interface';
 import { GET_HISTORY } from '../interface/get_history';
+import { GetHistoryRequestBody } from '../interface/request';
+import { UserSession } from '../interface/user_session';
+import { GetHistoryResponse } from '../interface/response';
 
-export interface GetHistoryHandlerRequest {
-  requestId: string;
-  body: GetHistoryequest;
-  userSession: UserSession
-}
-
-export abstract class GetHistoryHandlerInterface
-  implements ServiceHandler<GetHistoryHandlerRequest, GetHistoryResponse>
-{
+export abstract class GetHistoryHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_HISTORY;
   public abstract handle(
-    args: GetHistoryHandlerRequest
+    requestId: string,
+    body: GetHistoryRequestBody,
+    auth: UserSession,
   ): Promise<GetHistoryResponse>;
 }
 `),
@@ -233,12 +215,12 @@ export abstract class GetHistoryHandlerInterface
         // Execute
         generateServiceDescriptor(
           "./interface/upload_file",
-          "GetHistory",
+          "UploadFile",
           {
             path: "/upload_file",
-            side: {
+            metadata: {
               key: "s",
-              type: "UploadFileRequestSide",
+              type: "UploadFileMetadata",
             },
             body: "bytes",
             response: "UploadFileResponse",
@@ -254,15 +236,15 @@ export abstract class GetHistoryHandlerInterface
           contentMap.get("./interface/upload_file").toString(),
           eq(`import { ServiceDescriptor, PrimitveTypeForBody } from '@selfage/service_descriptor';
 
-export let GET_HISTORY: ServiceDescriptor = {
-  name: "GetHistory",
+export let UPLOAD_FILE: ServiceDescriptor = {
+  name: "UploadFile",
   path: "/upload_file",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
   },
   side: {
     key: "s",
-    type: UPLOAD_FILE_REQUEST_SIDE,
+    type: UPLOAD_FILE_METADATA,
   },
   response: {
     messageType: UPLOAD_FILE_RESPONSE,
@@ -273,43 +255,35 @@ export let GET_HISTORY: ServiceDescriptor = {
         );
         assertThat(
           contentMap.get("./interface/client").toString(),
-          eq(`import { UploadFileRequestSide, UploadFileResponse, GET_HISTORY } from './upload_file';
-import { WebServiceRequest } from '@selfage/service_descriptor';
+          eq(`import { WebServiceClientInterface } from '@selfage/service_descriptor/web_service_client_interface';
+import { UploadFileMetadata, UploadFileResponse, UPLOAD_FILE } from './upload_file';
 
-export interface GetHistoryClientRequest {
-  body: Blob;
-  side: UploadFileRequestSide;
-}
-
-export function newGetHistoryServiceRequest(
-  request: GetHistoryClientRequest
-): WebServiceRequest<GetHistoryClientRequest, UploadFileResponse> {
-  return {
-    descriptor: GET_HISTORY,
-    request,
-  };
+export function uploadFile(
+  client: WebServiceClientInterface,
+  body: Blob,
+  metadata: UploadFileMetadata,
+): Promise<UploadFileResponse> {
+  return client.send({
+    descriptor: UPLOAD_FILE,
+    body,
+    metadata,
+  });
 }
 `),
           "output web client content"
         );
         assertThat(
           contentMap.get("./interface/handler").toString(),
-          eq(`import { Readable } from 'stream';
-import { UploadFileRequestSide, UploadFileResponse, GET_HISTORY } from './upload_file';
-import { ServiceHandler } from '@selfage/service_descriptor';
+          eq(`import { ServiceHandlerInterface } from '@selfage/service_descriptor/service_handler_interface';
+import { UPLOAD_FILE, UploadFileMetadata, UploadFileResponse } from './upload_file';
+import { Readable } from 'stream';
 
-export interface GetHistoryHandlerRequest {
-  requestId: string;
-  body: Readable;
-  side: UploadFileRequestSide;
-}
-
-export abstract class GetHistoryHandlerInterface
-  implements ServiceHandler<GetHistoryHandlerRequest, UploadFileResponse>
-{
-  public descriptor = GET_HISTORY;
+export abstract class UploadFileHandlerInterface implements ServiceHandlerInterface {
+  public descriptor = UPLOAD_FILE;
   public abstract handle(
-    args: GetHistoryHandlerRequest
+    requestId: string,
+    body: Readable,
+      metadata: UploadFileMetadata,
   ): Promise<UploadFileResponse>;
 }
 `),

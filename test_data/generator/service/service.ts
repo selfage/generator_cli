@@ -1,7 +1,7 @@
 import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
 import { ServiceDescriptor, PrimitveTypeForBody } from '@selfage/service_descriptor';
 import { GET_COMMENTS_REQUEST, GET_COMMENTS_RESPONSE } from './sub/get_comments';
-import { UPLOAD_FILE_REQUEST_SIDE, UPLOAD_FILE_RESPONSE } from './sub/upload_file';
+import { UPLOAD_FILE_RESPONSE } from './sub/upload_file';
 
 export interface UserSession {
   userId?: string,
@@ -38,14 +38,6 @@ export let UPLOAD_FILE: ServiceDescriptor = {
   path: "/UploadFile",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
-  },
-  signedUserSession: {
-    key: "su",
-    type: USER_SESSION
-  },
-  side: {
-    key: "sd",
-    type: UPLOAD_FILE_REQUEST_SIDE,
   },
   response: {
     messageType: UPLOAD_FILE_RESPONSE,
