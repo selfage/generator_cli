@@ -242,7 +242,7 @@ export let UPLOAD_FILE: ServiceDescriptor = {
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
   },
-  side: {
+  metadata: {
     key: "s",
     type: UPLOAD_FILE_METADATA,
   },
@@ -283,7 +283,7 @@ export abstract class UploadFileHandlerInterface implements ServiceHandlerInterf
   public abstract handle(
     requestId: string,
     body: Readable,
-      metadata: UploadFileMetadata,
+    metadata: UploadFileMetadata,
   ): Promise<UploadFileResponse>;
 }
 `),

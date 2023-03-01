@@ -76,7 +76,7 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
       sideDescriptorName
     );
     outputContentBuilder.push(`
-  side: {
+  metadata: {
     key: "${serviceDefinition.metadata.key}",
     type: ${sideDescriptorName},
   },`);
@@ -232,7 +232,7 @@ export abstract class ${serviceName}HandlerInterface implements ServiceHandlerIn
       serviceDefinition.metadata.type
     );
     outputHandlerContentBuilder.push(`
-      metadata: ${serviceDefinition.metadata.type},`);
+    metadata: ${serviceDefinition.metadata.type},`);
   }
 
   if (serviceDefinition.auth) {
