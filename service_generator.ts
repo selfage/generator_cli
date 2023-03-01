@@ -70,15 +70,17 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
   }
 
   if (serviceDefinition.metadata) {
-    let sideDescriptorName = toUppercaseSnaked(serviceDefinition.metadata.type);
+    let metadataDescriptorName = toUppercaseSnaked(
+      serviceDefinition.metadata.type
+    );
     outputContentBuilder.importFromPath(
       serviceDefinition.metadata.import,
-      sideDescriptorName
+      metadataDescriptorName
     );
     outputContentBuilder.push(`
   metadata: {
     key: "${serviceDefinition.metadata.key}",
-    type: ${sideDescriptorName},
+    type: ${metadataDescriptorName},
   },`);
   }
 
