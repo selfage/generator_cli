@@ -2,7 +2,7 @@ import { Definition } from "./definition";
 import { MockTypeLoader } from "./mocks";
 import { OutputContentBuilder } from "./output_content_builder";
 import { generateServiceDescriptor } from "./service_generator";
-import { assertThat, eq } from "@selfage/test_matcher";
+import { assertThat, eq, containStr } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
@@ -202,6 +202,63 @@ export abstract class GetHistoryHandlerInterface implements ServiceHandlerInterf
   ): Promise<GetHistoryResponse>;
 }
 `),
+          "output handler content"
+        );
+      },
+    },
+    {
+      name: "GetHistoryServiceWithExternalUserSession",
+      execute: () => {
+        // Prepare
+        let contentMap = new Map<string, OutputContentBuilder>();
+        let mockTypeLoader = new (class extends MockTypeLoader {
+          public getDefinition(
+            typeName: string,
+            importPath?: string
+          ): Definition {
+            this.called.increment("getDefinition");
+            assertThat(typeName, eq("GetHistoryRequestBody"), `typeName`);
+            assertThat(importPath, eq("./request"), `importPath`);
+            return { name: "GetHistoryRequestBody", message: { fields: [] } };
+          }
+        })();
+
+        // Execute
+        generateServiceDescriptor(
+          "./interface/get_history",
+          "GetHistory",
+          {
+            path: "/get_history",
+            auth: {
+              key: "s",
+              type: "UserSession",
+              import: "@package/user_session",
+            },
+            body: "GetHistoryRequestBody",
+            importBody: "./request",
+            response: "GetHistoryResponse",
+            importResponse: "./response",
+            outputWebClient: "../web/client",
+            outputHandler: "../backend/handler",
+          },
+          mockTypeLoader,
+          contentMap
+        );
+
+        // Verify
+        assertThat(
+          mockTypeLoader.called.get("getDefinition"),
+          eq(1),
+          "getDefinition called"
+        );
+        assertThat(
+          contentMap.get("./interface/get_history").toString(),
+          containStr("import { USER_SESSION } from '@package/user_session';"),
+          "output content"
+        );
+        assertThat(
+          contentMap.get("./backend/handler").toString(),
+          containStr("import { UserSession } from '@package/user_session';"),
           "output handler content"
         );
       },

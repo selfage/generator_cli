@@ -1,4 +1,4 @@
-import path = require('path');
+import path = require("path");
 
 let UPPER_CASES_REGEXP = /[A-Z]/;
 
@@ -60,13 +60,15 @@ export function transitImport(
   firstImport: string,
   secondImport: string | undefined
 ): string | undefined {
-  let importPath: string;
   if (secondImport) {
-    importPath = normalizeRelativePathForNode(
-      path.join(path.dirname(firstImport), secondImport)
-    );
+    if (secondImport.startsWith("../") || secondImport.startsWith("./")) {
+      return normalizeRelativePathForNode(
+        path.join(path.dirname(firstImport), secondImport)
+      );
+    } else {
+      return secondImport;
+    }
   } else {
-    importPath = firstImport;
+    return firstImport;
   }
-  return importPath;
 }
