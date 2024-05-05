@@ -11,13 +11,13 @@ async function main(): Promise<void> {
   let packageConfig = JSON.parse(
     (
       await fs.promises.readFile(path.join(__dirname, "package.json"))
-    ).toString()
+    ).toString(),
   );
   let program = new Command();
   program
     .version(packageConfig.version)
     .description(
-      `Generate various TypeScript codes from the definition file written in JSON.`
+      `Generate various TypeScript codes from the definition file written in JSON.`,
     )
     .argument("<definitionFile>")
     .option(
@@ -27,15 +27,19 @@ async function main(): Promise<void> {
         FIXED_FILE_EXT +
         `.yaml. Requried only if your definition file includes a datastore ` +
         `definition. You can also add '"datastoreIndex": "./your/index_file"'` +
-        ` to your package.json file to save typings.`
+        ` to your package.json file to save typings.`,
     )
     .option(
       "--dry-run",
       "Print the generated content instead of writing it to the destination " +
-        "file."
+        "file.",
     )
     .action((definitionFile, options) => {
-      generate(definitionFile, options.indexFile, options.dryRun);
+      generate(
+        definitionFile.split(path.sep).join(path.posix.sep),
+        options.indexFile,
+        options.dryRun,
+      );
     })
     .parse();
 }
