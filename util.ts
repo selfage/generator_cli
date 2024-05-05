@@ -46,9 +46,9 @@ export function normalizeRelativePathForNode(relativePath: string): string {
 // outputPath is relative to `basePath`. Return the relative path to import
 // `basePath` from `outputPath`.
 export function reverseImport(basePath: string, outputPath: string): string {
-  let absoluteOutputPath = path.resolve(outputPath);
+  let absoluteOutputPath = path.posix.resolve(outputPath);
   return normalizeRelativePathForNode(
-    path.relative(path.dirname(absoluteOutputPath), basePath)
+    path.posix.relative(path.posix.dirname(absoluteOutputPath), basePath),
   );
 }
 
@@ -58,12 +58,12 @@ export function reverseImport(basePath: string, outputPath: string): string {
 // `undefined`, it means to import `firstImport`.
 export function transitImport(
   firstImport: string,
-  secondImport: string | undefined
+  secondImport: string | undefined,
 ): string | undefined {
   if (secondImport) {
     if (secondImport.startsWith("../") || secondImport.startsWith("./")) {
       return normalizeRelativePathForNode(
-        path.join(path.dirname(firstImport), secondImport)
+        path.posix.join(path.posix.dirname(firstImport), secondImport),
       );
     } else {
       return secondImport;

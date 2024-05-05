@@ -18,7 +18,7 @@ export function generateServiceDescriptor(
   serviceName: string,
   serviceDefinition: ServiceDefinition,
   typeLoader: TypeLoader,
-  contentMap: Map<string, OutputContentBuilder>
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
@@ -37,18 +37,18 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
   } else {
     let requestDefinition = typeLoader.getDefinition(
       serviceDefinition.body,
-      serviceDefinition.importBody
+      serviceDefinition.importBody,
     );
     if (!requestDefinition || !requestDefinition.message) {
       throw new Error(
-        `Request body ${serviceDefinition.body} is not found or not a message.`
+        `Request body ${serviceDefinition.body} is not found or not a message.`,
       );
     }
 
     let requestDescriptorName = toUppercaseSnaked(serviceDefinition.body);
     outputContentBuilder.importFromPath(
       serviceDefinition.importBody,
-      requestDescriptorName
+      requestDescriptorName,
     );
     outputContentBuilder.push(`
   body: {
@@ -60,7 +60,7 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
     let authDescriptorName = toUppercaseSnaked(serviceDefinition.auth.type);
     outputContentBuilder.importFromPath(
       serviceDefinition.auth.import,
-      authDescriptorName
+      authDescriptorName,
     );
     outputContentBuilder.push(`
   auth: {
@@ -71,11 +71,11 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
 
   if (serviceDefinition.metadata) {
     let metadataDescriptorName = toUppercaseSnaked(
-      serviceDefinition.metadata.type
+      serviceDefinition.metadata.type,
     );
     outputContentBuilder.importFromPath(
       serviceDefinition.metadata.import,
-      metadataDescriptorName
+      metadataDescriptorName,
     );
     outputContentBuilder.push(`
   metadata: {
@@ -87,7 +87,7 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
   let responseDescriptorName = toUppercaseSnaked(serviceDefinition.response);
   outputContentBuilder.importFromPath(
     serviceDefinition.importResponse,
-    responseDescriptorName
+    responseDescriptorName,
   );
   outputContentBuilder.push(`
   response: {
@@ -109,20 +109,23 @@ function generateWebClient(
   modulePath: string,
   serviceName: string,
   serviceDefinition: ServiceDefinition,
-  contentMap: Map<string, OutputContentBuilder>
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputWebClientPath = normalizeRelativePathForNode(
-    path.join(path.dirname(modulePath), serviceDefinition.outputWebClient)
+    path.posix.join(
+      path.posix.dirname(modulePath),
+      serviceDefinition.outputWebClient,
+    ),
   );
   let outputWebClientContentBuilder = OutputContentBuilder.get(
     contentMap,
-    outputWebClientPath
+    outputWebClientPath,
   );
   let importDescriptorPath = reverseImport(modulePath, outputWebClientPath);
 
   outputWebClientContentBuilder.importFromWebServiceClientInterface(
-    "WebServiceClientInterface"
+    "WebServiceClientInterface",
   );
   outputWebClientContentBuilder.push(`
 export function ${toInitalLowercased(serviceName)}(
@@ -134,13 +137,13 @@ export function ${toInitalLowercased(serviceName)}(
   body: Blob,`);
     } else {
       throw new Error(
-        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating web client.`
+        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating web client.`,
       );
     }
   } else {
     outputWebClientContentBuilder.importFromPath(
       transitImport(importDescriptorPath, serviceDefinition.importBody),
-      serviceDefinition.body
+      serviceDefinition.body,
     );
     outputWebClientContentBuilder.push(`
   body: ${serviceDefinition.body},`);
@@ -149,7 +152,7 @@ export function ${toInitalLowercased(serviceName)}(
   if (serviceDefinition.metadata) {
     outputWebClientContentBuilder.importFromPath(
       transitImport(importDescriptorPath, serviceDefinition.metadata.import),
-      serviceDefinition.metadata.type
+      serviceDefinition.metadata.type,
     );
     outputWebClientContentBuilder.push(`
   metadata: ${serviceDefinition.metadata.type},`);
@@ -157,11 +160,11 @@ export function ${toInitalLowercased(serviceName)}(
 
   outputWebClientContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
-    serviceDefinition.response
+    serviceDefinition.response,
   );
   outputWebClientContentBuilder.importFromPath(
     importDescriptorPath,
-    serviceDescriptorName
+    serviceDescriptorName,
   );
   outputWebClientContentBuilder.push(`
 ): Promise<${serviceDefinition.response}> {
@@ -184,24 +187,27 @@ function generateHandler(
   modulePath: string,
   serviceName: string,
   serviceDefinition: ServiceDefinition,
-  contentMap: Map<string, OutputContentBuilder>
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let serviceDescriptorName = toUppercaseSnaked(serviceName);
   let outputHandlerPath = normalizeRelativePathForNode(
-    path.join(path.dirname(modulePath), serviceDefinition.outputHandler)
+    path.posix.join(
+      path.posix.dirname(modulePath),
+      serviceDefinition.outputHandler,
+    ),
   );
   let outputHandlerContentBuilder = OutputContentBuilder.get(
     contentMap,
-    outputHandlerPath
+    outputHandlerPath,
   );
   let importDescriptorPath = reverseImport(modulePath, outputHandlerPath);
 
   outputHandlerContentBuilder.importFromServiceHandlerInterface(
-    "ServiceHandlerInterface"
+    "ServiceHandlerInterface",
   );
   outputHandlerContentBuilder.importFromPath(
     importDescriptorPath,
-    serviceDescriptorName
+    serviceDescriptorName,
   );
   outputHandlerContentBuilder.push(`
 export abstract class ${serviceName}HandlerInterface implements ServiceHandlerInterface {
@@ -216,13 +222,13 @@ export abstract class ${serviceName}HandlerInterface implements ServiceHandlerIn
     body: Readable,`);
     } else {
       throw new Error(
-        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating handler.`
+        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating handler.`,
       );
     }
   } else {
     outputHandlerContentBuilder.importFromPath(
       transitImport(importDescriptorPath, serviceDefinition.importBody),
-      serviceDefinition.body
+      serviceDefinition.body,
     );
     outputHandlerContentBuilder.push(`
     body: ${serviceDefinition.body},`);
@@ -231,7 +237,7 @@ export abstract class ${serviceName}HandlerInterface implements ServiceHandlerIn
   if (serviceDefinition.metadata) {
     outputHandlerContentBuilder.importFromPath(
       transitImport(importDescriptorPath, serviceDefinition.metadata.import),
-      serviceDefinition.metadata.type
+      serviceDefinition.metadata.type,
     );
     outputHandlerContentBuilder.push(`
     metadata: ${serviceDefinition.metadata.type},`);
@@ -240,7 +246,7 @@ export abstract class ${serviceName}HandlerInterface implements ServiceHandlerIn
   if (serviceDefinition.auth) {
     outputHandlerContentBuilder.importFromPath(
       transitImport(importDescriptorPath, serviceDefinition.auth.import),
-      serviceDefinition.auth.type
+      serviceDefinition.auth.type,
     );
     outputHandlerContentBuilder.push(`
     auth: ${serviceDefinition.auth.type},`);
@@ -248,7 +254,7 @@ export abstract class ${serviceName}HandlerInterface implements ServiceHandlerIn
 
   outputHandlerContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
-    serviceDefinition.response
+    serviceDefinition.response,
   );
   outputHandlerContentBuilder.push(`
   ): Promise<${serviceDefinition.response}>;

@@ -33,10 +33,13 @@ export function generateDatastoreModel(
   messageDefinition: MessageDefinition,
   typeLoader: TypeLoader,
   indexBuilder: DatastoreIndexBuilder,
-  contentMap: Map<string, OutputContentBuilder>
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let outputPath = normalizeRelativePathForNode(
-    path.join(path.dirname(modulePath), messageDefinition.datastore.output)
+    path.posix.join(
+      path.posix.dirname(modulePath),
+      messageDefinition.datastore.output,
+    ),
   );
   let outputContentBuilder = OutputContentBuilder.get(contentMap, outputPath);
   let importMessagePath = reverseImport(modulePath, outputPath);
@@ -62,7 +65,7 @@ export function generateDatastoreModel(
       for (let filter of query.filters) {
         if (!OPERATOR_NAME_MAP.has(filter.operator)) {
           throw new Error(
-            `Unknown operator ${filter.operator} on query ${query.name}.`
+            `Unknown operator ${filter.operator} on query ${query.name}.`,
           );
         }
         if (filter.operator !== "=") {
@@ -71,7 +74,7 @@ export function generateDatastoreModel(
           } else if (inequalityFilteredFieldName !== filter.fieldName) {
             throw new Error(
               `More than 1 fields are used in inequality filters in query ` +
-                `${query.name} which is not allowed by Datastore.`
+                `${query.name} which is not allowed by Datastore.`,
             );
           }
         }
@@ -80,7 +83,7 @@ export function generateDatastoreModel(
       indexBuilder.addIndex(messageName, query);
       outputContentBuilder.importFromDatastoreModelDescriptor(
         "DatastoreQuery",
-        "DatastoreFilter"
+        "DatastoreFilter",
       );
       indexContentList.push(`${generateComment(query.comment)}
 export class ${query.name}QueryBuilder {
@@ -93,7 +96,7 @@ export class ${query.name}QueryBuilder {
           ordering.fieldName,
           fieldToDefinitions,
           typeLoader,
-          excludedIndexes
+          excludedIndexes,
         );
         indexContentList.push(`
       {
@@ -119,18 +122,18 @@ export class ${query.name}QueryBuilder {
           filter.fieldName,
           fieldToDefinitions,
           typeLoader,
-          excludedIndexes
+          excludedIndexes,
         );
         if (isEnum) {
           outputContentBuilder.importFromPath(
             transitImport(importMessagePath, fieldDefinition.import),
-            fieldDefinition.type
+            fieldDefinition.type,
           );
         }
         indexContentList.push(`
   public ${OPERATOR_NAME_MAP.get(filter.operator)}${toInitialUppercased(
-          filter.fieldName
-        )}(value: ${fieldDefinition.type}): this {
+    filter.fieldName,
+  )}(value: ${fieldDefinition.type}): this {
     this.datastoreQuery.filters.push({
       fieldName: "${filter.fieldName}",
       fieldValue: value,
@@ -152,13 +155,13 @@ export class ${query.name}QueryBuilder {
   if (!keyDefinition) {
     throw new Error(
       `Datastore key ${messageDefinition.datastore.key} is not found from ` +
-        `${messageName}.`
+        `${messageName}.`,
     );
   }
   if (keyDefinition.type !== "string") {
     throw new Error(
       `Datastore key can only be a string, but it is ` +
-        `${keyDefinition.type}.`
+        `${keyDefinition.type}.`,
     );
   }
   if (keyDefinition.isArray) {
@@ -167,13 +170,13 @@ export class ${query.name}QueryBuilder {
   outputContentBuilder.importFromPath(
     importMessagePath,
     messageName,
-    messageDescriptorName
+    messageDescriptorName,
   );
   outputContentBuilder.importFromDatastoreModelDescriptor(
-    "DatastoreModelDescriptor"
+    "DatastoreModelDescriptor",
   );
   outputContentBuilder.push(`${generateComment(
-    messageDefinition.datastore.comment
+    messageDefinition.datastore.comment,
   )}
 export let ${messageDescriptorName}_MODEL: DatastoreModelDescriptor<${messageName}> = {
   name: "${messageName}",
@@ -189,12 +192,12 @@ function validateFieldAndNeedsToBeIndexed(
   fieldName: string,
   fieldToDefinitions: Map<string, MessageFieldDefinition>,
   typeLoader: TypeLoader,
-  excludedIndexes: Set<string>
+  excludedIndexes: Set<string>,
 ): { fieldDefinition: MessageFieldDefinition; isEnum: boolean } {
   if (!fieldToDefinitions.has(fieldName)) {
     throw new Error(
       `Field ${fieldName} is not defined and cannot be used to be ordered by ` +
-        `or filtered by.`
+        `or filtered by.`,
     );
   }
 
@@ -205,11 +208,11 @@ function validateFieldAndNeedsToBeIndexed(
   } else {
     let typeDefinition = typeLoader.getDefinition(
       fieldDefinition.type,
-      fieldDefinition.import
+      fieldDefinition.import,
     );
     if (!typeDefinition || !typeDefinition.enum) {
       throw new Error(
-        `${fieldName} is of ${fieldDefinition.type} which cannot be used to be ordered by or filtered by in Datastore.`
+        `${fieldName} is of ${fieldDefinition.type} which cannot be used to be ordered by or filtered by in Datastore.`,
       );
     }
 

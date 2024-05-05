@@ -1,19 +1,13 @@
 import fs = require("fs");
 import { generate } from "./generator";
 import { TEST_RUNNER } from "@selfage/test_runner";
-import { spawnSync } from "child_process";
+import { execSync } from "child_process";
 
 function assertCompile(file: string): void {
-  let compilingRes = spawnSync(
-    "npx",
-    ["tsc", "--noImplicitAny", "--moduleResolution", "node", "-t", "ES6", file],
-    {
-      stdio: "inherit",
-    }
-  );
-  if (compilingRes.status !== 0) {
-    throw new Error(`Failed to compile ${file}.`);
-  }
+  execSync(`npx tsc --noImplicitAny --moduleResolution node -t ES6 ${file}`, {
+    stdio: "inherit",
+    windowsHide: true,
+  });
 }
 
 TEST_RUNNER.run({
@@ -69,13 +63,15 @@ TEST_RUNNER.run({
         // Prepare
         fs.writeFileSync(
           "./test_data/generator/datastore/index.yaml",
-          fs.readFileSync("./test_data/generator/datastore/original_index.yaml")
+          fs.readFileSync(
+            "./test_data/generator/datastore/original_index.yaml",
+          ),
         );
 
         // Execute
         generate(
           "./test_data/generator/datastore/task",
-          "./test_data/generator/datastore/index"
+          "./test_data/generator/datastore/index",
         );
 
         // Verify
@@ -88,7 +84,9 @@ TEST_RUNNER.run({
         // Prepare
         fs.writeFileSync(
           "./test_data/generator/datastore/index.yaml",
-          fs.readFileSync("./test_data/generator/datastore/original_index.yaml")
+          fs.readFileSync(
+            "./test_data/generator/datastore/original_index.yaml",
+          ),
         );
 
         // Execute
@@ -96,7 +94,7 @@ TEST_RUNNER.run({
           "./test_data/generator/datastore/task",
           undefined,
           undefined,
-          "./test_data/generator/datastore/package.json"
+          "./test_data/generator/datastore/package.json",
         );
 
         // Verify

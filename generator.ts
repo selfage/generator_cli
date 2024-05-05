@@ -17,11 +17,11 @@ export function generate(
   inputFile: string,
   inputIndexFile?: string,
   dryRun?: boolean,
-  packageJsonFile = "./package.json"
+  packageJsonFile = "./package.json",
 ): void {
   let modulePath = normalizeRelativePathForNode(stripFileExtension(inputFile));
   let definitions = JSON.parse(
-    fs.readFileSync(modulePath + ".json").toString()
+    fs.readFileSync(modulePath + ".json").toString(),
   ) as Array<Definition>;
 
   let hasDatastoreDefinition = definitions.some((definition) => {
@@ -32,17 +32,20 @@ export function generate(
     let indexFile = inputIndexFile;
     if (!indexFile) {
       let packageIndexFile = JSON.parse(
-        fs.readFileSync(packageJsonFile).toString()
+        fs.readFileSync(packageJsonFile).toString(),
       ).datastoreIndex;
       if (!packageIndexFile) {
         throw new Error(
-          "An index file is required for generating datastore model."
+          "An index file is required for generating datastore model.",
         );
       }
-      indexFile = path.join(path.dirname(packageJsonFile), packageIndexFile);
+      indexFile = path.posix.join(
+        path.posix.dirname(packageJsonFile),
+        packageIndexFile,
+      );
     }
     indexBuilder = DatastoreIndexBuilder.create(
-      stripFileExtension(indexFile) + ".yaml"
+      stripFileExtension(indexFile) + ".yaml",
     );
   }
 
@@ -54,7 +57,7 @@ export function generate(
         modulePath,
         definition.name,
         definition.enum,
-        contentMap
+        contentMap,
       );
     } else if (definition.message) {
       generateMessageDescriptor(
@@ -62,7 +65,7 @@ export function generate(
         definition.name,
         definition.message,
         typeLoader,
-        contentMap
+        contentMap,
       );
       if (definition.message.datastore) {
         generateDatastoreModel(
@@ -71,7 +74,7 @@ export function generate(
           definition.message,
           typeLoader,
           indexBuilder,
-          contentMap
+          contentMap,
         );
       }
     } else if (definition.observable) {
@@ -80,7 +83,7 @@ export function generate(
         definition.name,
         definition.observable,
         typeLoader,
-        contentMap
+        contentMap,
       );
     } else if (definition.service) {
       generateServiceDescriptor(
@@ -88,14 +91,14 @@ export function generate(
         definition.name,
         definition.service,
         typeLoader,
-        contentMap
+        contentMap,
       );
     } else if (definition.spannerSql) {
       generateSpannerSql(
         modulePath,
         definition.name,
         definition.spannerSql,
-        contentMap
+        contentMap,
       );
     }
   }
@@ -107,7 +110,7 @@ export function generate(
     writeFileSync(
       outputModulePath + ".ts",
       outputContentBuilder.toString(),
-      dryRun
+      dryRun,
     );
   }
 }
