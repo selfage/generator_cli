@@ -12,7 +12,7 @@ export class TypeLoader {
   >();
 
   public constructor(currentModulePath: string) {
-    let pathObj = path.parse(currentModulePath);
+    let pathObj = path.posix.parse(currentModulePath);
     this.currentDir = pathObj.dir;
     this.currentModuleBase = "./" + pathObj.base;
   }

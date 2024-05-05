@@ -37,7 +37,9 @@ async function main(): Promise<void> {
     .action((definitionFile, options) => {
       generate(
         definitionFile.split(path.sep).join(path.posix.sep),
-        options.indexFile,
+        options.indexFile
+          ? options.indexFile.split(path.sep).join(path.posix.sep)
+          : undefined,
         options.dryRun,
       );
     })
