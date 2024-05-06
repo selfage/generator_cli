@@ -213,7 +213,7 @@ function generateHandler(
 export abstract class ${serviceName}HandlerInterface implements ServiceHandlerInterface {
   public descriptor = ${serviceDescriptorName};
   public abstract handle(
-    requestId: string,`);
+    loggingPrefix: string,`);
 
   if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
     if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {

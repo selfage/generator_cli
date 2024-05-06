@@ -7,7 +7,7 @@ import { UploadFileResponse } from './sub/upload_file';
 export abstract class GetCommentsHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
-    requestId: string,
+    loggingPrefix: string,
     body: GetCommentsRequest,
   ): Promise<GetCommentsResponse>;
 }
@@ -15,7 +15,7 @@ export abstract class GetCommentsHandlerInterface implements ServiceHandlerInter
 export abstract class UploadFileHandlerInterface implements ServiceHandlerInterface {
   public descriptor = UPLOAD_FILE;
   public abstract handle(
-    requestId: string,
+    loggingPrefix: string,
     body: Readable,
   ): Promise<UploadFileResponse>;
 }

@@ -88,7 +88,7 @@ import { GET_COMMENTS, GetCommentsRequestBody, GetCommentsResponse } from '../in
 export abstract class GetCommentsHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
-    requestId: string,
+    loggingPrefix: string,
     body: GetCommentsRequestBody,
   ): Promise<GetCommentsResponse>;
 }
@@ -196,7 +196,7 @@ import { GetHistoryResponse } from '../interface/response';
 export abstract class GetHistoryHandlerInterface implements ServiceHandlerInterface {
   public descriptor = GET_HISTORY;
   public abstract handle(
-    requestId: string,
+    loggingPrefix: string,
     body: GetHistoryRequestBody,
     auth: UserSession,
   ): Promise<GetHistoryResponse>;
@@ -338,7 +338,7 @@ import { Readable } from 'stream';
 export abstract class UploadFileHandlerInterface implements ServiceHandlerInterface {
   public descriptor = UPLOAD_FILE;
   public abstract handle(
-    requestId: string,
+    loggingPrefix: string,
     body: Readable,
     metadata: UploadFileMetadata,
   ): Promise<UploadFileResponse>;
