@@ -1,6 +1,6 @@
 import { MessageDefinition } from "./definition";
+import { DefinitionFinder } from "./definition_finder";
 import { OutputContentBuilder } from "./output_content_builder";
-import { TypeLoader } from "./type_loader";
 import { generateComment, toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
@@ -9,8 +9,8 @@ export function generateMessageDescriptor(
   modulePath: string,
   messageName: string,
   messageDefinition: MessageDefinition,
-  typeLoader: TypeLoader,
-  contentMap: Map<string, OutputContentBuilder>
+  definitionFinder: DefinitionFinder,
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
   outputContentBuilder.push(`${generateComment(messageDefinition.comment)}
@@ -44,7 +44,10 @@ export let ${descriptorName}: MessageDescriptor<${messageName}> = {
       outputContentBuilder.push(`
       primitiveType: PrimitiveType.${field.type.toUpperCase()},`);
     } else {
-      let typeDefinition = typeLoader.getDefinition(field.type, field.import);
+      let typeDefinition = definitionFinder.getDefinition(
+        field.type,
+        field.import,
+      );
       if (!typeDefinition) {
         throw new Error(`Type ${field.type} is not found in ${field.import}.`);
       }
@@ -54,7 +57,7 @@ export let ${descriptorName}: MessageDescriptor<${messageName}> = {
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
-          enumDescriptorName
+          enumDescriptorName,
         );
         outputContentBuilder.push(`
       enumType: ${enumDescriptorName},`);
@@ -63,13 +66,13 @@ export let ${descriptorName}: MessageDescriptor<${messageName}> = {
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
-          messageDescriptorName
+          messageDescriptorName,
         );
         outputContentBuilder.push(`
       messageType: ${messageDescriptorName},`);
       } else {
         throw new Error(
-          `Type ${field.type} is not found to be a primitve type, enum or message when imported from ${field.import}.`
+          `Type ${field.type} is not found to be a primitve type, enum or message when imported from ${field.import}.`,
         );
       }
     }

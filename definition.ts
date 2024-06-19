@@ -38,7 +38,7 @@ export interface DatastoreQueryTemplate {
   // Recommended to be CamelCase, which will be part of the name of a class.
   name: string;
   filters?: Array<DatastoreFilterTemplate>;
-  orderings?: Array<DatastoreOrdering>
+  orderings?: Array<DatastoreOrdering>;
   comment?: string;
 }
 
@@ -89,10 +89,12 @@ export interface ServiceDefinition {
   // The pathname of a url. Must start with "/".
   path: string;
   // The body in a HTTP request. Support either 'bytes' or the name of a message.
-  body: string;
+  body?: string;
+  // The body is a HTTP request and is streamed with chunks of messages.
+  streamBody?: string;
   // Resolves import path the same way as Node. Do not include '.json'.
   importBody?: string;
-  // Authorization related information. E.g. a user session.  
+  // Authorization related information. E.g. a user session.
   auth?: KeyValueParamDefinition;
   // Prefer `body` when possible. Often used when body is a bytes stream.
   metadata?: KeyValueParamDefinition;
@@ -136,6 +138,71 @@ export interface SpannerSqlDefinition {
   outputColumns?: Array<SpannerVariable>;
 }
 
+export interface MySqlTableColumn {
+  name: string;
+  type: string;
+  import?: string;
+  nullable: boolean;
+}
+
+export interface MySqlIndex {
+  columns: Array<string>;
+  isUnique?: boolean;
+}
+
+export interface MySqlTableDefinition {
+  columns?: Array<MySqlTableColumn>;
+  primaryKey: Array<string>;
+  indexes: Array<MySqlIndex>;
+}
+
+export interface MySqlTableColumn {
+  table: string;
+  column: string;
+}
+
+export interface MySqlJoin {
+  left: MySqlTableColumn;
+  type: "left" | "right" | "inner" | "outer";
+  right: MySqlTableColumn;
+}
+
+export interface MySqlCondition {
+  column: MySqlTableColumn;
+  operator: ">" | "<" | "=" | "<=" | ">=" | "<>" | "is null" | "is not null";
+}
+
+export interface MySqlConditionGate {
+  left: MySqlConditionGate | MySqlCondition;
+  gate: "or" | "and";
+  right: MySqlConditionGate | MySqlCondition;
+}
+
+export interface MySqlSelectDefinition {
+  columns: Array<MySqlTableColumn>;
+  from: Array<string>;
+  join?: Array<MySqlJoin>;
+  where?: MySqlConditionGate | MySqlCondition;
+  groupBy?: Array<MySqlTableColumn>;
+  orderBy?: Array<MySqlTableColumn>;
+}
+
+export interface MySqlInsertDefinition {
+  table: string;
+  columns: Array<string>;
+}
+
+export interface MySqlUpdateDefinition {
+  table: string;
+  columns: Array<string>;
+  where: MySqlConditionGate | MySqlCondition;
+}
+
+export interface MySqlDeleteDefinition {
+  table: string;
+  where: MySqlConditionGate | MySqlCondition;
+}
+
 export interface Definition {
   // Must be of CamelCase.
   name: string;
@@ -150,4 +217,14 @@ export interface Definition {
   service?: ServiceDefinition;
   // Generated code requires package `@google-cloud/spanner`.
   spannerSql?: SpannerSqlDefinition;
+  // Generated code requires package `@selfage/message`.
+  mySqlTable?: MySqlTableDefinition;
+  // Generated code requires package `@selfage/message`.
+  mySqlSelect?: MySqlSelectDefinition;
+  // Generated code requires package `@selfage/message`.
+  mySqlInsert?: MySqlInsertDefinition;
+  // Generated code requires package `@selfage/message`.
+  mySqlUpdate?: MySqlUpdateDefinition;
+  // Generated code requires package `@selfage/message`.
+  mySqlDelete?: MySqlDeleteDefinition;
 }

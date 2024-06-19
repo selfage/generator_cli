@@ -1,9 +1,5 @@
 // Holds generated TypeScript code content.
 export class OutputContentBuilder {
-  private pathToNamedImports = new Map<string, Set<string>>();
-  private namedImportToPaths = new Map<string, string>();
-  private contentList = new Array<string>();
-
   public static get(
     contentMap: Map<string, OutputContentBuilder>,
     outputModuelPath: string
@@ -15,6 +11,10 @@ export class OutputContentBuilder {
     }
     return outputContentBuilder;
   }
+
+  private pathToNamedImports = new Map<string, Set<string>>();
+  private namedImportToPaths = new Map<string, string>();
+  private contentList = new Array<string>();
 
   public push(...newContent: Array<string>): void {
     this.contentList.push(...newContent);

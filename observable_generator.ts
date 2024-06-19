@@ -1,13 +1,13 @@
 import { ObservableDefinition, ObservableFieldDefinition } from "./definition";
+import { DefinitionFinder } from "./definition_finder";
 import { OutputContentBuilder } from "./output_content_builder";
-import { TypeLoader } from "./type_loader";
 import { generateComment, toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
 
 function coalesceFieldType(
   field: ObservableFieldDefinition,
-  outputContentBuilder: OutputContentBuilder
+  outputContentBuilder: OutputContentBuilder,
 ): string {
   if (field.asArray) {
     if (field.asArray === "normal") {
@@ -17,7 +17,7 @@ function coalesceFieldType(
       return `ObservableArray<${field.type}>`;
     } else {
       throw new Error(
-        `Field ${field.name}'s "asArray" has an invalid value. It must be either "normal" or "observable".`
+        `Field ${field.name}'s "asArray" has an invalid value. It must be either "normal" or "observable".`,
       );
     }
   } else {
@@ -29,8 +29,8 @@ export function generateObservableDescriptor(
   modulePath: string,
   messageName: string,
   messageDefinition: ObservableDefinition,
-  typeLoader: TypeLoader,
-  contentMap: Map<string, OutputContentBuilder>
+  definitionFinder: DefinitionFinder,
+  contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
   outputContentBuilder.push(`
@@ -106,7 +106,10 @@ export let ${descriptorName}: ObservableDescriptor<${messageName}> = {
       outputContentBuilder.push(`
       primitiveType: PrimitiveType.${field.type.toUpperCase()},`);
     } else {
-      let typeDefinition = typeLoader.getDefinition(field.type, field.import);
+      let typeDefinition = definitionFinder.getDefinition(
+        field.type,
+        field.import,
+      );
       if (!typeDefinition) {
         throw new Error(`Type ${field.type} is not found in ${field.import}.`);
       }
@@ -116,7 +119,7 @@ export let ${descriptorName}: ObservableDescriptor<${messageName}> = {
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
-          enumDescriptorName
+          enumDescriptorName,
         );
         outputContentBuilder.push(`
       enumType: ${enumDescriptorName},`);
@@ -125,7 +128,7 @@ export let ${descriptorName}: ObservableDescriptor<${messageName}> = {
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
-          messageDescriptorName
+          messageDescriptorName,
         );
         outputContentBuilder.push(`
       messageType: ${messageDescriptorName},`);
@@ -134,13 +137,13 @@ export let ${descriptorName}: ObservableDescriptor<${messageName}> = {
         outputContentBuilder.importFromPath(
           field.import,
           field.type,
-          observableDescriptorName
+          observableDescriptorName,
         );
         outputContentBuilder.push(`
       observableType: ${observableDescriptorName},`);
       } else {
         throw new Error(
-          `Type ${field.type} is not found to be a primitve type, enum or message when imported from ${field.import}.`
+          `Type ${field.type} is not found to be a primitve type, enum or message when imported from ${field.import}.`,
         );
       }
     }

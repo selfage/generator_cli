@@ -6,8 +6,8 @@ import {
   MessageDefinition,
   MessageFieldDefinition,
 } from "./definition";
+import { DefinitionFinder } from "./definition_finder";
 import { OutputContentBuilder } from "./output_content_builder";
-import { TypeLoader } from "./type_loader";
 import {
   generateComment,
   normalizeRelativePathForNode,
@@ -31,7 +31,7 @@ export function generateDatastoreModel(
   modulePath: string,
   messageName: string,
   messageDefinition: MessageDefinition,
-  typeLoader: TypeLoader,
+  definitionFinder: DefinitionFinder,
   indexBuilder: DatastoreIndexBuilder,
   contentMap: Map<string, OutputContentBuilder>,
 ): void {
@@ -95,7 +95,7 @@ export class ${query.name}QueryBuilder {
         validateFieldAndNeedsToBeIndexed(
           ordering.fieldName,
           fieldToDefinitions,
-          typeLoader,
+          definitionFinder,
           excludedIndexes,
         );
         indexContentList.push(`
@@ -121,7 +121,7 @@ export class ${query.name}QueryBuilder {
         let { fieldDefinition, isEnum } = validateFieldAndNeedsToBeIndexed(
           filter.fieldName,
           fieldToDefinitions,
-          typeLoader,
+          definitionFinder,
           excludedIndexes,
         );
         if (isEnum) {
@@ -191,7 +191,7 @@ export let ${messageDescriptorName}_MODEL: DatastoreModelDescriptor<${messageNam
 function validateFieldAndNeedsToBeIndexed(
   fieldName: string,
   fieldToDefinitions: Map<string, MessageFieldDefinition>,
-  typeLoader: TypeLoader,
+  definitionFinder: DefinitionFinder,
   excludedIndexes: Set<string>,
 ): { fieldDefinition: MessageFieldDefinition; isEnum: boolean } {
   if (!fieldToDefinitions.has(fieldName)) {
@@ -206,7 +206,7 @@ function validateFieldAndNeedsToBeIndexed(
     excludedIndexes.delete(fieldName);
     return { fieldDefinition, isEnum: false };
   } else {
-    let typeDefinition = typeLoader.getDefinition(
+    let typeDefinition = definitionFinder.getDefinition(
       fieldDefinition.type,
       fieldDefinition.import,
     );

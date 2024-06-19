@@ -3,7 +3,7 @@ import path = require("path");
 import resolve = require("resolve");
 import { Definition } from "./definition";
 
-export class TypeLoader {
+export class DefinitionFinder {
   private currentDir: string;
   private currentModuleBase: string;
   private cachedPathToNameToDefinitions = new Map<
@@ -17,7 +17,7 @@ export class TypeLoader {
     this.currentModuleBase = "./" + pathObj.base;
   }
 
-  public getDefinition(typeName: string, importPath?: string): Definition {
+  public getDefinition(definitionName: string, importPath?: string): Definition {
     if (!importPath) {
       importPath = this.currentModuleBase;
     }
@@ -43,6 +43,6 @@ export class TypeLoader {
         nameToDefinitions.set(definition.name, definition);
       }
     }
-    return nameToDefinitions.get(typeName);
+    return nameToDefinitions.get(definitionName);
   }
 }

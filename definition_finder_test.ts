@@ -1,15 +1,17 @@
-import { TypeLoader } from "./type_loader";
+import { DefinitionFinder } from "./definition_finder";
 import { assertThat, assertThrow, eq, eqError } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
-  name: "TypeLoaderTest",
+  name: "DefinitionFinderTest",
   cases: [
     {
       name: "MissingFile",
       execute: () => {
         // Prepare
-        let typeLoader = new TypeLoader("./test_data/type_loader/non_exist");
+        let typeLoader = new DefinitionFinder(
+          "./test_data/type_loader/non_exist",
+        );
 
         // Execute
         let err = assertThrow(() => typeLoader.getDefinition("BasicData"));
@@ -22,7 +24,9 @@ TEST_RUNNER.run({
       name: "MalformedJson",
       execute: () => {
         // Prepare
-        let typeLoader = new TypeLoader("./test_data/type_loader/malformed");
+        let typeLoader = new DefinitionFinder(
+          "./test_data/type_loader/malformed",
+        );
 
         // Execute
         let err = assertThrow(() => typeLoader.getDefinition("BasicData"));
@@ -31,7 +35,7 @@ TEST_RUNNER.run({
         assertThat(
           err,
           eqError(new SyntaxError("Failed to parse JSON")),
-          `err`
+          `err`,
         );
       },
     },
@@ -39,7 +43,7 @@ TEST_RUNNER.run({
       name: "CategorizeTypeAndGetDefinitionFromCurrentModule",
       execute: () => {
         // Prepare
-        let typeLoader = new TypeLoader("./test_data/type_loader/basic");
+        let typeLoader = new DefinitionFinder("./test_data/type_loader/basic");
 
         {
           // Execute
@@ -50,7 +54,7 @@ TEST_RUNNER.run({
           assertThat(
             definition.message.comment,
             eq("Test data"),
-            "BasicData.comment"
+            "BasicData.comment",
           );
 
           // Execute
@@ -76,12 +80,12 @@ TEST_RUNNER.run({
           assertThat(
             definition.name,
             eq("ObservableData"),
-            "ObservableData.name"
+            "ObservableData.name",
           );
           assertThat(
             definition.observable.comment,
             eq("Test observable"),
-            "ObservableData.comment"
+            "ObservableData.comment",
           );
         }
       },
@@ -90,12 +94,12 @@ TEST_RUNNER.run({
       name: "GetDefinitionFromImportedPath",
       execute: () => {
         // Prepare
-        let typeLoader = new TypeLoader("./test_data/type_loader/basic");
+        let typeLoader = new DefinitionFinder("./test_data/type_loader/basic");
 
         // Execute
         let definition = typeLoader.getDefinition(
           "AnotherData",
-          "./inside/another"
+          "./inside/another",
         );
 
         // Verify
@@ -103,7 +107,7 @@ TEST_RUNNER.run({
         assertThat(
           definition.message.comment,
           eq("Another data"),
-          "AnotherData.comment"
+          "AnotherData.comment",
         );
       },
     },

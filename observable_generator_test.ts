@@ -1,5 +1,5 @@
 import { Definition } from "./definition";
-import { MockTypeLoader } from "./mocks";
+import { MockDefinitionFinder } from "./mocks";
 import { generateObservableDescriptor } from "./observable_generator";
 import { OutputContentBuilder } from "./output_content_builder";
 import { assertThat, eq } from "@selfage/test_matcher";
@@ -65,7 +65,7 @@ TEST_RUNNER.run({
             ],
           },
           undefined,
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -302,7 +302,7 @@ export let BASIC_DATA: ObservableDescriptor<BasicData> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -327,7 +327,7 @@ export let BASIC_DATA: ObservableDescriptor<BasicData> = {
             comment: "Comment2",
           },
           undefined,
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -383,7 +383,7 @@ export let WITH_COMMENT: ObservableDescriptor<WithComment> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -392,10 +392,10 @@ export let WITH_COMMENT: ObservableDescriptor<WithComment> = {
       execute: () => {
         // Prepare
         let contentMap = new Map<string, OutputContentBuilder>();
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(
             typeName: string,
-            importPath?: string
+            importPath?: string,
           ): Definition {
             switch (this.called.increment("getDefinition")) {
               case 1:
@@ -463,15 +463,15 @@ export let WITH_COMMENT: ObservableDescriptor<WithComment> = {
               },
             ],
           },
-          mockTypeLoader,
-          contentMap
+          mockDefinitionFinder,
+          contentMap,
         );
 
         // Verify
         assertThat(
-          mockTypeLoader.called.get("getDefinition"),
+          mockDefinitionFinder.called.get("getDefinition"),
           eq(6),
-          "getDefinition called"
+          "getDefinition called",
         );
         assertThat(
           contentMap.get("some_file").toString(),
@@ -636,7 +636,7 @@ export let NESTED_OBJ: ObservableDescriptor<NestedObj> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },

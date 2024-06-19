@@ -3,6 +3,7 @@ import path = require("path");
 import { DatastoreIndexBuilder } from "./datastore_index_builder";
 import { generateDatastoreModel } from "./datastore_model_generator";
 import { Definition } from "./definition";
+import { DefinitionFinder } from "./definition_finder";
 import { generateEnumDescriptor } from "./enum_generator";
 import { stripFileExtension, writeFileSync } from "./io_helper";
 import { generateMessageDescriptor } from "./message_generator";
@@ -10,7 +11,6 @@ import { generateObservableDescriptor } from "./observable_generator";
 import { OutputContentBuilder } from "./output_content_builder";
 import { generateServiceDescriptor } from "./service_generator";
 import { generateSpannerSql } from "./spanner_sql_generator";
-import { TypeLoader } from "./type_loader";
 import { normalizeRelativePathForNode } from "./util";
 
 export function generate(
@@ -49,7 +49,7 @@ export function generate(
     );
   }
 
-  let typeLoader = new TypeLoader(modulePath);
+  let definitionFinder = new DefinitionFinder(modulePath);
   let contentMap = new Map<string, OutputContentBuilder>();
   for (let definition of definitions) {
     if (definition.enum) {
@@ -64,7 +64,7 @@ export function generate(
         modulePath,
         definition.name,
         definition.message,
-        typeLoader,
+        definitionFinder,
         contentMap,
       );
       if (definition.message.datastore) {
@@ -72,7 +72,7 @@ export function generate(
           modulePath,
           definition.name,
           definition.message,
-          typeLoader,
+          definitionFinder,
           indexBuilder,
           contentMap,
         );
@@ -82,7 +82,7 @@ export function generate(
         modulePath,
         definition.name,
         definition.observable,
-        typeLoader,
+        definitionFinder,
         contentMap,
       );
     } else if (definition.service) {
@@ -90,7 +90,7 @@ export function generate(
         modulePath,
         definition.name,
         definition.service,
-        typeLoader,
+        definitionFinder,
         contentMap,
       );
     } else if (definition.spannerSql) {

@@ -1,6 +1,6 @@
 import { Definition } from "./definition";
 import { generateMessageDescriptor } from "./message_generator";
-import { MockTypeLoader } from "./mocks";
+import { MockDefinitionFinder } from "./mocks";
 import { OutputContentBuilder } from "./output_content_builder";
 import { assertThat, eq } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
@@ -50,7 +50,7 @@ TEST_RUNNER.run({
             ],
           },
           undefined,
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -100,7 +100,7 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -125,7 +125,7 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
             comment: "Comment2\nComment3",
           },
           undefined,
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -150,7 +150,7 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -159,10 +159,10 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
       execute: () => {
         // Prepare
         let contentMap = new Map<string, OutputContentBuilder>();
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(
             typeName: string,
-            importPath?: string
+            importPath?: string,
           ): Definition {
             switch (this.called.increment("getDefinition")) {
               case 1:
@@ -222,15 +222,15 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
               },
             ],
           },
-          mockTypeLoader,
-          contentMap
+          mockDefinitionFinder,
+          contentMap,
         );
 
         // Verify
         assertThat(
-          mockTypeLoader.called.get("getDefinition"),
+          mockDefinitionFinder.called.get("getDefinition"),
           eq(5),
-          "getDefinition called"
+          "getDefinition called",
         );
         assertThat(
           contentMap.get("some_file").toString(),
@@ -273,7 +273,7 @@ export let NESTED_OBJ: MessageDescriptor<NestedObj> = {
   ]
 };
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },

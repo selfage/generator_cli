@@ -1,7 +1,7 @@
 import path = require("path");
 import { ServiceDefinition } from "./definition";
+import { DefinitionFinder } from "./definition_finder";
 import { OutputContentBuilder } from "./output_content_builder";
-import { TypeLoader } from "./type_loader";
 import {
   normalizeRelativePathForNode,
   reverseImport,
@@ -17,7 +17,7 @@ export function generateServiceDescriptor(
   modulePath: string,
   serviceName: string,
   serviceDefinition: ServiceDefinition,
-  typeLoader: TypeLoader,
+  definitionFinder: DefinitionFinder,
   contentMap: Map<string, OutputContentBuilder>,
 ): void {
   let serviceDescriptorName = toUppercaseSnaked(serviceName);
@@ -35,7 +35,7 @@ export let ${serviceDescriptorName}: ServiceDescriptor = {
     primitiveType: PrimitveTypeForBody.${serviceDefinition.body.toUpperCase()},
   },`);
   } else {
-    let requestDefinition = typeLoader.getDefinition(
+    let requestDefinition = definitionFinder.getDefinition(
       serviceDefinition.body,
       serviceDefinition.importBody,
     );
@@ -158,6 +158,9 @@ export function ${toInitalLowercased(serviceName)}(
   metadata: ${serviceDefinition.metadata.type},`);
   }
 
+  outputWebClientContentBuilder.importFromWebServiceClientInterface(
+    "WebServiceClientOptions",
+  );
   outputWebClientContentBuilder.importFromPath(
     transitImport(importDescriptorPath, serviceDefinition.importResponse),
     serviceDefinition.response,
@@ -167,18 +170,22 @@ export function ${toInitalLowercased(serviceName)}(
     serviceDescriptorName,
   );
   outputWebClientContentBuilder.push(`
+  options?: WebServiceClientOptions,
 ): Promise<${serviceDefinition.response}> {
-  return client.send({
-    descriptor: ${serviceDescriptorName},
-    body,`);
+  return client.send(
+    {
+      descriptor: ${serviceDescriptorName},
+      body,`);
 
   if (serviceDefinition.metadata) {
     outputWebClientContentBuilder.push(`
-    metadata,`);
+      metadata,`);
   }
 
   outputWebClientContentBuilder.push(`
-  });
+    },
+    options,
+  );
 }
 `);
 }

@@ -1,6 +1,6 @@
 import { generateDatastoreModel } from "./datastore_model_generator";
 import { DatastoreQueryTemplate, Definition } from "./definition";
-import { MockDatastoreIndexBuilder, MockTypeLoader } from "./mocks";
+import { MockDatastoreIndexBuilder, MockDefinitionFinder } from "./mocks";
 import { OutputContentBuilder } from "./output_content_builder";
 import {
   assertThat,
@@ -42,8 +42,8 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
@@ -82,15 +82,15 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
         assertThat(
           error,
           eqError(new Error("fields are used in inequality filters")),
-          `error`
+          `error`,
         );
       },
     },
@@ -122,15 +122,15 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
         assertThat(
           error,
           eqError(new Error("Field created is not defined")),
-          `error`
+          `error`,
         );
       },
     },
@@ -138,7 +138,7 @@ TEST_RUNNER.run({
       name: "FilteringFieldCannotBeAMessage",
       execute: () => {
         // Prepare
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(): Definition {
             return { name: "any", message: { fields: [] } };
           }
@@ -176,17 +176,17 @@ TEST_RUNNER.run({
                 ],
               },
             },
-            mockTypeLoader,
+            mockDefinitionFinder,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
         assertThat(
           error,
           eqError(new Error("Payload which cannot be used to be ordered")),
-          `error`
+          `error`,
         );
       },
     },
@@ -207,8 +207,8 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
@@ -237,15 +237,15 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
         assertThat(
           error,
           eqError(new Error("key can only be a string")),
-          `error`
+          `error`,
         );
       },
     },
@@ -272,15 +272,15 @@ TEST_RUNNER.run({
             },
             undefined,
             new MockDatastoreIndexBuilder(),
-            new Map<string, OutputContentBuilder>()
-          )
+            new Map<string, OutputContentBuilder>(),
+          ),
         );
 
         // Verify
         assertThat(
           error,
           eqError(new Error("key cannot be an array")),
-          `error`
+          `error`,
         );
       },
     },
@@ -289,23 +289,23 @@ TEST_RUNNER.run({
       execute: () => {
         // Prepare
         let contentMap = new Map<string, OutputContentBuilder>();
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(
             typeName: string,
-            importPath?: string
+            importPath?: string,
           ): Definition {
             if (typeName === "Priority") {
               assertThat(
                 importPath,
                 eq("./task_priority"),
-                `Priority path for categorizeType`
+                `Priority path for categorizeType`,
               );
               return { name: "any", enum: { values: [] } };
             } else if (typeName === "SubPriority") {
               assertThat(
                 importPath,
                 eq(undefined),
-                `SubPriority path for categorizeType`
+                `SubPriority path for categorizeType`,
               );
               return { name: "any", enum: { values: [] } };
             } else {
@@ -316,7 +316,7 @@ TEST_RUNNER.run({
         let mockIndexBuilder = new (class extends MockDatastoreIndexBuilder {
           public addIndex(
             messageName: string,
-            query: DatastoreQueryTemplate
+            query: DatastoreQueryTemplate,
           ): void {
             switch (this.called.increment("addIndex")) {
               case 1:
@@ -444,16 +444,16 @@ TEST_RUNNER.run({
               comment: "Comment2",
             },
           },
-          mockTypeLoader,
+          mockDefinitionFinder,
           mockIndexBuilder,
-          contentMap
+          contentMap,
         );
 
         // Verify
         assertThat(
           mockIndexBuilder.called.get("addIndex"),
           eq(4),
-          `addIndex called`
+          `addIndex called`,
         );
         assertThat(
           contentMap.get("./task_model").toString(),
@@ -601,7 +601,7 @@ export class CreatedTimeQueryBuilder {
   }
 }
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -610,16 +610,16 @@ export class CreatedTimeQueryBuilder {
       execute: () => {
         // Prepare
         let contentMap = new Map<string, OutputContentBuilder>();
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(
             typeName: string,
-            importPath?: string
+            importPath?: string,
           ): Definition {
             assertThat(typeName, eq("Priority"), "typeName for categorizeType");
             assertThat(
               importPath,
               eq("./another_side/task_priority"),
-              "importPath for categorizeType"
+              "importPath for categorizeType",
             );
             return { name: "any", enum: { values: [] } };
           }
@@ -657,9 +657,9 @@ export class CreatedTimeQueryBuilder {
               ],
             },
           },
-          mockTypeLoader,
+          mockDefinitionFinder,
           new MockDatastoreIndexBuilder(),
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -667,7 +667,7 @@ export class CreatedTimeQueryBuilder {
           contentMap.get("./inside/other_side/task_model").toString(),
           containStr(`import { Priority } from '../another_side/task_priority';
 import { Task, TASK } from '../task_def';`),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
@@ -676,16 +676,16 @@ import { Task, TASK } from '../task_def';`),
       execute: () => {
         // Prepare
         let contentMap = new Map<string, OutputContentBuilder>();
-        let mockTypeLoader = new (class extends MockTypeLoader {
+        let mockDefinitionFinder = new (class extends MockDefinitionFinder {
           public getDefinition(
             typeName: string,
-            importPath?: string
+            importPath?: string,
           ): Definition {
             assertThat(typeName, eq("Priority"), "typeName for categorizeType");
             assertThat(
               importPath,
               eq("../another_side/task_priority"),
-              "importPath for categorizeType"
+              "importPath for categorizeType",
             );
             return { name: "any", enum: { values: [] } };
           }
@@ -723,9 +723,9 @@ import { Task, TASK } from '../task_def';`),
               ],
             },
           },
-          mockTypeLoader,
+          mockDefinitionFinder,
           new MockDatastoreIndexBuilder(),
-          contentMap
+          contentMap,
         );
 
         // Verify
@@ -733,7 +733,7 @@ import { Task, TASK } from '../task_def';`),
           contentMap.get("./other_side/task_model").toString(),
           containStr(`import { Priority } from '../another_side/task_priority';
 import { Task, TASK } from '../inside/task_def';`),
-          `outputContent`
+          `outputContent`,
         );
       },
     },
