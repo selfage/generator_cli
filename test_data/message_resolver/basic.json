@@ -1,0 +1,15 @@
+[{
+  "enum": {
+    "name": "SomeEnum"
+  }
+}, {
+  "message": {
+    "name": "BasicDataData",
+    "comment": "Test data data"
+  }
+}, {
+  "message": {
+    "name": "BasicData",
+    "comment": "Test data"
+  }
+}]

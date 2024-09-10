@@ -1,13 +1,69 @@
-// Holds generated TypeScript code content.
-export class OutputContentBuilder {
+import path = require("path");
+import { writeFileSync } from "./io_helper";
+import { isRelativePath, normalizeRelativePathForNode } from "./util";
+
+export interface OutputContentBuilder {
+  build: () => string;
+  writeSync: (dryRun: boolean) => void;
+}
+
+// Holds arbitrary generated content.
+export class SimpleContentBuilder implements OutputContentBuilder {
   public static get(
     contentMap: Map<string, OutputContentBuilder>,
-    outputModuelPath: string
-  ): OutputContentBuilder {
-    let outputContentBuilder = contentMap.get(outputModuelPath);
+    suffix: string,
+    outputModulePath: string,
+  ): SimpleContentBuilder {
+    outputModulePath = normalizeRelativePathForNode(outputModulePath);
+    let outputContentBuilder = contentMap.get(
+      outputModulePath,
+    ) as SimpleContentBuilder;
     if (!outputContentBuilder) {
-      outputContentBuilder = new OutputContentBuilder();
-      contentMap.set(outputModuelPath, outputContentBuilder);
+      outputContentBuilder = new SimpleContentBuilder(outputModulePath, suffix);
+      contentMap.set(outputModulePath, outputContentBuilder);
+    }
+    return outputContentBuilder;
+  }
+
+  private contentList = new Array<string>();
+
+  public constructor(
+    private outputModulePath: string,
+    private suffix: string,
+  ) {}
+
+  public push(...newContent: Array<string>): void {
+    this.contentList.push(...newContent);
+  }
+
+  public build(): string {
+    return this.contentList.join("");
+  }
+
+  public writeSync(dryRun: boolean): void {
+    writeFileSync(this.outputModulePath + this.suffix, this.build(), dryRun);
+  }
+}
+
+// Holds generated TypeScript code content.
+export class TsContentBuilder implements OutputContentBuilder {
+  public static get(
+    contentMap: Map<string, OutputContentBuilder>,
+    definitionModulePath: string,
+    outputModulePath?: string,
+  ): TsContentBuilder {
+    outputModulePath = normalizeRelativePathForNode(
+      outputModulePath ?? definitionModulePath,
+    );
+    let outputContentBuilder = contentMap.get(
+      outputModulePath,
+    ) as TsContentBuilder;
+    if (!outputContentBuilder) {
+      outputContentBuilder = new TsContentBuilder(
+        definitionModulePath,
+        outputModulePath,
+      );
+      contentMap.set(outputModulePath, outputContentBuilder);
     }
     return outputContentBuilder;
   }
@@ -15,6 +71,20 @@ export class OutputContentBuilder {
   private pathToNamedImports = new Map<string, Set<string>>();
   private namedImportToPaths = new Map<string, string>();
   private contentList = new Array<string>();
+  private outputModuleDirPath: string;
+  private sameModuleImportPath: string;
+
+  public constructor(
+    private baseDefinitionModulePath: string,
+    private outputModulePath: string,
+  ) {
+    this.outputModuleDirPath = path.posix.resolve(
+      path.posix.dirname(outputModulePath),
+    );
+    this.sameModuleImportPath = normalizeRelativePathForNode(
+      path.posix.basename(outputModulePath),
+    );
+  }
 
   public push(...newContent: Array<string>): void {
     this.contentList.push(...newContent);
@@ -23,53 +93,87 @@ export class OutputContentBuilder {
   public importFromDatastoreModelDescriptor(
     ...namedImports: Array<string>
   ): void {
-    this.importFromPath(
+    this.importFrom(
       "@selfage/datastore_client/model_descriptor",
-      ...namedImports
+      ...namedImports,
     );
   }
 
   public importFromMessageDescriptor(...namedImports: Array<string>): void {
-    this.importFromPath("@selfage/message/descriptor", ...namedImports);
+    this.importFrom("@selfage/message/descriptor", ...namedImports);
+  }
+
+  public importFromMessageSerializer(...namedImports: Array<string>): void {
+    this.importFrom("@selfage/message/serializer", ...namedImports);
   }
 
   public importFromObservableDescriptor(...namedImports: Array<string>): void {
-    this.importFromPath("@selfage/observable/descriptor", ...namedImports);
+    this.importFrom("@selfage/observable/descriptor", ...namedImports);
   }
 
   public importFromServiceDescriptor(...namedImports: Array<string>): void {
-    this.importFromPath("@selfage/service_descriptor", ...namedImports);
+    this.importFrom("@selfage/service_descriptor", ...namedImports);
   }
 
-  public importFromWebServiceClientInterface(
+  public importFromServiceClientInterface(
     ...namedImports: Array<string>
   ): void {
-    this.importFromPath(
-      "@selfage/service_descriptor/web_service_client_interface",
-      ...namedImports
+    this.importFrom(
+      "@selfage/service_descriptor/client_interface",
+      ...namedImports,
     );
   }
 
   public importFromServiceHandlerInterface(
     ...namedImports: Array<string>
   ): void {
-    this.importFromPath(
-      "@selfage/service_descriptor/service_handler_interface",
-      ...namedImports
+    this.importFrom(
+      "@selfage/service_descriptor/handler_interface",
+      ...namedImports,
     );
   }
 
   public importFromObservableArray(...namedImports: Array<string>): void {
-    this.importFromPath("@selfage/observable_array", ...namedImports);
+    this.importFrom("@selfage/observable_array", ...namedImports);
   }
 
-  public importFromPath(
+  public importFromSpanner(...namedImports: Array<string>): void {
+    this.importFrom("@google-cloud/spanner", ...namedImports);
+  }
+
+  public importFromSpannerTransaction(...namedImports: Array<string>): void {
+    this.importFrom(
+      "@google-cloud/spanner/build/src/transaction",
+      ...namedImports,
+    );
+  }
+
+  public importFromStream(...namedImports: Array<string>): void {
+    this.importFrom("stream", ...namedImports);
+  }
+
+  public importFromDefinition(
+    definitionModulePath: string | undefined,
+    ...namedImports: Array<string>
+  ): void {
+    if (!definitionModulePath) {
+      definitionModulePath = this.baseDefinitionModulePath;
+    }
+    if (isRelativePath(definitionModulePath)) {
+      definitionModulePath = normalizeRelativePathForNode(
+        path.posix.relative(this.outputModuleDirPath, definitionModulePath),
+      );
+    }
+    if (definitionModulePath === this.sameModuleImportPath) {
+      return;
+    }
+    this.importFrom(definitionModulePath, ...namedImports);
+  }
+
+  private importFrom(
     path: string | undefined,
     ...namedImports: Array<string>
   ): void {
-    if (!path) {
-      return;
-    }
     let namedImportsInMap = this.pathToNamedImports.get(path);
     if (!namedImportsInMap) {
       namedImportsInMap = new Set<string>();
@@ -81,7 +185,7 @@ export class OutputContentBuilder {
     }
   }
 
-  public toString(): string {
+  public build(): string {
     let resultContent = new Array<string>();
     for (let entry of this.pathToNamedImports.entries()) {
       let importPath = entry[0];
@@ -90,5 +194,9 @@ export class OutputContentBuilder {
     }
     resultContent.push(...this.contentList);
     return resultContent.join("");
+  }
+
+  public writeSync(dryRun: boolean): void {
+    writeFileSync(this.outputModulePath + ".ts", this.build(), dryRun);
   }
 }

@@ -1,42 +1,50 @@
 [{
-  "name": "UserSession",
   "message": {
+    "name": "UserSession",
     "fields": [{
       "name": "userId",
-      "type": "string"
+      "type": "string",
+      "index": 1
     }, {
       "name": "expirationTime",
-      "type": "number"
+      "type": "number",
+      "index": 2
     }]
   }
 }, {
-  "name": "GetComments",
-  "service": {
-    "path": "/GetComments",
-    "body": "GetCommentsRequest",
-    "importBody": "./sub/get_comments",
-    "response": "GetCommentsResponse",
-    "importResponse": "./sub/get_comments",
-    "outputWebClient": "./client",
-    "outputHandler": "./handler"
+  "nodeService": {
+    "name": "Node",
+    "remoteCalls": [{
+      "name": "GetComments",
+      "path": "/GetComments",
+      "body": "GetCommentsRequest",
+      "importBody": "./test_data/generator/service/sub/get_comments",
+      "response": "GetCommentsResponse",
+      "importResponse": "./test_data/generator/service/sub/get_comments"
+    }],
+    "outputClient": "./test_data/generator/service/client",
+    "outputHandler": "./test_data/generator/service/handler"
   }
 }, {
-  "name": "UploadFile",
-  "service": {
-    "path": "/UploadFile",
-    "signedUserSession": {
-      "key": "su",
-      "type": "UserSession"
-    },
-    "side": {
-      "key": "sd",
-      "type": "UploadFileRequestSide",
-      "import": "./sub/upload_file"
-    },
-    "body": "bytes",
-    "response": "UploadFileResponse",
-    "importResponse": "./sub/upload_file",
-    "outputWebClient": "./client",
-    "outputHandler": "./handler"
+  "webService": {
+    "name": "Web",
+    "remoteCalls": [{
+      "name": "UploadFile",
+      "path": "/UploadFile",
+      "auth": {
+        "key": "su",
+        "type": "UserSession"
+      },
+      "metadata": {
+        "key": "sd",
+        "type": "UploadFileRequestMetadata",
+        "import": "./test_data/generator/service/sub/upload_file"
+      },
+      "body": "bytes",
+      "response": "UploadFileResponse",
+      "importResponse": "./test_data/generator/service/sub/upload_file"
+    }],
+    "outputClient": "./test_data/generator/service/client",
+    "outputHandler": "./test_data/generator/service/handler"
   }
 }]

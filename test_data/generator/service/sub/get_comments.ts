@@ -1,4 +1,4 @@
-import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export interface GetCommentsRequest {
   videoId?: string,
@@ -6,12 +6,11 @@ export interface GetCommentsRequest {
 
 export let GET_COMMENTS_REQUEST: MessageDescriptor<GetCommentsRequest> = {
   name: 'GetCommentsRequest',
-  fields: [
-    {
-      name: 'videoId',
-      primitiveType: PrimitiveType.STRING,
-    },
-  ]
+  fields: [{
+    name: 'videoId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }],
 };
 
 export interface GetCommentsResponse {
@@ -20,11 +19,10 @@ export interface GetCommentsResponse {
 
 export let GET_COMMENTS_RESPONSE: MessageDescriptor<GetCommentsResponse> = {
   name: 'GetCommentsResponse',
-  fields: [
-    {
-      name: 'text',
-      primitiveType: PrimitiveType.STRING,
-      isArray: true,
-    },
-  ]
+  fields: [{
+    name: 'text',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+    isArray: true,
+  }],
 };

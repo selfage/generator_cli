@@ -1,17 +1,16 @@
-import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
-export interface UploadFileRequestSide {
+export interface UploadFileRequestMetadata {
   fileName?: string,
 }
 
-export let UPLOAD_FILE_REQUEST_SIDE: MessageDescriptor<UploadFileRequestSide> = {
-  name: 'UploadFileRequestSide',
-  fields: [
-    {
-      name: 'fileName',
-      primitiveType: PrimitiveType.STRING,
-    },
-  ]
+export let UPLOAD_FILE_REQUEST_METADATA: MessageDescriptor<UploadFileRequestMetadata> = {
+  name: 'UploadFileRequestMetadata',
+  fields: [{
+    name: 'fileName',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }],
 };
 
 export interface UploadFileResponse {
@@ -21,14 +20,13 @@ export interface UploadFileResponse {
 
 export let UPLOAD_FILE_RESPONSE: MessageDescriptor<UploadFileResponse> = {
   name: 'UploadFileResponse',
-  fields: [
-    {
-      name: 'bytesSent',
-      primitiveType: PrimitiveType.NUMBER,
-    },
-    {
-      name: 'success',
-      primitiveType: PrimitiveType.BOOLEAN,
-    },
-  ]
+  fields: [{
+    name: 'bytesSent',
+    index: 1,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'success',
+    index: 2,
+    primitiveType: PrimitiveType.BOOLEAN,
+  }],
 };

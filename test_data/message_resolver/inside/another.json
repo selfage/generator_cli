@@ -1,6 +1,6 @@
 [{
-  "name": "AnotherData",
   "message": {
+    "name": "AnotherData",
     "comment": "Another data"
   }
 }]

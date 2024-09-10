@@ -6,6 +6,8 @@ export interface EnumValue {
 }
 
 export interface EnumDefinition {
+  // Must be of CamelCase.
+  name: string;
   values: Array<EnumValue>;
   comment?: string;
 }
@@ -15,10 +17,12 @@ export interface MessageFieldDefinition {
   name: string;
   // Can be 'number', 'string', 'boolean' or the name of a message or enum.
   type: string;
+  index: number;
   isArray?: true;
-  // Resolves import path the same way as Node. Do not include '.json'.
+  // Import relative to CWD. Do not include '.json'.
   import?: string;
   comment?: string;
+  deprecated?: true;
 }
 
 export interface DatastoreFilterTemplate {
@@ -53,26 +57,12 @@ export interface DatastoreDefinition {
 }
 
 export interface MessageDefinition {
-  fields: Array<MessageFieldDefinition>;
-  // Requires package `@selfage/datastore_client`.
-  datastore?: DatastoreDefinition;
-  comment?: string;
-}
-
-export interface ObservableFieldDefinition {
-  // Recommended to be camelCase.
+  // Must be of CamelCase.
   name: string;
-  // Can be 'number', 'string', 'boolean' or the name of a message, enum or observable.
-  type: string;
-  // Can be `normal` or 'observable'.
-  asArray?: string;
-  // Resolves import path the same way as Node. Do not include '.json'.
-  import?: string;
-  comment?: string;
-}
-
-export interface ObservableDefinition {
-  fields: Array<ObservableFieldDefinition>;
+  fields: Array<MessageFieldDefinition>;
+  // Deprecated for now.
+  // Requires package `@selfage/datastore_client`.
+  // datastore?: DatastoreDefinition;
   comment?: string;
 }
 
@@ -81,18 +71,18 @@ export interface KeyValueParamDefinition {
   key: string;
   // Can only be the name of a message.
   type: string;
-  // Resolves import path the same way as Node. Do not include '.json'.
+  // Import relative to CWD. Do not include '.json'.
   import?: string;
 }
 
-export interface ServiceDefinition {
+export interface WebRemoteCallDefinition {
+  // Must be of CamelCase.
+  name: string;
   // The pathname of a url. Must start with "/".
   path: string;
   // The body in a HTTP request. Support either 'bytes' or the name of a message.
   body?: string;
-  // The body is a HTTP request and is streamed with chunks of messages.
-  streamBody?: string;
-  // Resolves import path the same way as Node. Do not include '.json'.
+  // Import relative to CWD. Do not include '.json'.
   importBody?: string;
   // Authorization related information. E.g. a user session.
   auth?: KeyValueParamDefinition;
@@ -100,131 +90,216 @@ export interface ServiceDefinition {
   metadata?: KeyValueParamDefinition;
   // Support only the name of a message.
   response: string;
-  // Resolves import path the same way as Node. Do not include '.json'.
+  // Import relative to CWD. Do not include '.json'.
   importResponse?: string;
-  // The path to output the generated web client interfaces, relative to the
-  // current definition JSON file. It should be separated from its message
-  // definition. Do not include '.ts'.
-  outputWebClient?: string;
-  // The path to output the generated handler interfaces, relative to the
-  // current definition JSON file. It should be separated from its message
-  // definition. Do not include '.ts'.
+}
+
+export interface WebServiceDefinition {
+  // Must be of CamelCase.
+  name: string;
+  remoteCalls: Array<WebRemoteCallDefinition>;
+  // The path to output the generated web client interfaces, relative to CWD.
+  // It should be separated from its metadata definition. Do not include '.ts'.
+  outputClient?: string;
+  // The path to output the generated handler interfaces, relative to CWD.
+  // It should be separated from its metadata definition. Do not include '.ts'.
   outputHandler?: string;
 }
 
-export interface SpannerVariable {
+export interface NodeRemoteCallDefinition {
+  // Must be of CamelCase.
   name: string;
-  // Supports the following types: string, bool, int53, float, timestamp, and
-  // bytes.
-  // float maps to float64 in Spanner and number in JS/TS.
-  // timestamp maps to timestamp in Spanner and number in milliseconds in JS/TS.
-  // string and bool are the same in Spanner and JS/TS.
-  // bytes maps to bytes in Spanner and Nodejs Buffer in JS/TS.
-  // int53 maps to int64 in Spanner and number in JS/TS. By specifying int53,
-  // it means that you can guarantee the number stored won't exceed the max
-  // number in JS which is 2^53 - 1.
-  // int64 is left out here until bigint is better supported in all browsers.
-  // Other types, including struct and array of array, are not supported.
-  type: string;
-  isArray?: true;
+  // The pathname of a url. Must start with "/".
+  path: string;
+  // The body in a HTTP request. Support either 'bytes' or the name of a message.
+  body?: string;
+  // Import relative to CWD. Do not include '.json'.
+  importBody?: string;
+  // Prefer `body` when possible. Often used when body is a bytes stream.
+  metadata?: KeyValueParamDefinition;
+  // Support only the name of a message.
+  response: string;
+  // Import relative to CWD. Do not include '.json'.
+  importResponse?: string;
 }
 
-export interface SpannerSqlDefinition {
-  // Following Spanner SQL syntax, optionally with params.
-  sql: string;
-  // Must match the params specified in SQL statements.
-  params?: Array<SpannerVariable>;
-  // Must match the output columns, if the SQL statement is a query statement.
-  outputColumns?: Array<SpannerVariable>;
+export interface NodeServiceDefinition {
+  // Must be of CamelCase.
+  name: string;
+  remoteCalls: Array<NodeRemoteCallDefinition>;
+  // The path to output the generated web client interfaces, relative to CWD.
+  // It should be separated from its metadata definition. Do not include '.ts'.
+  outputClient?: string;
+  // The path to output the generated handler interfaces, relative to CWD.
+  // It should be separated from its metadata definition. Do not include '.ts'.
+  outputHandler?: string;
 }
 
-export interface MySqlTableColumn {
+// `${name} ${isArray ? Array<type> : type} ${expressions} ${allow_commit_timestamp ? 'allow_commit_timestamp = true' ]`
+export interface SpannerTableColumnDefinition {
+  // Must be of CamelCase.
   name: string;
+  // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
+  // `bool` is the same in Spanner and JS/TS.
+  // `int64` maps to int64 in Spanner and bigint in JS/TS. Note that Spanner Nodejs client is inefficient in handling int64. Only use it when precision is required.
+  // `float64` maps to float64 in Spanner and number in JS/TS.
+  // `timestamp` maps to timestamp in Spanner and number in milliseconds in JS/TS.
+  // `string` maps to string with MAX length in Spanner and string in JS/TS.
+  // `bytes` maps to bytes with MAX length in Spanner and Nodejs Buffer in JS/TS.
+  // `date` is left out because it's error-prone due to timezone ambiguit.
+  // `struct` and `json` types are not supported in favor of the message type below.
+  // Supports the name of a message which must be defined first and can be imported, which maps to bytes in Spanner.
+  // Supports the name of an enum which must be defined first and can be imported, which maps to float64 in Spanner.
   type: string;
+  // Import relative to CWD. Do not include '.json'.
   import?: string;
-  nullable: boolean;
+  isArray?: true;
+  nullable?: true;
+  // Only applicable to `timestamp` type and must not be an array.
+  allowCommitTimestamp?: true;
 }
 
-export interface MySqlIndex {
+// `CREATE [ UNIUQE ] [ NULL_FILTERED ] INDEX ${name} ON ${tableName} (${...columns}) ${clauses}`
+export interface SpannerIndexDefinition {
+  // Must be of CamelCase.
+  name: string;
+  // Columns on the table that includes this definition.
   columns: Array<string>;
-  isUnique?: boolean;
+  unique?: true;
+  nullFiltered?: true;
 }
 
-export interface MySqlTableDefinition {
-  columns?: Array<MySqlTableColumn>;
-  primaryKey: Array<string>;
-  indexes: Array<MySqlIndex>;
-}
-
-export interface MySqlTableColumn {
-  table: string;
+// `${column} ${desc ? 'DESC' : 'ASC'},`
+export interface SpannerTablePrimaryKeyDefinition {
   column: string;
+  desc?: true;
 }
 
-export interface MySqlJoin {
-  left: MySqlTableColumn;
-  type: "left" | "right" | "inner" | "outer";
-  right: MySqlTableColumn;
+export interface SpannerTableInterleaveDefinition {
+  parentTable: string;
+  cascadeOnDelete?: true;
 }
 
-export interface MySqlCondition {
-  column: MySqlTableColumn;
-  operator: ">" | "<" | "=" | "<=" | ">=" | "<>" | "is null" | "is not null";
+// `CREATE TABLE ${name} (${...columns}) PRIMARY KEY (${...primaryKeys}) ${interleave}`
+export interface SpannerTableDefinition {
+  // Must be of CamelCase.
+  name: string;
+  columns: Array<SpannerTableColumnDefinition>;
+  primaryKeys: Array<SpannerTablePrimaryKeyDefinition>;
+  interleave?: SpannerTableInterleaveDefinition;
+  indexes?: Array<SpannerIndexDefinition>;
 }
 
-export interface MySqlConditionGate {
-  left: MySqlConditionGate | MySqlCondition;
-  gate: "or" | "and";
-  right: MySqlConditionGate | MySqlCondition;
+export interface SpannerColumnRef {
+  name: string;
+  table?: string;
 }
 
-export interface MySqlSelectDefinition {
-  columns: Array<MySqlTableColumn>;
-  from: Array<string>;
-  join?: Array<MySqlJoin>;
-  where?: MySqlConditionGate | MySqlCondition;
-  groupBy?: Array<MySqlTableColumn>;
-  orderBy?: Array<MySqlTableColumn>;
+export interface SpannerTableRef {
+  name: string;
+  as?: string;
 }
 
-export interface MySqlInsertDefinition {
+export interface SpannerJoinOnLeaf {
+  type: "leaf";
+  leftColumn: SpannerColumnRef;
+  op: ">" | "<" | ">=" | "<=" | "!=" | "=";
+  // Must refer to the table to be joined.
+  rightColumn: string;
+}
+
+export interface SpannerJoinOnGate {
+  type: "gate";
+  left: SpannerJoinOnGate | SpannerJoinOnLeaf;
+  op: "AND" | "OR";
+  right: SpannerJoinOnGate | SpannerJoinOnLeaf;
+}
+
+export interface SpannerJoin {
+  type: "INNER" | "CROSS" | "FULL" | "LEFT" | "RIGHT";
+  table: SpannerTableRef;
+  on?: SpannerJoinOnGate | SpannerJoinOnLeaf;
+}
+
+export interface SpannerWhereLeaf {
+  type: "leaf";
+  leftColumn: SpannerColumnRef;
+  function?: string; // Reserved. Not implemented yet. E.g. ARRAY_AGG()
+  op: ">" | "<" | ">=" | "<=" | "!=" | "=" | "IS NULL" | "IS NOT NULL";
+  // right value should be an input, except for NULL check.
+}
+
+export interface SpannerWhereGate {
+  type: "gate";
+  left: SpannerWhereGate | SpannerWhereLeaf;
+  op: "AND" | "OR";
+  right: SpannerWhereGate | SpannerWhereLeaf;
+}
+
+export interface SpannerOrderByColumnRef {
+  column: SpannerColumnRef;
+  desc?: true;
+}
+
+export interface SpannerSelectDefinition {
+  // Must be of CamelCase.
+  name: string;
+  fromTable: SpannerTableRef;
+  join?: Array<SpannerJoin>;
+  where?: SpannerWhereGate | SpannerWhereLeaf;
+  orderBy?: Array<SpannerOrderByColumnRef>;
+  limit?: number;
+  getColumns: Array<SpannerColumnRef>;
+}
+
+export interface SpannerInsertDefinition {
+  // Must be of CamelCase.
+  name: string;
   table: string;
-  columns: Array<string>;
+  setColumns: Array<string>;
 }
 
-export interface MySqlUpdateDefinition {
+export interface SpannerUpdateDefinition {
+  // Must be of CamelCase.
+  name: string;
   table: string;
-  columns: Array<string>;
-  where: MySqlConditionGate | MySqlCondition;
+  setColumns: Array<string>;
+  where: SpannerWhereGate | SpannerWhereLeaf;
 }
 
-export interface MySqlDeleteDefinition {
+export interface SpannerDeleteDefinition {
+  // Must be of CamelCase.
+  name: string;
   table: string;
-  where: MySqlConditionGate | MySqlCondition;
+  where: SpannerWhereGate | SpannerWhereLeaf;
+}
+
+export interface SpannerDatabaseDefinition {
+  // Must be of CamelCase.
+  name: string;
+  tables: Array<SpannerTableDefinition>;
+  selects?: Array<SpannerSelectDefinition>;
+  inserts?: Array<SpannerInsertDefinition>;
+  updates?: Array<SpannerUpdateDefinition>;
+  deletes?: Array<SpannerDeleteDefinition>;
+  // The path to output the generated DDL JSON file, relative to CWD. Do not
+  // include '.json'.
+  outputDdl: string;
+  // The path to output the generated SQL functions, relative to CWD. Do not
+  // include '.ts'.
+  outputSql: string;
 }
 
 export interface Definition {
-  // Must be of CamelCase.
-  name: string;
   // One of the below.
   // Generated code requires package `@selfage/message`.
   enum?: EnumDefinition;
   // Generated code requires package `@selfage/message`.
   message?: MessageDefinition;
-  // Generated code requires package `@selfage/observable`.
-  observable?: ObservableDefinition;
   // Generated code requires package `@selfage/service_descriptor`.
-  service?: ServiceDefinition;
-  // Generated code requires package `@google-cloud/spanner`.
-  spannerSql?: SpannerSqlDefinition;
-  // Generated code requires package `@selfage/message`.
-  mySqlTable?: MySqlTableDefinition;
-  // Generated code requires package `@selfage/message`.
-  mySqlSelect?: MySqlSelectDefinition;
-  // Generated code requires package `@selfage/message`.
-  mySqlInsert?: MySqlInsertDefinition;
-  // Generated code requires package `@selfage/message`.
-  mySqlUpdate?: MySqlUpdateDefinition;
-  // Generated code requires package `@selfage/message`.
-  mySqlDelete?: MySqlDeleteDefinition;
+  webService?: WebServiceDefinition;
+  // Generated code requires package `@selfage/service_descriptor`.
+  nodeService?: NodeServiceDefinition;
+  // Generated code requires package `@google-cloud/spanner` and `@selfage/spanner_schema_update_cli`.
+  spannerDatabase?: SpannerDatabaseDefinition;
 }

@@ -1,12 +1,12 @@
-import { WebServiceClientInterface, WebServiceClientOptions } from '@selfage/service_descriptor/web_service_client_interface';
 import { GetCommentsRequest, GetCommentsResponse } from './sub/get_comments';
 import { GET_COMMENTS, UPLOAD_FILE } from './service';
-import { UploadFileResponse } from './sub/upload_file';
+import { NodeClientInterface, NodeClientOptions, WebClientInterface, WebClientOptions } from '@selfage/service_descriptor/client_interface';
+import { UploadFileRequestMetadata, UploadFileResponse } from './sub/upload_file';
 
 export function getComments(
-  client: WebServiceClientInterface,
+  client: NodeClientInterface,
   body: GetCommentsRequest,
-  options?: WebServiceClientOptions,
+  options?: NodeClientOptions,
 ): Promise<GetCommentsResponse> {
   return client.send(
     {
@@ -18,14 +18,16 @@ export function getComments(
 }
 
 export function uploadFile(
-  client: WebServiceClientInterface,
+  client: WebClientInterface,
   body: Blob,
-  options?: WebServiceClientOptions,
+  metadata: UploadFileRequestMetadata,
+  options?: WebClientOptions,
 ): Promise<UploadFileResponse> {
   return client.send(
     {
       descriptor: UPLOAD_FILE,
       body,
+      metadata,
     },
     options,
   );

@@ -1,10 +1,10 @@
-import { ServiceHandlerInterface } from '@selfage/service_descriptor/service_handler_interface';
-import { GET_COMMENTS, UPLOAD_FILE } from './service';
 import { GetCommentsRequest, GetCommentsResponse } from './sub/get_comments';
+import { GET_COMMENTS, UserSession, UPLOAD_FILE } from './service';
+import { NodeHandlerInterface, WebHandlerInterface } from '@selfage/service_descriptor/handler_interface';
 import { Readable } from 'stream';
-import { UploadFileResponse } from './sub/upload_file';
+import { UploadFileRequestMetadata, UploadFileResponse } from './sub/upload_file';
 
-export abstract class GetCommentsHandlerInterface implements ServiceHandlerInterface {
+export abstract class GetCommentsHandlerInterface implements NodeHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
     loggingPrefix: string,
@@ -12,10 +12,12 @@ export abstract class GetCommentsHandlerInterface implements ServiceHandlerInter
   ): Promise<GetCommentsResponse>;
 }
 
-export abstract class UploadFileHandlerInterface implements ServiceHandlerInterface {
+export abstract class UploadFileHandlerInterface implements WebHandlerInterface {
   public descriptor = UPLOAD_FILE;
   public abstract handle(
     loggingPrefix: string,
     body: Readable,
+    metadata: UploadFileRequestMetadata,
+    auth: UserSession,
   ): Promise<UploadFileResponse>;
 }

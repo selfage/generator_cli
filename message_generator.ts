@@ -1,91 +1,97 @@
 import { MessageDefinition } from "./definition";
-import { DefinitionFinder } from "./definition_finder";
-import { OutputContentBuilder } from "./output_content_builder";
-import { generateComment, toUppercaseSnaked } from "./util";
+import { MessageResolver } from "./message_resolver";
+import {
+  OutputContentBuilder,
+  TsContentBuilder,
+} from "./output_content_builder";
+import { toUppercaseSnaked, wrapComment } from "./util";
 
 let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
 
-export function generateMessageDescriptor(
-  modulePath: string,
-  messageName: string,
+export function generateMessage(
+  definitionModulePath: string,
   messageDefinition: MessageDefinition,
-  definitionFinder: DefinitionFinder,
-  contentMap: Map<string, OutputContentBuilder>,
+  messageResolver: MessageResolver,
+  outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
-  let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
-  outputContentBuilder.push(`${generateComment(messageDefinition.comment)}
-export interface ${messageName} {`);
+  let loggingPrefix = `When generating message ${messageDefinition.name},`;
+  let tsContentBuilder = TsContentBuilder.get(
+    outputContentMap,
+    definitionModulePath,
+  );
+  let fields = new Array<string>();
+  let fieldDescriptors = new Array<string>();
+  let usedIndexes = new Set<number>();
   for (let field of messageDefinition.fields) {
-    let fieldTypeName: string;
-    if (field.isArray) {
-      fieldTypeName = `Array<${field.type}>`;
-    } else {
-      fieldTypeName = field.type;
+    if (usedIndexes.has(field.index)) {
+      throw new Error(
+        `${loggingPrefix} field ${field.name} has a duplicate index ${field.index}.`,
+      );
     }
-    outputContentBuilder.push(`${generateComment(field.comment)}
-  ${field.name}?: ${fieldTypeName},`);
-  }
-  outputContentBuilder.push(`
-}
-`);
+    usedIndexes.add(field.index);
 
-  outputContentBuilder.importFromMessageDescriptor("MessageDescriptor");
-  let descriptorName = toUppercaseSnaked(messageName);
-  outputContentBuilder.push(`
-export let ${descriptorName}: MessageDescriptor<${messageName}> = {
-  name: '${messageName}',
-  fields: [`);
-  for (let field of messageDefinition.fields) {
-    outputContentBuilder.push(`
-    {
-      name: '${field.name}',`);
+    let descriptorLine: string;
     if (PRIMITIVE_TYPES.has(field.type)) {
-      outputContentBuilder.importFromMessageDescriptor("PrimitiveType");
-      outputContentBuilder.push(`
-      primitiveType: PrimitiveType.${field.type.toUpperCase()},`);
+      tsContentBuilder.importFromMessageDescriptor("PrimitiveType");
+      descriptorLine = `primitiveType: PrimitiveType.${field.type.toUpperCase()}`;
     } else {
-      let typeDefinition = definitionFinder.getDefinition(
+      let definition = messageResolver.resolve(
+        loggingPrefix,
         field.type,
         field.import,
       );
-      if (!typeDefinition) {
-        throw new Error(`Type ${field.type} is not found in ${field.import}.`);
-      }
-
-      if (typeDefinition.enum) {
+      if (definition.enum) {
         let enumDescriptorName = toUppercaseSnaked(field.type);
-        outputContentBuilder.importFromPath(
+        tsContentBuilder.importFromDefinition(
           field.import,
           field.type,
           enumDescriptorName,
         );
-        outputContentBuilder.push(`
-      enumType: ${enumDescriptorName},`);
-      } else if (typeDefinition.message) {
+        descriptorLine = `enumType: ${enumDescriptorName}`;
+      } else if (definition.message) {
         let messageDescriptorName = toUppercaseSnaked(field.type);
-        outputContentBuilder.importFromPath(
+        tsContentBuilder.importFromDefinition(
           field.import,
           field.type,
           messageDescriptorName,
         );
-        outputContentBuilder.push(`
-      messageType: ${messageDescriptorName},`);
+        descriptorLine = `messageType: ${messageDescriptorName}`;
       } else {
         throw new Error(
-          `Type ${field.type} is not found to be a primitve type, enum or message when imported from ${field.import}.`,
+          `${loggingPrefix} a new definition needs to be handled for type ${field.type} of field ${field.name}.`,
         );
       }
     }
-
+    let fieldTypeName: string;
+    let isArrayLine: string;
     if (field.isArray) {
-      outputContentBuilder.push(`
-      isArray: true,`);
+      fieldTypeName = `Array<${field.type}>`;
+      isArrayLine = `isArray: true`;
+    } else {
+      fieldTypeName = field.type;
     }
-    outputContentBuilder.push(`
-    },`);
+    fieldDescriptors.push(`{
+    name: '${field.name}',
+    index: ${field.index},
+    ${descriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
+  }`);
+    if (!field.deprecated) {
+      let fieldComment = wrapComment(field.comment);
+      fields.push(`
+  ${fieldComment ? fieldComment + "\n  " : ""}${field.name}?: ${fieldTypeName},`);
+    }
   }
-  outputContentBuilder.push(`
-  ]
+
+  tsContentBuilder.importFromMessageDescriptor("MessageDescriptor");
+  let messageComment = wrapComment(messageDefinition.comment);
+  let descriptorName = toUppercaseSnaked(messageDefinition.name);
+  tsContentBuilder.push(`
+${messageComment ? messageComment + "\n" : ""}export interface ${messageDefinition.name} {${fields.join("")}
+}
+
+export let ${descriptorName}: MessageDescriptor<${messageDefinition.name}> = {
+  name: '${messageDefinition.name}',
+  fields: [${fieldDescriptors.join(", ")}],
 };
 `);
 }

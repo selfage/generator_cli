@@ -1,28 +1,25 @@
 import fs = require("fs");
-import path = require("path");
 import resolve = require("resolve");
 import { Definition } from "./definition";
 
-export class DefinitionFinder {
-  private currentDir: string;
-  private currentModuleBase: string;
+export class MessageResolver {
   private cachedPathToNameToDefinitions = new Map<
     string,
     Map<string, Definition>
   >();
 
-  public constructor(currentModulePath: string) {
-    let pathObj = path.posix.parse(currentModulePath);
-    this.currentDir = pathObj.dir;
-    this.currentModuleBase = "./" + pathObj.base;
-  }
+  public constructor(private baseModulePath: string) {}
 
-  public getDefinition(definitionName: string, importPath?: string): Definition {
+  public resolve(
+    loggingPrefix: string,
+    name: string,
+    importPath?: string,
+  ): Definition {
     if (!importPath) {
-      importPath = this.currentModuleBase;
+      importPath = this.baseModulePath;
     }
     let filePath = resolve.sync(importPath, {
-      basedir: this.currentDir,
+      basedir: ".",
       extensions: [".json"],
     });
     let nameToDefinitions = this.cachedPathToNameToDefinitions.get(filePath);
@@ -36,13 +33,24 @@ export class DefinitionFinder {
         definitions = JSON.parse(jsonStr) as Array<Definition>;
       } catch (e) {
         e.message =
-          `Failed to parse JSON read from "${filePath}".\n` + e.message;
+          `${loggingPrefix} failed to parse JSON read from "${filePath}".\n` +
+          e.message;
         throw e;
       }
       for (let definition of definitions) {
-        nameToDefinitions.set(definition.name, definition);
+        if (definition.message) {
+          nameToDefinitions.set(definition.message.name, definition);
+        } else if (definition.enum) {
+          nameToDefinitions.set(definition.enum.name, definition);
+        }
       }
     }
-    return nameToDefinitions.get(definitionName);
+    let definition = nameToDefinitions.get(name);
+    if (!definition) {
+      throw new Error(
+        `${loggingPrefix} message/enum definition ${name} is not found in "${filePath}".`,
+      );
+    }
+    return definition;
   }
 }

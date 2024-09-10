@@ -1,4 +1,4 @@
-import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export interface CreditCard {
   cardNumber?: number,
@@ -6,10 +6,9 @@ export interface CreditCard {
 
 export let CREDIT_CARD: MessageDescriptor<CreditCard> = {
   name: 'CreditCard',
-  fields: [
-    {
-      name: 'cardNumber',
-      primitiveType: PrimitiveType.NUMBER,
-    },
-  ]
+  fields: [{
+    name: 'cardNumber',
+    index: 1,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
 };

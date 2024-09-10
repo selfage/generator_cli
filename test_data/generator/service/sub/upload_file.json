@@ -1,20 +1,23 @@
 [{
-  "name": "UploadFileRequestSide",
   "message": {
+    "name": "UploadFileRequestMetadata",
     "fields": [{
       "name": "fileName",
-      "type": "string"
+      "type": "string",
+      "index": 1
     }]
   }
 }, {
-  "name": "UploadFileResponse",
   "message": {
+    "name": "UploadFileResponse",
     "fields": [{
       "name": "bytesSent",
-      "type": "number"
+      "type": "number",
+      "index": 1
     }, {
       "name": "success",
-      "type": "boolean"
+      "type": "boolean",
+      "index": 2
     }]
   }
 }]

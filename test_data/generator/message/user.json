@@ -1,18 +1,21 @@
 [{
-  "name": "User",
   "message": {
+    "name": "User",
     "fields": [{
       "name": "id",
-      "type": "string"
+      "type": "string",
+      "index": 1
     }, {
       "name": "userInfo",
       "type": "UserInfo",
-      "import": "./user_info"
+      "import": "./test_data/generator/message/user_info",
+      "index": 2
     }, {
       "name": "creditCards",
       "type": "CreditCard",
       "isArray": true,
-      "import": "./sub/credit_card"
+      "import": "./test_data/generator/message/sub/credit_card",
+      "index": 3
     }]
   }
 }]

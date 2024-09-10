@@ -1,18 +1,20 @@
 [{
-  "name": "GetCommentsRequest",
   "message": {
+    "name": "GetCommentsRequest",
     "fields": [{
       "name": "videoId",
-      "type": "string"
+      "type": "string",
+      "index": 1
     }]
   }
 }, {
-  "name": "GetCommentsResponse",
   "message": {
+    "name": "GetCommentsResponse",
     "fields": [{
       "name": "text",
       "type": "string",
-      "isArray": true
+      "isArray": true,
+      "index": 1
     }]
   }
 }]

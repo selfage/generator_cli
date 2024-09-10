@@ -1,6 +1,6 @@
-import { generateEnumDescriptor } from "./enum_generator";
+import { generateEnum } from "./enum_generator";
 import { OutputContentBuilder } from "./output_content_builder";
-import { assertThat, eq } from "@selfage/test_matcher";
+import { assertThat, eqLongStr } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
@@ -13,10 +13,10 @@ TEST_RUNNER.run({
         let contentMap = new Map<string, OutputContentBuilder>();
 
         // Execute
-        generateEnumDescriptor(
+        generateEnum(
           "some_file",
-          "Color",
           {
+            name: "Color",
             values: [
               {
                 name: "RED",
@@ -28,13 +28,13 @@ TEST_RUNNER.run({
               },
             ],
           },
-          contentMap
+          contentMap,
         );
 
         // Verify
         assertThat(
-          contentMap.get("some_file").toString(),
-          eq(`import { EnumDescriptor } from '@selfage/message/descriptor';
+          contentMap.get("./some_file").build(),
+          eqLongStr(`import { EnumDescriptor } from '@selfage/message/descriptor';
 
 export enum Color {
   RED = 12,
@@ -43,19 +43,16 @@ export enum Color {
 
 export let COLOR: EnumDescriptor<Color> = {
   name: 'Color',
-  values: [
-    {
-      name: 'RED',
-      value: 12,
-    },
-    {
-      name: 'BLUE',
-      value: 1,
-    },
-  ]
+  values: [{
+    name: 'RED',
+    value: 12,
+  }, {
+    name: 'BLUE',
+    value: 1,
+  }]
 }
 `),
-          "outputContent"
+          "outputContent",
         );
       },
     },
@@ -66,38 +63,36 @@ export let COLOR: EnumDescriptor<Color> = {
         let contentMap = new Map<string, OutputContentBuilder>();
 
         // Execute
-        generateEnumDescriptor(
+        generateEnum(
           "some_file",
-          "Color",
           {
+            name: "Color",
             values: [{ name: "RED", value: 1, comment: "Red!" }],
             comment: "Pick!",
           },
-          contentMap
+          contentMap,
         );
 
         // Verify
         assertThat(
-          contentMap.get("some_file").toString(),
-          eq(`import { EnumDescriptor } from '@selfage/message/descriptor';
+          contentMap.get("./some_file").build(),
+          eqLongStr(`import { EnumDescriptor } from '@selfage/message/descriptor';
 
 /* Pick! */
 export enum Color {
-/* Red! */
+  /* Red! */
   RED = 1,
 }
 
 export let COLOR: EnumDescriptor<Color> = {
   name: 'Color',
-  values: [
-    {
-      name: 'RED',
-      value: 1,
-    },
-  ]
+  values: [{
+    name: 'RED',
+    value: 1,
+  }]
 }
 `),
-          `outputContent`
+          `outputContent`,
         );
       },
     },

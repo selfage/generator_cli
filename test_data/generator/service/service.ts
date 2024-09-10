@@ -1,7 +1,7 @@
-import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
-import { ServiceDescriptor, PrimitveTypeForBody } from '@selfage/service_descriptor';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 import { GET_COMMENTS_REQUEST, GET_COMMENTS_RESPONSE } from './sub/get_comments';
-import { UPLOAD_FILE_RESPONSE } from './sub/upload_file';
+import { NodeRemoteCallDescriptor, PrimitveTypeForBody, WebRemoteCallDescriptor } from '@selfage/service_descriptor';
+import { UPLOAD_FILE_REQUEST_METADATA, UPLOAD_FILE_RESPONSE } from './sub/upload_file';
 
 export interface UserSession {
   userId?: string,
@@ -10,19 +10,18 @@ export interface UserSession {
 
 export let USER_SESSION: MessageDescriptor<UserSession> = {
   name: 'UserSession',
-  fields: [
-    {
-      name: 'userId',
-      primitiveType: PrimitiveType.STRING,
-    },
-    {
-      name: 'expirationTime',
-      primitiveType: PrimitiveType.NUMBER,
-    },
-  ]
+  fields: [{
+    name: 'userId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'expirationTime',
+    index: 2,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
 };
 
-export let GET_COMMENTS: ServiceDescriptor = {
+export let GET_COMMENTS: NodeRemoteCallDescriptor = {
   name: "GetComments",
   path: "/GetComments",
   body: {
@@ -33,11 +32,19 @@ export let GET_COMMENTS: ServiceDescriptor = {
   },
 }
 
-export let UPLOAD_FILE: ServiceDescriptor = {
+export let UPLOAD_FILE: WebRemoteCallDescriptor = {
   name: "UploadFile",
   path: "/UploadFile",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
+  },
+  metadata: {
+    key: "sd",
+    type: UPLOAD_FILE_REQUEST_METADATA,
+  },
+  auth: {
+    key: "su",
+    type: USER_SESSION
   },
   response: {
     messageType: UPLOAD_FILE_RESPONSE,

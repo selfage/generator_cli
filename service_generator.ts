@@ -1,188 +1,259 @@
-import path = require("path");
-import { ServiceDefinition } from "./definition";
-import { DefinitionFinder } from "./definition_finder";
-import { OutputContentBuilder } from "./output_content_builder";
 import {
-  normalizeRelativePathForNode,
-  reverseImport,
-  toInitalLowercased,
-  toUppercaseSnaked,
-  transitImport,
-} from "./util";
+  NodeRemoteCallDefinition,
+  NodeServiceDefinition,
+  WebRemoteCallDefinition,
+  WebServiceDefinition,
+} from "./definition";
+import { MessageResolver } from "./message_resolver";
+import {
+  OutputContentBuilder,
+  TsContentBuilder,
+} from "./output_content_builder";
+import { toInitalLowercased, toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPE_BYTES = "bytes";
 let PRIMITIVE_TYPES = new Set<string>([PRIMITIVE_TYPE_BYTES]);
 
-export function generateServiceDescriptor(
-  modulePath: string,
-  serviceName: string,
-  serviceDefinition: ServiceDefinition,
-  definitionFinder: DefinitionFinder,
-  contentMap: Map<string, OutputContentBuilder>,
+export function generateService(
+  definitionModulePath: string,
+  serviceDefinition: NodeServiceDefinition | WebServiceDefinition,
+  kind: "node" | "web",
+  messageResolver: MessageResolver,
+  outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
-  let serviceDescriptorName = toUppercaseSnaked(serviceName);
-  let outputContentBuilder = OutputContentBuilder.get(contentMap, modulePath);
-  outputContentBuilder.importFromServiceDescriptor("ServiceDescriptor");
-  outputContentBuilder.push(`
-export let ${serviceDescriptorName}: ServiceDescriptor = {
-  name: "${serviceName}",
-  path: "${serviceDefinition.path}",`);
-
-  if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
-    outputContentBuilder.importFromServiceDescriptor("PrimitveTypeForBody");
-    outputContentBuilder.push(`
-  body: {
-    primitiveType: PrimitveTypeForBody.${serviceDefinition.body.toUpperCase()},
-  },`);
-  } else {
-    let requestDefinition = definitionFinder.getDefinition(
-      serviceDefinition.body,
-      serviceDefinition.importBody,
+  let descriptorContentBuilder = TsContentBuilder.get(
+    outputContentMap,
+    definitionModulePath,
+  );
+  let clientContentBuilder = TsContentBuilder.get(
+    outputContentMap,
+    definitionModulePath,
+    serviceDefinition.outputClient,
+  );
+  let handlerContentBuilder = TsContentBuilder.get(
+    outputContentMap,
+    definitionModulePath,
+    serviceDefinition.outputHandler,
+  );
+  for (let remoteCall of serviceDefinition.remoteCalls) {
+    generateRemoteCall(
+      definitionModulePath,
+      remoteCall,
+      kind,
+      messageResolver,
+      descriptorContentBuilder,
+      clientContentBuilder,
+      handlerContentBuilder,
     );
-    if (!requestDefinition || !requestDefinition.message) {
+  }
+}
+
+export function generateRemoteCall(
+  definitionModulePath: string,
+  remoteCallDefinition: NodeRemoteCallDefinition | WebRemoteCallDefinition,
+  kind: "node" | "web",
+  messageResolver: MessageResolver,
+  descriptorContentBuilder: TsContentBuilder,
+  clientContentBuilder: TsContentBuilder,
+  handlerContentBuilder: TsContentBuilder,
+): void {
+  let loggingPrefix = `When generating descriptor for ${kind} remote call ${remoteCallDefinition.name},`;
+  let bodyDescriptor = "";
+  if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
+    descriptorContentBuilder.importFromServiceDescriptor("PrimitveTypeForBody");
+    bodyDescriptor = `
+  body: {
+    primitiveType: PrimitveTypeForBody.${remoteCallDefinition.body.toUpperCase()},
+  },`;
+  } else {
+    let requesBodytDefinition = messageResolver.resolve(
+      loggingPrefix,
+      remoteCallDefinition.body,
+      remoteCallDefinition.importBody,
+    );
+    if (!requesBodytDefinition.message) {
       throw new Error(
-        `Request body ${serviceDefinition.body} is not found or not a message.`,
+        `${loggingPrefix} request body ${remoteCallDefinition.body} is not a message.`,
       );
     }
-
-    let requestDescriptorName = toUppercaseSnaked(serviceDefinition.body);
-    outputContentBuilder.importFromPath(
-      serviceDefinition.importBody,
-      requestDescriptorName,
+    let requestBodyDescriptorName = toUppercaseSnaked(
+      remoteCallDefinition.body,
     );
-    outputContentBuilder.push(`
+    descriptorContentBuilder.importFromDefinition(
+      remoteCallDefinition.importBody,
+      requestBodyDescriptorName,
+    );
+    bodyDescriptor = `
   body: {
-    messageType: ${requestDescriptorName},
-  },`);
+    messageType: ${requestBodyDescriptorName},
+  },`;
   }
 
-  if (serviceDefinition.auth) {
-    let authDescriptorName = toUppercaseSnaked(serviceDefinition.auth.type);
-    outputContentBuilder.importFromPath(
-      serviceDefinition.auth.import,
-      authDescriptorName,
+  let metadataDescriptor = "";
+  if (remoteCallDefinition.metadata) {
+    let metadataDefinition = messageResolver.resolve(
+      loggingPrefix,
+      remoteCallDefinition.metadata.type,
+      remoteCallDefinition.metadata.import,
     );
-    outputContentBuilder.push(`
-  auth: {
-    key: "${serviceDefinition.auth.key}",
-    type: ${authDescriptorName}
-  },`);
-  }
-
-  if (serviceDefinition.metadata) {
+    if (!metadataDefinition.message) {
+      throw new Error(
+        `${loggingPrefix} metadata type ${remoteCallDefinition.metadata.type} is not a message.`,
+      );
+    }
     let metadataDescriptorName = toUppercaseSnaked(
-      serviceDefinition.metadata.type,
+      remoteCallDefinition.metadata.type,
     );
-    outputContentBuilder.importFromPath(
-      serviceDefinition.metadata.import,
+    descriptorContentBuilder.importFromDefinition(
+      remoteCallDefinition.metadata.import,
       metadataDescriptorName,
     );
-    outputContentBuilder.push(`
+    metadataDescriptor = `
   metadata: {
-    key: "${serviceDefinition.metadata.key}",
+    key: "${remoteCallDefinition.metadata.key}",
     type: ${metadataDescriptorName},
-  },`);
+  },`;
   }
 
-  let responseDescriptorName = toUppercaseSnaked(serviceDefinition.response);
-  outputContentBuilder.importFromPath(
-    serviceDefinition.importResponse,
+  let authDescriptor = "";
+  if (kind === "web") {
+    let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
+    if (webDefinition.auth) {
+      let authDefinition = messageResolver.resolve(
+        loggingPrefix,
+        webDefinition.auth.type,
+        webDefinition.auth.import,
+      );
+      if (!authDefinition.message) {
+        throw new Error(
+          `${loggingPrefix} auth type ${webDefinition.auth.type} is not a message.`,
+        );
+      }
+      let authDescriptorName = toUppercaseSnaked(webDefinition.auth.type);
+      descriptorContentBuilder.importFromDefinition(
+        webDefinition.auth.import,
+        authDescriptorName,
+      );
+      authDescriptor = `
+  auth: {
+    key: "${webDefinition.auth.key}",
+    type: ${authDescriptorName}
+  },`;
+    }
+  }
+
+  let responseDefinition = messageResolver.resolve(
+    loggingPrefix,
+    remoteCallDefinition.response,
+    remoteCallDefinition.importResponse,
+  );
+  if (!responseDefinition.message) {
+    throw new Error(
+      `${loggingPrefix} response type ${remoteCallDefinition.response} is not a message.`,
+    );
+  }
+  let responseDescriptorName = toUppercaseSnaked(remoteCallDefinition.response);
+  descriptorContentBuilder.importFromDefinition(
+    remoteCallDefinition.importResponse,
     responseDescriptorName,
   );
-  outputContentBuilder.push(`
+  let responseDescriptor = `
   response: {
     messageType: ${responseDescriptorName},
-  },`);
-  outputContentBuilder.push(`
+  },`;
+
+  let remoteCallDescriptor =
+    kind === "node" ? "NodeRemoteCallDescriptor" : "WebRemoteCallDescriptor";
+  descriptorContentBuilder.importFromServiceDescriptor(remoteCallDescriptor);
+  let remoteCallDescriptorName = toUppercaseSnaked(remoteCallDefinition.name);
+  descriptorContentBuilder.push(`
+export let ${remoteCallDescriptorName}: ${remoteCallDescriptor} = {
+  name: "${remoteCallDefinition.name}",
+  path: "${remoteCallDefinition.path}",${bodyDescriptor}${metadataDescriptor}${authDescriptor}${responseDescriptor}
 }
 `);
 
-  if (serviceDefinition.outputWebClient) {
-    generateWebClient(modulePath, serviceName, serviceDefinition, contentMap);
-  }
-  if (serviceDefinition.outputHandler) {
-    generateHandler(modulePath, serviceName, serviceDefinition, contentMap);
-  }
+  generateClient(
+    definitionModulePath,
+    remoteCallDefinition,
+    kind,
+    clientContentBuilder,
+  );
+  generateHandler(
+    definitionModulePath,
+    remoteCallDefinition,
+    kind,
+    handlerContentBuilder,
+  );
 }
 
-function generateWebClient(
-  modulePath: string,
-  serviceName: string,
-  serviceDefinition: ServiceDefinition,
-  contentMap: Map<string, OutputContentBuilder>,
+function generateClient(
+  definitionModulePath: string,
+  remoteCallDefinition: NodeRemoteCallDefinition,
+  kind: "node" | "web",
+  clientContentBuilder: TsContentBuilder,
 ): void {
-  let serviceDescriptorName = toUppercaseSnaked(serviceName);
-  let outputWebClientPath = normalizeRelativePathForNode(
-    path.posix.join(
-      path.posix.dirname(modulePath),
-      serviceDefinition.outputWebClient,
-    ),
-  );
-  let outputWebClientContentBuilder = OutputContentBuilder.get(
-    contentMap,
-    outputWebClientPath,
-  );
-  let importDescriptorPath = reverseImport(modulePath, outputWebClientPath);
-
-  outputWebClientContentBuilder.importFromWebServiceClientInterface(
-    "WebServiceClientInterface",
-  );
-  outputWebClientContentBuilder.push(`
-export function ${toInitalLowercased(serviceName)}(
-  client: WebServiceClientInterface,`);
-
-  if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
-    if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
-      outputWebClientContentBuilder.push(`
-  body: Blob,`);
+  let loggingPrefix = `When generating ${kind} client for ${remoteCallDefinition.name},`;
+  let bodyParam = "";
+  if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
+    if (remoteCallDefinition.body === PRIMITIVE_TYPE_BYTES) {
+      bodyParam = `
+  body: Blob,`;
     } else {
       throw new Error(
-        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating web client.`,
+        `${loggingPrefix} there is a new primitive type needs to be handled for its request body.`,
       );
     }
   } else {
-    outputWebClientContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.importBody),
-      serviceDefinition.body,
+    clientContentBuilder.importFromDefinition(
+      remoteCallDefinition.importBody,
+      remoteCallDefinition.body,
     );
-    outputWebClientContentBuilder.push(`
-  body: ${serviceDefinition.body},`);
+    bodyParam = `
+  body: ${remoteCallDefinition.body},`;
   }
 
-  if (serviceDefinition.metadata) {
-    outputWebClientContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.metadata.import),
-      serviceDefinition.metadata.type,
+  let metadataParam = "";
+  let metdataVariable = "";
+  if (remoteCallDefinition.metadata) {
+    clientContentBuilder.importFromDefinition(
+      remoteCallDefinition.metadata.import,
+      remoteCallDefinition.metadata.type,
     );
-    outputWebClientContentBuilder.push(`
-  metadata: ${serviceDefinition.metadata.type},`);
+    metadataParam = `
+  metadata: ${remoteCallDefinition.metadata.type},`;
+    metdataVariable = `
+      metadata,`;
   }
 
-  outputWebClientContentBuilder.importFromWebServiceClientInterface(
-    "WebServiceClientOptions",
+  clientContentBuilder.importFromDefinition(
+    remoteCallDefinition.importResponse,
+    remoteCallDefinition.response,
   );
-  outputWebClientContentBuilder.importFromPath(
-    transitImport(importDescriptorPath, serviceDefinition.importResponse),
-    serviceDefinition.response,
+  let remoteCallDescriptorName = toUppercaseSnaked(remoteCallDefinition.name);
+  clientContentBuilder.importFromDefinition(
+    definitionModulePath,
+    remoteCallDescriptorName,
   );
-  outputWebClientContentBuilder.importFromPath(
-    importDescriptorPath,
-    serviceDescriptorName,
+  let clientInterface =
+    kind === "node"
+      ? "NodeClientInterface"
+      : "WebClientInterface";
+  let clientOptions =
+    kind === "node" ? "NodeClientOptions" : "WebClientOptions";
+  clientContentBuilder.importFromServiceClientInterface(
+    clientInterface,
+    clientOptions,
   );
-  outputWebClientContentBuilder.push(`
-  options?: WebServiceClientOptions,
-): Promise<${serviceDefinition.response}> {
+  clientContentBuilder.push(`
+export function ${toInitalLowercased(remoteCallDefinition.name)}(
+  client: ${clientInterface},${bodyParam}${metadataParam}
+  options?: ${clientOptions},
+): Promise<${remoteCallDefinition.response}> {
   return client.send(
     {
-      descriptor: ${serviceDescriptorName},
-      body,`);
-
-  if (serviceDefinition.metadata) {
-    outputWebClientContentBuilder.push(`
-      metadata,`);
-  }
-
-  outputWebClientContentBuilder.push(`
+      descriptor: ${remoteCallDescriptorName},
+      body,${metdataVariable}
     },
     options,
   );
@@ -191,80 +262,73 @@ export function ${toInitalLowercased(serviceName)}(
 }
 
 function generateHandler(
-  modulePath: string,
-  serviceName: string,
-  serviceDefinition: ServiceDefinition,
-  contentMap: Map<string, OutputContentBuilder>,
+  definitionModulePath: string,
+  remoteCallDefinition: NodeRemoteCallDefinition,
+  kind: "node" | "web",
+  handlerContentBuilder: TsContentBuilder,
 ): void {
-  let serviceDescriptorName = toUppercaseSnaked(serviceName);
-  let outputHandlerPath = normalizeRelativePathForNode(
-    path.posix.join(
-      path.posix.dirname(modulePath),
-      serviceDefinition.outputHandler,
-    ),
-  );
-  let outputHandlerContentBuilder = OutputContentBuilder.get(
-    contentMap,
-    outputHandlerPath,
-  );
-  let importDescriptorPath = reverseImport(modulePath, outputHandlerPath);
-
-  outputHandlerContentBuilder.importFromServiceHandlerInterface(
-    "ServiceHandlerInterface",
-  );
-  outputHandlerContentBuilder.importFromPath(
-    importDescriptorPath,
-    serviceDescriptorName,
-  );
-  outputHandlerContentBuilder.push(`
-export abstract class ${serviceName}HandlerInterface implements ServiceHandlerInterface {
-  public descriptor = ${serviceDescriptorName};
-  public abstract handle(
-    loggingPrefix: string,`);
-
-  if (PRIMITIVE_TYPES.has(serviceDefinition.body)) {
-    if (serviceDefinition.body === PRIMITIVE_TYPE_BYTES) {
-      outputHandlerContentBuilder.importFromPath("stream", "Readable");
-      outputHandlerContentBuilder.push(`
-    body: Readable,`);
+  let loggingPrefix = `When generating ${kind} handler for ${remoteCallDefinition.name},`;
+  let bodyParam = "";
+  if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
+    if (remoteCallDefinition.body === PRIMITIVE_TYPE_BYTES) {
+      handlerContentBuilder.importFromStream("Readable");
+      bodyParam = `
+    body: Readable,`;
     } else {
       throw new Error(
-        `${serviceName} has defined unsupported service request body ${serviceDefinition.body} when generating handler.`,
+        `${loggingPrefix} there is a new primitive type needs to be handled for its request body.`,
       );
     }
   } else {
-    outputHandlerContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.importBody),
-      serviceDefinition.body,
+    handlerContentBuilder.importFromDefinition(
+      remoteCallDefinition.importBody,
+      remoteCallDefinition.body,
     );
-    outputHandlerContentBuilder.push(`
-    body: ${serviceDefinition.body},`);
+    bodyParam = `
+    body: ${remoteCallDefinition.body},`;
   }
 
-  if (serviceDefinition.metadata) {
-    outputHandlerContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.metadata.import),
-      serviceDefinition.metadata.type,
+  let metadataParam = "";
+  if (remoteCallDefinition.metadata) {
+    handlerContentBuilder.importFromDefinition(
+      remoteCallDefinition.metadata.import,
+      remoteCallDefinition.metadata.type,
     );
-    outputHandlerContentBuilder.push(`
-    metadata: ${serviceDefinition.metadata.type},`);
+    metadataParam = `
+    metadata: ${remoteCallDefinition.metadata.type},`;
   }
 
-  if (serviceDefinition.auth) {
-    outputHandlerContentBuilder.importFromPath(
-      transitImport(importDescriptorPath, serviceDefinition.auth.import),
-      serviceDefinition.auth.type,
-    );
-    outputHandlerContentBuilder.push(`
-    auth: ${serviceDefinition.auth.type},`);
+  let authParam = "";
+  if (kind === "web") {
+    let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
+    if (webDefinition.auth) {
+      handlerContentBuilder.importFromDefinition(
+        webDefinition.auth.import,
+        webDefinition.auth.type,
+      );
+      authParam = `
+    auth: ${webDefinition.auth.type},`;
+    }
   }
 
-  outputHandlerContentBuilder.importFromPath(
-    transitImport(importDescriptorPath, serviceDefinition.importResponse),
-    serviceDefinition.response,
+  let handlerInterface =
+    kind === "node" ? "NodeHandlerInterface" : "WebHandlerInterface";
+  let remoteCallDescriptorName = toUppercaseSnaked(remoteCallDefinition.name);
+  handlerContentBuilder.importFromDefinition(
+    definitionModulePath,
+    remoteCallDescriptorName,
   );
-  outputHandlerContentBuilder.push(`
-  ): Promise<${serviceDefinition.response}>;
+  handlerContentBuilder.importFromDefinition(
+    remoteCallDefinition.importResponse,
+    remoteCallDefinition.response,
+  );
+  handlerContentBuilder.importFromServiceHandlerInterface(handlerInterface);
+  handlerContentBuilder.push(`
+export abstract class ${remoteCallDefinition.name}HandlerInterface implements ${handlerInterface} {
+  public descriptor = ${remoteCallDescriptorName};
+  public abstract handle(
+    loggingPrefix: string,${bodyParam}${metadataParam}${authParam}
+  ): Promise<${remoteCallDefinition.response}>;
 }
 `);
 }

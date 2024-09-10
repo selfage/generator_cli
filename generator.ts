@@ -1,116 +1,59 @@
 import fs = require("fs");
-import path = require("path");
-import { DatastoreIndexBuilder } from "./datastore_index_builder";
-import { generateDatastoreModel } from "./datastore_model_generator";
 import { Definition } from "./definition";
-import { DefinitionFinder } from "./definition_finder";
-import { generateEnumDescriptor } from "./enum_generator";
-import { stripFileExtension, writeFileSync } from "./io_helper";
-import { generateMessageDescriptor } from "./message_generator";
-import { generateObservableDescriptor } from "./observable_generator";
+import { generateEnum } from "./enum_generator";
+import { stripFileExtension } from "./io_helper";
+import { generateMessage } from "./message_generator";
+import { MessageResolver } from "./message_resolver";
 import { OutputContentBuilder } from "./output_content_builder";
-import { generateServiceDescriptor } from "./service_generator";
-import { generateSpannerSql } from "./spanner_sql_generator";
+import { generateService } from "./service_generator";
+import { generateSpannerDatabase } from "./spanner_database_generator";
 import { normalizeRelativePathForNode } from "./util";
 
-export function generate(
-  inputFile: string,
-  inputIndexFile?: string,
-  dryRun?: boolean,
-  packageJsonFile = "./package.json",
-): void {
+export function generate(inputFile: string, dryRun?: boolean): void {
   let modulePath = normalizeRelativePathForNode(stripFileExtension(inputFile));
   let definitions = JSON.parse(
     fs.readFileSync(modulePath + ".json").toString(),
   ) as Array<Definition>;
 
-  let hasDatastoreDefinition = definitions.some((definition) => {
-    return definition.message && definition.message.datastore;
-  });
-  let indexBuilder: DatastoreIndexBuilder;
-  if (hasDatastoreDefinition) {
-    let indexFile = inputIndexFile;
-    if (!indexFile) {
-      let packageIndexFile = JSON.parse(
-        fs.readFileSync(packageJsonFile).toString(),
-      ).datastoreIndex;
-      if (!packageIndexFile) {
-        throw new Error(
-          "An index file is required for generating datastore model.",
-        );
-      }
-      indexFile = path.posix.join(
-        path.posix.dirname(packageJsonFile),
-        packageIndexFile,
-      );
-    }
-    indexBuilder = DatastoreIndexBuilder.create(
-      stripFileExtension(indexFile) + ".yaml",
-    );
-  }
-
-  let definitionFinder = new DefinitionFinder(modulePath);
-  let contentMap = new Map<string, OutputContentBuilder>();
+  let messageResolver = new MessageResolver(modulePath);
+  let outputContentMap = new Map<string, OutputContentBuilder>();
   for (let definition of definitions) {
     if (definition.enum) {
-      generateEnumDescriptor(
-        modulePath,
-        definition.name,
-        definition.enum,
-        contentMap,
-      );
+      generateEnum(modulePath, definition.enum, outputContentMap);
     } else if (definition.message) {
-      generateMessageDescriptor(
+      generateMessage(
         modulePath,
-        definition.name,
         definition.message,
-        definitionFinder,
-        contentMap,
+        messageResolver,
+        outputContentMap,
       );
-      if (definition.message.datastore) {
-        generateDatastoreModel(
-          modulePath,
-          definition.name,
-          definition.message,
-          definitionFinder,
-          indexBuilder,
-          contentMap,
-        );
-      }
-    } else if (definition.observable) {
-      generateObservableDescriptor(
+    } else if (definition.webService) {
+      generateService(
         modulePath,
-        definition.name,
-        definition.observable,
-        definitionFinder,
-        contentMap,
+        definition.webService,
+        "web",
+        messageResolver,
+        outputContentMap,
       );
-    } else if (definition.service) {
-      generateServiceDescriptor(
+    } else if (definition.nodeService) {
+      generateService(
         modulePath,
-        definition.name,
-        definition.service,
-        definitionFinder,
-        contentMap,
+        definition.nodeService,
+        "node",
+        messageResolver,
+        outputContentMap,
       );
-    } else if (definition.spannerSql) {
-      generateSpannerSql(
+    } else if (definition.spannerDatabase) {
+      generateSpannerDatabase(
         modulePath,
-        definition.name,
-        definition.spannerSql,
-        contentMap,
+        definition.spannerDatabase,
+        messageResolver,
+        outputContentMap,
       );
     }
   }
 
-  if (indexBuilder) {
-    indexBuilder.writeFileSync(dryRun);
-  }
-  for (let [outputModulePath, outputContentBuilder] of contentMap) {
-    writeFileSync(
-      outputModulePath + ".ts",
-      outputContentBuilder.toString(),
-      dryRun,
-    );
+  for (let outputContentBuilder of outputContentMap.values()) {
+    outputContentBuilder.writeSync(dryRun);
   }
 }

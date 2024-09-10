@@ -1,6 +1,6 @@
 [{
-  "name": "Color",
   "enum": {
+    "name": "Color",
     "values": [{
       "name": "RED",
       "value": 10
@@ -13,28 +13,34 @@
     }]
   }
 }, {
-  "name": "UserInfo",
   "message": {
+    "name": "UserInfo",
     "fields": [{
       "name": "isPaid",
-      "type": "boolean"
+      "type": "boolean",
+      "index": 1
     }, {
       "name": "paidSince",
-      "type": "number"
+      "type": "number",
+      "index": 2
     }, {
       "name": "nickname",
-      "type": "string"
+      "type": "string",
+      "index": 3
     }, {
       "name": "nicknameHistory",
       "type": "string",
-      "isArray": true
+      "isArray": true,
+      "index": 4
     }, {
       "name": "backgroundColor",
-      "type": "Color"
+      "type": "Color",
+      "index": 5
     }, {
       "name": "colorHistory",
       "type": "Color",
-      "isArray": true
+      "isArray": true,
+      "index": 6
     }]
   }
 }]

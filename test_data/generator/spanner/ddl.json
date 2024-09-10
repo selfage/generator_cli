@@ -1,0 +1,34 @@
+{
+  "tables": [{
+    "name": "UserTable",
+    "columns": [{
+      "name": "userId",
+      "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN userId FLOAT64 NOT NULL"
+    }, {
+      "name": "user",
+      "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN user BYTES(MAX)"
+    }, {
+      "name": "createdTimestamp",
+      "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN createdTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)"
+    }],
+    "createTableDdl": "CREATE TABLE UserTable (userId FLOAT64 NOT NULL, user BYTES(MAX), createdTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)) PRIMARY KEY (userId ASC)",
+    "indexes": [{
+      "name": "ByTimestamp",
+      "createIndexDdl": "CREATE INDEX ByTimestamp ON UserTable(userId, createdTimestamp)"
+    }]
+  }, {
+    "name": "UserContent",
+    "columns": [{
+      "name": "userId",
+      "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN userId FLOAT64 NOT NULL"
+    }, {
+      "name": "contentId",
+      "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN contentId STRING(MAX) NOT NULL"
+    }, {
+      "name": "content",
+      "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN content BYTES(MAX) NOT NULL"
+    }],
+    "createTableDdl": "CREATE TABLE UserContent (userId FLOAT64 NOT NULL, contentId STRING(MAX) NOT NULL, content BYTES(MAX) NOT NULL) PRIMARY KEY (userId ASC, contentId ASC), INTERLEAVE IN PARENT UserTable",
+    "indexes": []
+  }]
+}

@@ -2,9 +2,23 @@ import path = require("path");
 
 let UPPER_CASES_REGEXP = /[A-Z]/;
 
-export function generateComment(comment: string): string {
+export function isRelativePath(p: string): boolean {
+  return p.startsWith("../") || p.startsWith("./");
+}
+
+// Given a resolved relative path, return the relative path compliant with
+// Nodejs module resolution, i.e., must start with `./` or `../`.
+export function normalizeRelativePathForNode(relativePath: string): string {
+  if (isRelativePath(relativePath)) {
+    return relativePath;
+  } else {
+    return "./" + relativePath;
+  }
+}
+
+export function wrapComment(comment?: string): string {
   if (comment) {
-    return `\n/* ${comment} */`;
+    return `/* ${comment} */`;
   } else {
     return "";
   }
@@ -32,43 +46,14 @@ export function toUppercaseSnaked(name: string): string {
   return upperCaseSnakedName.join("");
 }
 
-// Given a resolved relative path, return the relative path compliant with
-// Nodejs module resolution, i.e., must start with `./` or `../`.
-export function normalizeRelativePathForNode(relativePath: string): string {
-  if (relativePath.startsWith("../") || relativePath.startsWith("./")) {
-    return relativePath;
-  } else {
-    return "./" + relativePath;
-  }
+// Add prefix and suffix to each statement.
+export function joinArray(statements: Array<string>, prefix: string, suffix: string): string {
+  return statements.map((s) => `${prefix}${s}${suffix}`).join("");
 }
 
-// Both paths are relative path, where `basePath` is relative to CWD and
-// outputPath is relative to `basePath`. Return the relative path to import
-// `basePath` from `outputPath`.
-export function reverseImport(basePath: string, outputPath: string): string {
-  let absoluteOutputPath = path.posix.resolve(outputPath);
-  return normalizeRelativePathForNode(
-    path.posix.relative(path.posix.dirname(absoluteOutputPath), basePath),
-  );
-}
-
-// Both imports are relative path, where `firstImport` is relative to some base
-// module and `secondImport` is relative to `firstImport`. Return the relative
-// path to import `secondImport` from the base module. When `secondImport` is
-// `undefined`, it means to import `firstImport`.
-export function transitImport(
-  firstImport: string,
-  secondImport: string | undefined,
-): string | undefined {
-  if (secondImport) {
-    if (secondImport.startsWith("../") || secondImport.startsWith("./")) {
-      return normalizeRelativePathForNode(
-        path.posix.join(path.posix.dirname(firstImport), secondImport),
-      );
-    } else {
-      return secondImport;
-    }
-  } else {
-    return firstImport;
-  }
+export function toUnixPath(originalPath?: string): string {
+  if (!originalPath) {
+    return undefined;
+  } 
+  return originalPath.split(path.sep).join(path.posix.sep);
 }

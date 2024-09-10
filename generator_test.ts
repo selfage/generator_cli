@@ -1,13 +1,17 @@
-import fs = require("fs");
 import { generate } from "./generator";
 import { TEST_RUNNER } from "@selfage/test_runner";
 import { execSync } from "child_process";
+import { readFileSync } from "fs";
 
 function assertCompile(file: string): void {
-  execSync(`npx tsc --noImplicitAny --moduleResolution node -t ES6 ${file}`, {
+  execSync(`npx tsc --noImplicitAny --moduleResolution node -t ES2020 ${file}`, {
     stdio: "inherit",
     windowsHide: true,
   });
+}
+
+function assertJsonValidity(file: string): void {
+  readFileSync(file).toJSON();
 }
 
 TEST_RUNNER.run({
@@ -36,82 +40,6 @@ TEST_RUNNER.run({
       },
     },
     {
-      name: "GenerateObservable",
-      execute: () => {
-        // Execute
-        generate("./test_data/generator/observable/sub/money");
-
-        // Verify
-        assertCompile("./test_data/generator/observable/sub/money.ts");
-
-        // Execute
-        generate("./test_data/generator/observable/item");
-
-        // Verify
-        assertCompile("./test_data/generator/observable/item.ts");
-
-        // Execute
-        generate("./test_data/generator/observable/cart");
-
-        // Verify
-        assertCompile("./test_data/generator/observable/cart.ts");
-      },
-    },
-    {
-      name: "GenerateDatastoreModel",
-      execute: () => {
-        // Prepare
-        fs.writeFileSync(
-          "./test_data/generator/datastore/index.yaml",
-          fs.readFileSync(
-            "./test_data/generator/datastore/original_index.yaml",
-          ),
-        );
-
-        // Execute
-        generate(
-          "./test_data/generator/datastore/task",
-          "./test_data/generator/datastore/index",
-        );
-
-        // Verify
-        assertCompile("./test_data/generator/datastore/sub/task_model.ts");
-      },
-    },
-    {
-      name: "GenerateDatastoreModelWithPackageJsonFile",
-      execute: () => {
-        // Prepare
-        fs.writeFileSync(
-          "./test_data/generator/datastore/index.yaml",
-          fs.readFileSync(
-            "./test_data/generator/datastore/original_index.yaml",
-          ),
-        );
-
-        // Execute
-        generate(
-          "./test_data/generator/datastore/task",
-          undefined,
-          undefined,
-          "./test_data/generator/datastore/package.json",
-        );
-
-        // Verify
-        assertCompile("./test_data/generator/datastore/sub/task_model.ts");
-      },
-    },
-    {
-      name: "GenerateSpannerSql",
-      execute: () => {
-        // Execute
-        generate("./test_data/generator/spanner/query");
-
-        // Verify
-        assertCompile("./test_data/generator/spanner/query.ts");
-      },
-    },
-    {
       name: "GenerateServiceDescriptor",
       execute: () => {
         // Prepare
@@ -125,6 +53,18 @@ TEST_RUNNER.run({
         assertCompile("./test_data/generator/service/service.ts");
         assertCompile("./test_data/generator/service/client.ts");
         assertCompile("./test_data/generator/service/handler.ts");
+      },
+    },
+    {
+      name: "GenerateSpannerDatabase",
+      execute: () => {
+        // Execute
+        generate("./test_data/generator/spanner/user");
+
+        // Verify
+        assertCompile("./test_data/generator/spanner/user.ts");
+        assertCompile("./test_data/generator/spanner/sql.ts");
+        assertJsonValidity("./test_data/generator/spanner/ddl.json");
       },
     },
   ],

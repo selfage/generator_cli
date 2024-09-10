@@ -1,4 +1,4 @@
-import { EnumDescriptor, MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
+import { EnumDescriptor, PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export enum Color {
   RED = 10,
@@ -8,20 +8,16 @@ export enum Color {
 
 export let COLOR: EnumDescriptor<Color> = {
   name: 'Color',
-  values: [
-    {
-      name: 'RED',
-      value: 10,
-    },
-    {
-      name: 'GREEN',
-      value: 2,
-    },
-    {
-      name: 'BLUE',
-      value: 1,
-    },
-  ]
+  values: [{
+    name: 'RED',
+    value: 10,
+  }, {
+    name: 'GREEN',
+    value: 2,
+  }, {
+    name: 'BLUE',
+    value: 1,
+  }]
 }
 
 export interface UserInfo {
@@ -35,32 +31,31 @@ export interface UserInfo {
 
 export let USER_INFO: MessageDescriptor<UserInfo> = {
   name: 'UserInfo',
-  fields: [
-    {
-      name: 'isPaid',
-      primitiveType: PrimitiveType.BOOLEAN,
-    },
-    {
-      name: 'paidSince',
-      primitiveType: PrimitiveType.NUMBER,
-    },
-    {
-      name: 'nickname',
-      primitiveType: PrimitiveType.STRING,
-    },
-    {
-      name: 'nicknameHistory',
-      primitiveType: PrimitiveType.STRING,
-      isArray: true,
-    },
-    {
-      name: 'backgroundColor',
-      enumType: COLOR,
-    },
-    {
-      name: 'colorHistory',
-      enumType: COLOR,
-      isArray: true,
-    },
-  ]
+  fields: [{
+    name: 'isPaid',
+    index: 1,
+    primitiveType: PrimitiveType.BOOLEAN,
+  }, {
+    name: 'paidSince',
+    index: 2,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'nickname',
+    index: 3,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'nicknameHistory',
+    index: 4,
+    primitiveType: PrimitiveType.STRING,
+    isArray: true,
+  }, {
+    name: 'backgroundColor',
+    index: 5,
+    enumType: COLOR,
+  }, {
+    name: 'colorHistory',
+    index: 6,
+    enumType: COLOR,
+    isArray: true,
+  }],
 };

@@ -1,4 +1,4 @@
-import { MessageDescriptor, PrimitiveType } from '@selfage/message/descriptor';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 import { UserInfo, USER_INFO } from './user_info';
 import { CreditCard, CREDIT_CARD } from './sub/credit_card';
 
@@ -10,19 +10,18 @@ export interface User {
 
 export let USER: MessageDescriptor<User> = {
   name: 'User',
-  fields: [
-    {
-      name: 'id',
-      primitiveType: PrimitiveType.STRING,
-    },
-    {
-      name: 'userInfo',
-      messageType: USER_INFO,
-    },
-    {
-      name: 'creditCards',
-      messageType: CREDIT_CARD,
-      isArray: true,
-    },
-  ]
+  fields: [{
+    name: 'id',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'userInfo',
+    index: 2,
+    messageType: USER_INFO,
+  }, {
+    name: 'creditCards',
+    index: 3,
+    messageType: CREDIT_CARD,
+    isArray: true,
+  }],
 };

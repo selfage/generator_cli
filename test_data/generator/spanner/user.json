@@ -1,0 +1,144 @@
+[{
+  "message": {
+    "name": "User",
+    "fields": [{
+      "name": "username",
+      "type": "string",
+      "index": 1
+    }, {
+      "name": "password",
+      "type": "string",
+      "index": 2
+    }]
+  }
+}, {
+  "spannerDatabase": {
+    "name": "UserDatabase",
+    "tables": [{
+      "name": "UserTable",
+      "columns": [{
+        "name": "userId",
+        "type": "float64"
+      }, {
+        "name": "user",
+        "type": "User",
+        "nullable": true
+      }, {
+        "name": "createdTimestamp",
+        "type": "timestamp",
+        "allowCommitTimestamp": true
+      }],
+      "primaryKeys": [{
+        "column": "userId"
+      }],
+      "indexes": [{
+        "name": "ByTimestamp",
+        "columns": ["userId", "createdTimestamp"]
+      }]
+    }, {
+      "name": "UserContent",
+      "columns": [{
+        "name": "userId",
+        "type": "float64"
+      }, {
+        "name": "contentId",
+        "type": "string"
+      }, {
+        "name": "content",
+        "type": "bytes"
+      }],
+      "primaryKeys": [{
+        "column": "userId"
+      }, {
+        "column": "contentId"
+      }],
+      "interleave": {
+        "parentTable": "UserTable"
+      }
+    }],
+    "selects": [{
+      "name": "GetLastUser",
+      "fromTable": {
+        "name": "UserTable"
+      },
+      "join": [{
+        "type": "INNER",
+        "table": {
+          "name": "UserContent",
+          "as": "uc"
+        },
+        "on": {
+          "type": "leaf",
+          "op": "=",
+          "leftColumn": {
+            "name": "userId",
+            "table": "UserTable"
+          },
+          "rightColumn": "userId"
+        }
+      }],
+      "where": {
+        "type": "leaf",
+        "op": "=",
+        "leftColumn": {
+          "name": "contentId",
+          "table": "uc"
+        }
+      },
+      "orderBy": [{
+        "column": {
+          "name": "createdTimestamp"
+        }
+      }],
+      "limit": 1,
+      "getColumns": [{
+        "name": "userId",
+        "table": "UserTable"
+      }, {
+        "name": "content",
+        "table": "uc"
+      }]
+    }],
+    "inserts": [{
+      "name": "InsertNewUser",
+      "table": "UserTable",
+      "setColumns": ["userId", "user", "createdTimestamp"]
+    }],
+    "updates": [{
+      "name": "UpdateUserContent",
+      "table": "UserContent",
+      "setColumns": ["content"],
+      "where": {
+        "type": "leaf",
+        "op": "=",
+        "leftColumn": {
+          "name": "userId"
+        }
+      }
+    }],
+    "deletes": [{
+      "name": "DeleteUserContent",
+      "table": "UserContent",
+      "where": {
+        "type": "gate",
+        "op": "AND",
+        "left": {
+          "type": "leaf",
+          "op": "=",
+          "leftColumn": {
+            "name": "userId"
+          }
+        },
+        "right": {
+          "type": "leaf",
+          "op": "=",
+          "leftColumn": {
+            "name": "contentId"
+          }
+        }
+      }
+    }],
+    "outputDdl": "./test_data/generator/spanner/ddl",
+    "outputSql": "./test_data/generator/spanner/sql"
+  }
+}]
