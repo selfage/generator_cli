@@ -84,8 +84,8 @@ export interface WebRemoteCallDefinition {
   body?: string;
   // Import relative to CWD. Do not include '.json'.
   importBody?: string;
-  // Authorization related information. E.g. a user session.
-  auth?: KeyValueParamDefinition;
+  // The key in the HTTP header to pass a user session string to the backend.
+  sessionKey?: string;
   // Prefer `body` when possible. Often used when body is a bytes stream.
   metadata?: KeyValueParamDefinition;
   // Support only the name of a message.

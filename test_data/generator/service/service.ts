@@ -42,10 +42,7 @@ export let UPLOAD_FILE: WebRemoteCallDescriptor = {
     key: "sd",
     type: UPLOAD_FILE_REQUEST_METADATA,
   },
-  auth: {
-    key: "su",
-    type: USER_SESSION
-  },
+  sessionKey: "su",
   response: {
     messageType: UPLOAD_FILE_RESPONSE,
   },

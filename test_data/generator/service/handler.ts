@@ -1,5 +1,5 @@
 import { GetCommentsRequest, GetCommentsResponse } from './sub/get_comments';
-import { GET_COMMENTS, UserSession, UPLOAD_FILE } from './service';
+import { GET_COMMENTS, UPLOAD_FILE } from './service';
 import { NodeHandlerInterface, WebHandlerInterface } from '@selfage/service_descriptor/handler_interface';
 import { Readable } from 'stream';
 import { UploadFileRequestMetadata, UploadFileResponse } from './sub/upload_file';
@@ -18,6 +18,6 @@ export abstract class UploadFileHandlerInterface implements WebHandlerInterface 
     loggingPrefix: string,
     body: Readable,
     metadata: UploadFileRequestMetadata,
-    auth: UserSession,
+    sessionStr: string,
   ): Promise<UploadFileResponse>;
 }

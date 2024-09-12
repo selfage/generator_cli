@@ -5,7 +5,7 @@ import {
   TsContentBuilder,
 } from "./output_content_builder";
 import { generateRemoteCall } from "./service_generator";
-import { assertThat, containStr, eq, eqLongStr } from "@selfage/test_matcher";
+import { assertThat, eq, eqLongStr } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
@@ -90,12 +90,12 @@ export let GET_COMMENTS: WebRemoteCallDescriptor = {
         assertThat(
           outputContentMap.get("./web/client").build(),
           eqLongStr(`import { GetCommentsRequestBody, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
-import { WebServiceClientInterface, WebServiceClientOptions } from '@selfage/service_descriptor/client_interface';
+import { WebClientInterface, WebClientOptions } from '@selfage/service_descriptor/client_interface';
 
 export function getComments(
-  client: WebServiceClientInterface,
+  client: WebClientInterface,
   body: GetCommentsRequestBody,
-  options?: WebServiceClientOptions,
+  options?: WebClientOptions,
 ): Promise<GetCommentsResponse> {
   return client.send(
     {
@@ -146,9 +146,6 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
               case "GetHistoryResponse":
                 assertThat(importPath, eq("./response"), `importPath`);
                 return { message: { name: "GetHistoryResponse", fields: [] } };
-              case "UserSession":
-                assertThat(importPath, eq("./user_session"), `importPath`);
-                return { message: { name: "UserSession", fields: [] } };
               default:
                 throw new Error(`Unexpected type ${typeName}.`);
             }
@@ -175,11 +172,7 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
           {
             name: "GetHistory",
             path: "/get_history",
-            auth: {
-              key: "s",
-              type: "UserSession",
-              import: "./user_session",
-            },
+            sessionKey: "s",
             body: "GetHistoryRequestBody",
             importBody: "./request",
             response: "GetHistoryResponse",
@@ -193,11 +186,10 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
         );
 
         // Verify
-        assertThat(mockMessageResolver.called, eq(3), "resolve called");
+        assertThat(mockMessageResolver.called, eq(2), "resolve called");
         assertThat(
           outputContentMap.get("./interface/get_history").build(),
           eqLongStr(`import { GET_HISTORY_REQUEST_BODY } from '../request';
-import { USER_SESSION } from '../user_session';
 import { GET_HISTORY_RESPONSE } from '../response';
 import { WebRemoteCallDescriptor } from '@selfage/service_descriptor';
 
@@ -207,10 +199,7 @@ export let GET_HISTORY: WebRemoteCallDescriptor = {
   body: {
     messageType: GET_HISTORY_REQUEST_BODY,
   },
-  auth: {
-    key: "s",
-    type: USER_SESSION
-  },
+  sessionKey: "s",
   response: {
     messageType: GET_HISTORY_RESPONSE,
   },
@@ -223,12 +212,12 @@ export let GET_HISTORY: WebRemoteCallDescriptor = {
           eqLongStr(`import { GetHistoryRequestBody } from '../request';
 import { GetHistoryResponse } from '../response';
 import { GET_HISTORY } from '../interface/get_history';
-import { WebServiceClientInterface, WebServiceClientOptions } from '@selfage/service_descriptor/client_interface';
+import { WebClientInterface, WebClientOptions } from '@selfage/service_descriptor/client_interface';
 
 export function getHistory(
-  client: WebServiceClientInterface,
+  client: WebClientInterface,
   body: GetHistoryRequestBody,
-  options?: WebServiceClientOptions,
+  options?: WebClientOptions,
 ): Promise<GetHistoryResponse> {
   return client.send(
     {
@@ -244,7 +233,6 @@ export function getHistory(
         assertThat(
           outputContentMap.get("./backend/handler").build(),
           eqLongStr(`import { GetHistoryRequestBody } from '../request';
-import { UserSession } from '../user_session';
 import { GET_HISTORY } from '../interface/get_history';
 import { GetHistoryResponse } from '../response';
 import { WebHandlerInterface } from '@selfage/service_descriptor/handler_interface';
@@ -254,95 +242,10 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
   public abstract handle(
     loggingPrefix: string,
     body: GetHistoryRequestBody,
-    auth: UserSession,
+    sessionStr: string,
   ): Promise<GetHistoryResponse>;
 }
 `),
-          "output handler content",
-        );
-      },
-    },
-    {
-      name: "GetHistoryServiceWithExternalUserSession",
-      execute: () => {
-        // Prepare
-        let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
-          public resolve(
-            loggingPrefix: string,
-            typeName: string,
-            importPath?: string,
-          ): Definition {
-            this.called += 1;
-            switch (typeName) {
-              case "GetHistoryRequestBody":
-                assertThat(importPath, eq("./request"), `importPath`);
-                return {
-                  message: { name: "GetHistoryRequestBody", fields: [] },
-                };
-              case "GetHistoryResponse":
-                assertThat(importPath, eq("./response"), `importPath`);
-                return { message: { name: "GetHistoryResponse", fields: [] } };
-              case "UserSession":
-                assertThat(
-                  importPath,
-                  eq("@package/user_session"),
-                  `importPath`,
-                );
-                return { message: { name: "UserSession", fields: [] } };
-              default:
-                throw new Error(`Unexpected type ${typeName}.`);
-            }
-          }
-        })();
-        let descriptorContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-        );
-        let clientContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-          "./web/client",
-        );
-        let handlerContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-          "./backend/handler",
-        );
-
-        // Execute
-        generateRemoteCall(
-          "./interface/get_history",
-          {
-            name: "GetHistory",
-            path: "/get_history",
-            auth: {
-              key: "s",
-              type: "UserSession",
-              import: "@package/user_session",
-            },
-            body: "GetHistoryRequestBody",
-            importBody: "./request",
-            response: "GetHistoryResponse",
-            importResponse: "./response",
-          },
-          "web",
-          mockMessageResolver,
-          descriptorContentBuilder,
-          clientContentBuilder,
-          handlerContentBuilder,
-        );
-
-        // Verify
-        assertThat(mockMessageResolver.called, eq(3), "resolve called");
-        assertThat(
-          outputContentMap.get("./interface/get_history").build(),
-          containStr("import { USER_SESSION } from '@package/user_session';"),
-          "output content",
-        );
-        assertThat(
-          outputContentMap.get("./backend/handler").build(),
-          containStr("import { UserSession } from '@package/user_session';"),
           "output handler content",
         );
       },
@@ -434,13 +337,13 @@ export let UPLOAD_FILE: NodeRemoteCallDescriptor = {
         assertThat(
           outputContentMap.get("./interface/client").build(),
           eqLongStr(`import { UploadFileMetadata, UploadFileResponse, UPLOAD_FILE } from './upload_file';
-import { NodeServiceClientInterface, NodeServiceClientOptions } from '@selfage/service_descriptor/client_interface';
+import { NodeClientInterface, NodeClientOptions } from '@selfage/service_descriptor/client_interface';
 
 export function uploadFile(
-  client: NodeServiceClientInterface,
+  client: NodeClientInterface,
   body: Blob,
   metadata: UploadFileMetadata,
-  options?: NodeServiceClientOptions,
+  options?: NodeClientOptions,
 ): Promise<UploadFileResponse> {
   return client.send(
     {
@@ -452,7 +355,7 @@ export function uploadFile(
   );
 }
 `),
-          "output web client content",
+          "output node client content",
         );
         assertThat(
           outputContentMap.get("./interface/handler").build(),

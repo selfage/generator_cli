@@ -115,30 +115,12 @@ export function generateRemoteCall(
   },`;
   }
 
-  let authDescriptor = "";
+  let sessionKey = "";
   if (kind === "web") {
     let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
-    if (webDefinition.auth) {
-      let authDefinition = messageResolver.resolve(
-        loggingPrefix,
-        webDefinition.auth.type,
-        webDefinition.auth.import,
-      );
-      if (!authDefinition.message) {
-        throw new Error(
-          `${loggingPrefix} auth type ${webDefinition.auth.type} is not a message.`,
-        );
-      }
-      let authDescriptorName = toUppercaseSnaked(webDefinition.auth.type);
-      descriptorContentBuilder.importFromDefinition(
-        webDefinition.auth.import,
-        authDescriptorName,
-      );
-      authDescriptor = `
-  auth: {
-    key: "${webDefinition.auth.key}",
-    type: ${authDescriptorName}
-  },`;
+    if (webDefinition.sessionKey) {
+      sessionKey = `
+  sessionKey: "${webDefinition.sessionKey}",`;
     }
   }
 
@@ -169,7 +151,7 @@ export function generateRemoteCall(
   descriptorContentBuilder.push(`
 export let ${remoteCallDescriptorName}: ${remoteCallDescriptor} = {
   name: "${remoteCallDefinition.name}",
-  path: "${remoteCallDefinition.path}",${bodyDescriptor}${metadataDescriptor}${authDescriptor}${responseDescriptor}
+  path: "${remoteCallDefinition.path}",${bodyDescriptor}${metadataDescriptor}${sessionKey}${responseDescriptor}
 }
 `);
 
@@ -298,16 +280,12 @@ function generateHandler(
     metadata: ${remoteCallDefinition.metadata.type},`;
   }
 
-  let authParam = "";
+  let sessionStrParam = "";
   if (kind === "web") {
     let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
-    if (webDefinition.auth) {
-      handlerContentBuilder.importFromDefinition(
-        webDefinition.auth.import,
-        webDefinition.auth.type,
-      );
-      authParam = `
-    auth: ${webDefinition.auth.type},`;
+    if (webDefinition.sessionKey) {
+      sessionStrParam = `
+    sessionStr: string,`;
     }
   }
 
@@ -327,7 +305,7 @@ function generateHandler(
 export abstract class ${remoteCallDefinition.name}HandlerInterface implements ${handlerInterface} {
   public descriptor = ${remoteCallDescriptorName};
   public abstract handle(
-    loggingPrefix: string,${bodyParam}${metadataParam}${authParam}
+    loggingPrefix: string,${bodyParam}${metadataParam}${sessionStrParam}
   ): Promise<${remoteCallDefinition.response}>;
 }
 `);

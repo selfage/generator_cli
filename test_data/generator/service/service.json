@@ -31,10 +31,7 @@
     "remoteCalls": [{
       "name": "UploadFile",
       "path": "/UploadFile",
-      "auth": {
-        "key": "su",
-        "type": "UserSession"
-      },
+      "sessionKey": "su",
       "metadata": {
         "key": "sd",
         "type": "UploadFileRequestMetadata",
