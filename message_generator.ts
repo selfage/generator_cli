@@ -14,6 +14,10 @@ export function generateMessage(
   messageResolver: MessageResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
+  if (!messageDefinition.name) {
+    throw new Error(`"name" field is missing on a message.`);
+  }
+
   let loggingPrefix = `When generating message ${messageDefinition.name},`;
   let tsContentBuilder = TsContentBuilder.get(
     outputContentMap,
@@ -22,7 +26,20 @@ export function generateMessage(
   let fields = new Array<string>();
   let fieldDescriptors = new Array<string>();
   let usedIndexes = new Set<number>();
+  if (!messageDefinition.fields) {
+    throw new Error(
+      `${loggingPrefix} "fields" is either missing or not an array.`,
+    );
+  }
   for (let field of messageDefinition.fields) {
+    if (!field.name) {
+      throw new Error(`${loggingPrefix} "name" is missing on a field.`);
+    }
+    if (!field.index) {
+      throw new Error(
+        `${loggingPrefix} "index" is missing on field ${field.name}.`,
+      );
+    }
     if (usedIndexes.has(field.index)) {
       throw new Error(
         `${loggingPrefix} field ${field.name} has a duplicate index ${field.index}.`,
@@ -30,6 +47,9 @@ export function generateMessage(
     }
     usedIndexes.add(field.index);
 
+    if (!field.type) {
+      throw new Error(`${loggingPrefix} "type" is missing on ${field.name}.`);
+    }
     let descriptorLine: string;
     if (PRIMITIVE_TYPES.has(field.type)) {
       tsContentBuilder.importFromMessageDescriptor("PrimitiveType");

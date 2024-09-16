@@ -41,11 +41,34 @@ let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["string", "STRING(MAX)"],
   ["bytes", "BYTES(MAX)"],
 ]);
+let ALL_GATE_OP = new Set().add("AND").add("OR");
+let ALL_JOIN_LEAF_OP = new Set()
+  .add(">")
+  .add("<")
+  .add(">=")
+  .add("<=")
+  .add("!=")
+  .add("=");
+let ALL_WHERE_LEAF_OP = new Set()
+  .add(">")
+  .add("<")
+  .add(">=")
+  .add("<=")
+  .add("!=")
+  .add("=")
+  .add("IS NULL")
+  .add("IS NOT NULL");
 let INEQUAL_OP = new Set().add(">").add("<").add(">=").add("<=");
 let COLUMN_INEQUAL_TYPE = new Set()
   .add("int64")
   .add("float64")
   .add("timestamp");
+let ALL_JOIN_TYPE = new Set()
+  .add("INNER")
+  .add("CROSS")
+  .add("FULL")
+  .add("LEFT")
+  .add("RIGHT");
 
 function getColumnDefinition(
   loggingPrefix: string,
@@ -306,6 +329,9 @@ class WhereClauseGenerator {
   }
 
   private generateLeaf(leaf: SpannerWhereLeaf): string {
+    if (!leaf.leftColumn) {
+      throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
+    }
     leaf.leftColumn.table = leaf.leftColumn.table ?? this.defaultTableAlias;
     let columnDefinition = resolveColumnDefinition(
       this.loggingPrefix,
@@ -313,6 +339,11 @@ class WhereClauseGenerator {
       this.tableAliases,
       this.databaseTables,
     );
+    if (!ALL_WHERE_LEAF_OP.has(leaf.op)) {
+      throw new Error(
+        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_WHERE_LEAF_OP).join(",")}"`,
+      );
+    }
     if (leaf.op === "IS NULL" || leaf.op === "IS NOT NULL") {
       if (!columnDefinition.nullable) {
         throw new Error(
@@ -341,8 +372,19 @@ class WhereClauseGenerator {
   }
 
   private generateGate(gate: SpannerWhereGate): string {
+    if (!gate.left) {
+      throw new Error(`${this.loggingPrefix} "left" is missing.`);
+    }
     let leftClause = this.generate(gate.left);
+    if (!gate.right) {
+      throw new Error(`${this.loggingPrefix} "right" is missing.`);
+    }
     let rightClause = this.generate(gate.right);
+    if (!ALL_GATE_OP.has(gate.op)) {
+      throw new Error(
+        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_GATE_OP).join(",")}"`,
+      );
+    }
     return `(${leftClause} ${gate.op} ${rightClause})`;
   }
 }
@@ -371,6 +413,9 @@ class JoinOnClauseGenerator {
   }
 
   public generateLeaf(leaf: SpannerJoinOnLeaf): string {
+    if (!leaf.leftColumn) {
+      throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
+    }
     leaf.leftColumn.table = leaf.leftColumn.table ?? this.defaultTableAlias;
     let leftColumnDefinition = resolveColumnDefinition(
       this.loggingPrefix,
@@ -378,6 +423,9 @@ class JoinOnClauseGenerator {
       this.tableAliases,
       this.databaseTables,
     );
+    if (!leaf.rightColumn) {
+      throw new Error(`${this.loggingPrefix} "rightColumn" is missing.`);
+    }
     let rightColumnDefinition = getColumnDefinition(
       this.loggingPrefix,
       this.rightTable,
@@ -386,6 +434,11 @@ class JoinOnClauseGenerator {
     if (leftColumnDefinition.type !== rightColumnDefinition.type) {
       throw new Error(
         `${this.loggingPrefix} the left column ${leaf.leftColumn.table}.${leaf.leftColumn.name} whose type is ${leftColumnDefinition.type} doesn't match the right column ${this.rightTableAlias}.${leaf.rightColumn} whose type is ${rightColumnDefinition.type}.`,
+      );
+    }
+    if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
+      throw new Error(
+        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
       );
     }
     if (
@@ -400,8 +453,19 @@ class JoinOnClauseGenerator {
   }
 
   public generateGate(gate: SpannerJoinOnGate): string {
+    if (!gate.left) {
+      throw new Error(`${this.loggingPrefix} "left" is missing.`);
+    }
     let leftClause = this.generate(gate.left);
+    if (!gate.right) {
+      throw new Error(`${this.loggingPrefix} "right" is missing.`);
+    }
     let rightClause = this.generate(gate.right);
+    if (!ALL_GATE_OP.has(gate.op)) {
+      throw new Error(
+        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_GATE_OP).join(",")}"`,
+      );
+    }
     return `(${leftClause} ${gate.op} ${rightClause})`;
   }
 }
@@ -412,6 +476,14 @@ export function generateSpannerDatabase(
   messageResolver: MessageResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ) {
+  if (!spannerDatabaseDefinition.name) {
+    throw new Error(`"name" is missing on a spannerDatabase.`);
+  }
+  if (!spannerDatabaseDefinition.outputDdl) {
+    throw new Error(
+      `"outputDdl" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
+    );
+  }
   let outputDdlContentBuilder = SimpleContentBuilder.get(
     outputContentMap,
     ".json",
@@ -419,6 +491,11 @@ export function generateSpannerDatabase(
   );
   let databaseTables = new Map<string, SpannerTableDefinition>();
   let tableDdls = new Array<string>();
+  if (!spannerDatabaseDefinition.tables) {
+    throw new Error(
+      `"tables" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
+    );
+  }
   for (let table of spannerDatabaseDefinition.tables) {
     tableDdls.push(
       generateSpannerTable(table, databaseTables, messageResolver),
@@ -428,6 +505,11 @@ export function generateSpannerDatabase(
   "tables": [${tableDdls.join(", ")}]
 }`);
 
+  if (!spannerDatabaseDefinition.outputSql) {
+    throw new Error(
+      `"outputSql" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
+    );
+  }
   let tsContentBuilder = TsContentBuilder.get(
     outputContentMap,
     definitionModulePath,
@@ -475,16 +557,31 @@ export function generateSpannerDatabase(
   }
 }
 
-export function generateSpannerTable(
+function generateSpannerTable(
   table: SpannerTableDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
   messageResolver: MessageResolver,
 ): string {
+  if (!table.name) {
+    throw new Error(`"name" is missing on a spanner table.`);
+  }
+
   let loggingPrefix = `When generating DDL for table ${table.name},`;
   let addColumnDdls = new Array<string>();
   let createColumnPartialDdls = new Array<string>();
+  if (!table.columns) {
+    throw new Error(`${loggingPrefix} "columns" is missing.`);
+  }
   for (let i = 0; i < table.columns.length; i++) {
     let column = table.columns[i];
+    if (!column.name) {
+      throw new Error(`${loggingPrefix} "name" is mssing on a column.`);
+    }
+    if (!column.type) {
+      throw new Error(
+        `${loggingPrefix} "type" is missing on column ${column.name}.`,
+      );
+    }
     let type = COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE.get(column.type);
     if (column.allowCommitTimestamp) {
       if (column.type !== "timestamp") {
@@ -520,7 +617,15 @@ export function generateSpannerTable(
   }
 
   let primaryKeys = new Array<string>();
+  if (!table.primaryKeys) {
+    throw new Error(`${loggingPrefix} "primaryKeys" is missing.`);
+  }
   for (let key of table.primaryKeys) {
+    if (!key.column) {
+      throw new Error(
+        `${loggingPrefix} "column" is missing in "primaryKeys" field.`,
+      );
+    }
     let columnDefinition = getColumnDefinition(
       loggingPrefix + " and when generating primary keys,",
       table,
@@ -536,6 +641,11 @@ export function generateSpannerTable(
 
   let interleaveOption = "";
   if (table.interleave) {
+    if (!table.interleave.parentTable) {
+      throw new Error(
+        `${loggingPrefix} "parentTable" is missing in "interleave" field.`,
+      );
+    }
     let parentTable = databaseTables.get(table.interleave.parentTable);
     if (!parentTable) {
       throw new Error(
@@ -580,7 +690,17 @@ export function generateSpannerTable(
   let indexDdls = new Array<string>();
   if (table.indexes) {
     for (let index of table.indexes) {
+      if (!index.name) {
+        throw new Error(
+          `${loggingPrefix} "name" is missing in one element of "indexes" field.`,
+        );
+      }
       let indexColumns = new Array<string>();
+      if (!index.columns) {
+        throw new Error(
+          `${loggingPrefix} "columns" is missing in index ${index.name}.`,
+        );
+      }
       for (let column of index.columns) {
         getColumnDefinition(
           loggingPrefix + " and when generating indexes,",
@@ -606,14 +726,20 @@ export function generateSpannerTable(
   }`;
 }
 
-export function generateSpannerSelect(
+function generateSpannerSelect(
   selectDefinition: SpannerSelectDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
   messageResolver: MessageResolver,
   tsContentBuilder: TsContentBuilder,
 ) {
+  if (!selectDefinition.name) {
+    throw new Error(`"name" is missing on a spanner select definition.`);
+  }
   let loggingPrefix = `When generating select statement ${selectDefinition.name},`;
   let tableAliases = new Map<string, string>();
+  if (!selectDefinition.fromTable.name) {
+    throw new Error(`${loggingPrefix} "name" is missing in "fromTable" field.`);
+  }
   let defaultTableAlias =
     selectDefinition.fromTable.as ?? selectDefinition.fromTable.name;
   tableAliases.set(defaultTableAlias, selectDefinition.fromTable.name);
@@ -629,6 +755,14 @@ export function generateSpannerSelect(
   );
   if (selectDefinition.join) {
     for (let joinTable of selectDefinition.join) {
+      if (!joinTable.table) {
+        throw new Error(`${loggingPrefix} "table" is missing in "join" field.`);
+      }
+      if (!joinTable.table.name) {
+        throw new Error(
+          `${loggingPrefix} "name" is missing in "join.table" field.`,
+        );
+      }
       tableAliases.set(
         joinTable.table.as ?? joinTable.table.name,
         joinTable.table.name,
@@ -650,6 +784,11 @@ export function generateSpannerSelect(
           databaseTables,
         ).generate(joinTable.on);
         joinOnClause = ` ON ${joinOnClause}`;
+      }
+      if (!ALL_JOIN_TYPE.has(joinTable.type)) {
+        throw new Error(
+          `${loggingPrefix} and when joining ${rightTable.name}, "type" is either missing or not one of valid types "${Array.from(ALL_JOIN_TYPE).join(",")}"`,
+        );
       }
       fromTables.push(
         `${joinTable.type} JOIN ${joinTable.table.name}${joinTable.table.as ? " AS " + joinTable.table.as : ""}${joinOnClause}`,
@@ -738,23 +877,32 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
 `);
 }
 
-export function generateSpannerInsert(
+function generateSpannerInsert(
   insertDefinition: SpannerInsertDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
   messageResolver: MessageResolver,
   tsContentBuilder: TsContentBuilder,
 ) {
+  if (!insertDefinition.name) {
+    throw new Error(`"name" is missing on a spanner insert definition.`);
+  }
   let loggingPrefix = `When generating insert statement ${insertDefinition.name},`;
+  if (!insertDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
   let table = databaseTables.get(insertDefinition.table);
   if (!table) {
     throw new Error(
-      `${loggingPrefix} ${insertDefinition.table} is not found in the database's definition.`,
+      `${loggingPrefix} table ${insertDefinition.table} is not found in the database's definition.`,
     );
   }
 
   let columns = new Array<string>();
   let values = new Array<string>();
   let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  if (!insertDefinition.setColumns) {
+    throw new Error(`${loggingPrefix} "setColumns" is missing.`);
+  }
   for (let column of insertDefinition.setColumns) {
     let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
     columns.push(column);
@@ -792,7 +940,13 @@ function generateSpannerUpdate(
   messageResolver: MessageResolver,
   tsContentBuilder: TsContentBuilder,
 ): void {
+  if (!updateDefinition.name) {
+    throw new Error(`"name" is missing on a spanner update definition.`);
+  }
   let loggingPrefix = `When generating update statement ${updateDefinition.name},`;
+  if (!updateDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
   let table = databaseTables.get(updateDefinition.table);
   if (!table) {
     throw new Error(
@@ -802,6 +956,9 @@ function generateSpannerUpdate(
 
   let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
   let setItems = new Array<string>();
+  if (!updateDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
   for (let column of updateDefinition.setColumns) {
     let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
     let argVariable = `set${toInitialUppercased(column)}`;
@@ -848,6 +1005,9 @@ function generateSpannerDelete(
   messageResolver: MessageResolver,
   tsContentBuilder: TsContentBuilder,
 ): void {
+  if (!deleteDefinition.name) {
+    throw new Error(`"name" is missing on a spanner delete definition.`);
+  }
   let loggingPrefix = `When generating delete statement ${deleteDefinition.name},`;
   let table = databaseTables.get(deleteDefinition.table);
   if (!table) {

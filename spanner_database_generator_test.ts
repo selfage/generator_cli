@@ -401,10 +401,10 @@ TEST_RUNNER.run({
     "createTableDdl": "CREATE TABLE TypesTable (id STRING(MAX) NOT NULL, stringValue STRING(MAX) NOT NULL, boolValue BOOL NOT NULL, int64Value INT64, float64Value FLOAT64 NOT NULL, timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true), bytesValue BYTES(MAX), stringArrayValue Array<STRING(MAX)> NOT NULL, boolArrayValue Array<BOOL> NOT NULL, int64ArrayValue Array<INT64>, float64ArrayValue Array<FLOAT64> NOT NULL, timestampArrayValue Array<TIMESTAMP> NOT NULL, bytesArrayValue Array<BYTES(MAX)>, user BYTES(MAX) NOT NULL, userType FLOAT64, userArray Array<BYTES(MAX)>, userTypeArray Array<FLOAT64> NOT NULL) PRIMARY KEY (id DESC, stringValue ASC)",
     "indexes": [{
       "name": "Sort",
-      "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, int64Value)
+      "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, int64Value)"
     }, {
       "name": "Sort2",
-      "createIndexDdl": "CREATE INDEX UNIQUE NULL_FILTERED Sort2 ON TypesTable(float64Value)
+      "createIndexDdl": "CREATE INDEX UNIQUE NULL_FILTERED Sort2 ON TypesTable(float64Value)"
     }]
   }]
 }`),
@@ -559,7 +559,7 @@ export async function updateARow(
   });
 }
 
-export function deleteARow(
+export async function deleteARow(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
   typesTableId: string,
   typesTableStringValue: string,

@@ -25,16 +25,31 @@ export function generateService(
     outputContentMap,
     definitionModulePath,
   );
+  if (!serviceDefinition.outputClient) {
+    throw new Error(
+      `"outputClient" is missing on service ${serviceDefinition.name}.`,
+    );
+  }
   let clientContentBuilder = TsContentBuilder.get(
     outputContentMap,
     definitionModulePath,
     serviceDefinition.outputClient,
   );
+  if (!serviceDefinition.outputHandler) {
+    throw new Error(
+      `"outputHandler" is missing on service ${serviceDefinition.name}.`,
+    );
+  }
   let handlerContentBuilder = TsContentBuilder.get(
     outputContentMap,
     definitionModulePath,
     serviceDefinition.outputHandler,
   );
+  if (!serviceDefinition.remoteCalls) {
+    throw new Error(
+      `"remoteCalls" is either missing or not an array on service ${serviceDefinition.name}.`,
+    );
+  }
   for (let remoteCall of serviceDefinition.remoteCalls) {
     generateRemoteCall(
       definitionModulePath,
@@ -57,8 +72,15 @@ export function generateRemoteCall(
   clientContentBuilder: TsContentBuilder,
   handlerContentBuilder: TsContentBuilder,
 ): void {
+  if (!remoteCallDefinition.name) {
+    throw new Error(`"name" is missing on a RemoteCall.`);
+  }
+
   let loggingPrefix = `When generating descriptor for ${kind} remote call ${remoteCallDefinition.name},`;
   let bodyDescriptor = "";
+  if (!remoteCallDefinition.body) {
+    throw new Error(`${loggingPrefix} "body" is missing.`);
+  }
   if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
     descriptorContentBuilder.importFromServiceDescriptor("PrimitveTypeForBody");
     bodyDescriptor = `
@@ -91,6 +113,11 @@ export function generateRemoteCall(
 
   let metadataDescriptor = "";
   if (remoteCallDefinition.metadata) {
+    if (!remoteCallDefinition.metadata.type) {
+      throw new Error(
+        `${loggingPrefix} "type" is missing in the "metadata" field.`,
+      );
+    }
     let metadataDefinition = messageResolver.resolve(
       loggingPrefix,
       remoteCallDefinition.metadata.type,
@@ -108,6 +135,11 @@ export function generateRemoteCall(
       remoteCallDefinition.metadata.import,
       metadataDescriptorName,
     );
+    if (!remoteCallDefinition.metadata.key) {
+      throw new Error(
+        `${loggingPrefix} "key" is missing in the "metadata" field.`,
+      );
+    }
     metadataDescriptor = `
   metadata: {
     key: "${remoteCallDefinition.metadata.key}",
@@ -124,6 +156,9 @@ export function generateRemoteCall(
     }
   }
 
+  if (!remoteCallDefinition.response) {
+    throw new Error(`${loggingPrefix} "response" is missing.`);
+  }
   let responseDefinition = messageResolver.resolve(
     loggingPrefix,
     remoteCallDefinition.response,
@@ -218,9 +253,7 @@ function generateClient(
     remoteCallDescriptorName,
   );
   let clientInterface =
-    kind === "node"
-      ? "NodeClientInterface"
-      : "WebClientInterface";
+    kind === "node" ? "NodeClientInterface" : "WebClientInterface";
   let clientOptions =
     kind === "node" ? "NodeClientOptions" : "WebClientOptions";
   clientContentBuilder.importFromServiceClientInterface(

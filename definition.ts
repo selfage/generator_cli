@@ -81,12 +81,12 @@ export interface WebRemoteCallDefinition {
   // The pathname of a url. Must start with "/".
   path: string;
   // The body in a HTTP request. Support either 'bytes' or the name of a message.
-  body?: string;
+  body: string;
   // Import relative to CWD. Do not include '.json'.
   importBody?: string;
   // The key in the HTTP header to pass a user session string to the backend.
   sessionKey?: string;
-  // Prefer `body` when possible. Often used when body is a bytes stream.
+  // Prefer `body` when possible. Often used when body is a stream.
   metadata?: KeyValueParamDefinition;
   // Support only the name of a message.
   response: string;
@@ -100,10 +100,10 @@ export interface WebServiceDefinition {
   remoteCalls: Array<WebRemoteCallDefinition>;
   // The path to output the generated web client interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.
-  outputClient?: string;
+  outputClient: string;
   // The path to output the generated handler interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.
-  outputHandler?: string;
+  outputHandler: string;
 }
 
 export interface NodeRemoteCallDefinition {

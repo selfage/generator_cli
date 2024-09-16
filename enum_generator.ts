@@ -10,11 +10,27 @@ export function generateEnum(
   enumDefinition: EnumDefinition,
   contentMap: Map<string, OutputContentBuilder>,
 ): void {
+  if (!enumDefinition.name) {
+    throw new Error(`"name" is missing on an enum.`);
+  }
+
+  let loggingPrefix = `When generating enum ${enumDefinition.name},`;
   let outputContentBuilder = TsContentBuilder.get(contentMap, modulePath);
   let values = new Array<string>();
   let valueDescriptors = new Array<string>();
   let enumComment = wrapComment(enumDefinition.comment);
+  if (!enumDefinition.values) {
+    throw new Error(
+      `${loggingPrefix} "values" is either missing or not an array.`,
+    );
+  }
   for (let value of enumDefinition.values) {
+    if (!value.name) {
+      throw new Error(`${loggingPrefix} "name" is missing on a value.`);
+    }
+    if (!value.value) {
+      throw new Error(`${loggingPrefix} "value" is missing on ${value.name}.`);
+    }
     valueDescriptors.push(`{
     name: '${value.name}',
     value: ${value.value},
