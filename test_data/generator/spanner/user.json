@@ -29,11 +29,16 @@
         "allowCommitTimestamp": true
       }],
       "primaryKeys": [{
-        "column": "userId"
+        "name": "userId"
       }],
       "indexes": [{
         "name": "ByTimestamp",
-        "columns": ["userId", "createdTimestamp"]
+        "columns": [{
+          "name": "userId"
+        }, {
+          "name": "createdTimestamp",
+          "desc": true
+        }]
       }]
     }, {
       "name": "UserContent",
@@ -48,9 +53,9 @@
         "type": "bytes"
       }],
       "primaryKeys": [{
-        "column": "userId"
+        "name": "userId"
       }, {
-        "column": "contentId"
+        "name": "contentId"
       }],
       "interleave": {
         "parentTable": "UserTable"

@@ -144,21 +144,33 @@ TEST_RUNNER.run({
                 ],
                 primaryKeys: [
                   {
-                    column: "id",
+                    name: "id",
                     desc: true,
                   },
                   {
-                    column: "stringValue",
+                    name: "stringValue",
                   },
                 ],
                 indexes: [
                   {
                     name: "Sort",
-                    columns: ["stringValue", "int64Value"],
+                    columns: [
+                      {
+                        name: "stringValue",
+                      },
+                      {
+                        name: "int64Value",
+                      },
+                    ],
                   },
                   {
                     name: "Sort2",
-                    columns: ["float64Value"],
+                    columns: [
+                      {
+                        name: "float64Value",
+                        desc: true,
+                      },
+                    ],
                     nullFiltered: true,
                     unique: true,
                   },
@@ -404,7 +416,7 @@ TEST_RUNNER.run({
       "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, int64Value)"
     }, {
       "name": "Sort2",
-      "createIndexDdl": "CREATE INDEX UNIQUE NULL_FILTERED Sort2 ON TypesTable(float64Value)"
+      "createIndexDdl": "CREATE INDEX UNIQUE NULL_FILTERED Sort2 ON TypesTable(float64Value DESC)"
     }]
   }]
 }`),
@@ -610,11 +622,11 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "id",
+                      name: "id",
                       desc: true,
                     },
                     {
-                      column: "stringValue",
+                      name: "stringValue",
                     },
                   ],
                 },
@@ -669,11 +681,11 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "id",
+                      name: "id",
                       desc: true,
                     },
                     {
-                      column: "stringValue",
+                      name: "stringValue",
                     },
                   ],
                 },
@@ -727,11 +739,11 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "id",
+                      name: "id",
                       desc: true,
                     },
                     {
-                      column: "strings",
+                      name: "strings",
                     },
                   ],
                 },
@@ -776,11 +788,11 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "id",
+                      name: "id",
                       desc: true,
                     },
                     {
-                      column: "something",
+                      name: "something",
                     },
                   ],
                 },
@@ -825,14 +837,18 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "id",
+                      name: "id",
                       desc: true,
                     },
                   ],
                   indexes: [
                     {
                       name: "Sort1",
-                      columns: ["id2"],
+                      columns: [
+                        {
+                          name: "id2",
+                        },
+                      ],
                     },
                   ],
                 },
@@ -876,7 +892,7 @@ export async function deleteARow(
                 ],
                 primaryKeys: [
                   {
-                    column: "pid",
+                    name: "pid",
                   },
                 ],
               },
@@ -894,10 +910,10 @@ export async function deleteARow(
                 ],
                 primaryKeys: [
                   {
-                    column: "pid",
+                    name: "pid",
                   },
                   {
-                    column: "cid",
+                    name: "cid",
                   },
                 ],
                 interleave: {
@@ -966,7 +982,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                 },
@@ -984,10 +1000,10 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                     {
-                      column: "cid",
+                      name: "cid",
                     },
                   ],
                   interleave: {
@@ -1040,7 +1056,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                 },
@@ -1058,7 +1074,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                   interleave: {
@@ -1109,7 +1125,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                 },
@@ -1127,10 +1143,10 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "cid",
+                      name: "cid",
                     },
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                   interleave: {
@@ -1183,7 +1199,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                 },
@@ -1201,11 +1217,11 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                       desc: true,
                     },
                     {
-                      column: "cid",
+                      name: "cid",
                     },
                   ],
                   interleave: {
@@ -1254,7 +1270,7 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                   ],
                 },
@@ -1272,10 +1288,10 @@ export async function deleteARow(
                   ],
                   primaryKeys: [
                     {
-                      column: "pid",
+                      name: "pid",
                     },
                     {
-                      column: "cid",
+                      name: "cid",
                     },
                   ],
                   interleave: {
@@ -1331,7 +1347,7 @@ export async function deleteARow(
                 ],
                 primaryKeys: [
                   {
-                    column: "f1",
+                    name: "f1",
                   },
                 ],
               },
@@ -1349,7 +1365,7 @@ export async function deleteARow(
                 ],
                 primaryKeys: [
                   {
-                    column: "f1",
+                    name: "f1",
                   },
                 ],
               },
@@ -1367,7 +1383,7 @@ export async function deleteARow(
                 ],
                 primaryKeys: [
                   {
-                    column: "f1",
+                    name: "f1",
                   },
                 ],
               },
@@ -1582,7 +1598,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1641,7 +1657,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1708,7 +1724,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1726,7 +1742,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1805,7 +1821,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1823,7 +1839,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1902,7 +1918,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1920,7 +1936,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -1999,7 +2015,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2017,7 +2033,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2096,7 +2112,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2113,7 +2129,7 @@ export async function s1(
                     op: "=",
                     leftColumn: {
                       name: "f1",
-                      table: "t2"
+                      table: "t2",
                     },
                   },
                   getColumns: [],
@@ -2167,7 +2183,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2237,7 +2253,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2307,7 +2323,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2377,7 +2393,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2447,7 +2463,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2459,14 +2475,15 @@ export async function s1(
                     name: "T1Table",
                     as: "t1",
                   },
-                  orderBy: [{
-                    column: {
-                      name: "f1",
-                      table: "t2"
-                    }
-                  }],
-                  getColumns: [
+                  orderBy: [
+                    {
+                      column: {
+                        name: "f1",
+                        table: "t2",
+                      },
+                    },
                   ],
+                  getColumns: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2517,7 +2534,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2529,13 +2546,14 @@ export async function s1(
                     name: "T1Table",
                     as: "t1",
                   },
-                  orderBy: [{
-                    column: {
-                      name: "f3"
-                    }
-                  }],
-                  getColumns: [
+                  orderBy: [
+                    {
+                      column: {
+                        name: "f3",
+                      },
+                    },
                   ],
+                  getColumns: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2586,7 +2604,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },
@@ -2653,7 +2671,7 @@ export async function s1(
                   ],
                   primaryKeys: [
                     {
-                      column: "f1",
+                      name: "f1",
                     },
                   ],
                 },

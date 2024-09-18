@@ -135,7 +135,6 @@ export interface NodeServiceDefinition {
   outputHandler?: string;
 }
 
-// `${name} ${isArray ? Array<type> : type} ${expressions} ${allow_commit_timestamp ? 'allow_commit_timestamp = true' ]`
 export interface SpannerTableColumnDefinition {
   // Must be of CamelCase.
   name: string;
@@ -159,19 +158,22 @@ export interface SpannerTableColumnDefinition {
   allowCommitTimestamp?: true;
 }
 
-// `CREATE [ UNIUQE ] [ NULL_FILTERED ] INDEX ${name} ON ${tableName} (${...columns}) ${clauses}`
+export interface SpannerIndexColumnDefinition {
+  name: string;
+  desc?: true;
+}
+
 export interface SpannerIndexDefinition {
   // Must be of CamelCase.
   name: string;
   // Columns on the table that includes this definition.
-  columns: Array<string>;
+  columns: Array<SpannerIndexColumnDefinition>;
   unique?: true;
   nullFiltered?: true;
 }
 
-// `${column} ${desc ? 'DESC' : 'ASC'},`
 export interface SpannerTablePrimaryKeyDefinition {
-  column: string;
+  name: string;
   desc?: true;
 }
 
@@ -180,7 +182,6 @@ export interface SpannerTableInterleaveDefinition {
   cascadeOnDelete?: true;
 }
 
-// `CREATE TABLE ${name} (${...columns}) PRIMARY KEY (${...primaryKeys}) ${interleave}`
 export interface SpannerTableDefinition {
   // Must be of CamelCase.
   name: string;

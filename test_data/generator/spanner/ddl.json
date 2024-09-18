@@ -14,7 +14,7 @@
     "createTableDdl": "CREATE TABLE UserTable (userId FLOAT64 NOT NULL, user BYTES(MAX), createdTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)) PRIMARY KEY (userId ASC)",
     "indexes": [{
       "name": "ByTimestamp",
-      "createIndexDdl": "CREATE INDEX ByTimestamp ON UserTable(userId, createdTimestamp)"
+      "createIndexDdl": "CREATE INDEX ByTimestamp ON UserTable(userId, createdTimestamp DESC)"
     }]
   }, {
     "name": "UserContent",

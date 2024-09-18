@@ -621,22 +621,22 @@ function generateSpannerTable(
     throw new Error(`${loggingPrefix} "primaryKeys" is missing.`);
   }
   for (let key of table.primaryKeys) {
-    if (!key.column) {
+    if (!key.name) {
       throw new Error(
-        `${loggingPrefix} "column" is missing in "primaryKeys" field.`,
+        `${loggingPrefix} "name" is missing in "primaryKeys" field.`,
       );
     }
     let columnDefinition = getColumnDefinition(
       loggingPrefix + " and when generating primary keys,",
       table,
-      key.column,
+      key.name,
     );
     if (columnDefinition.isArray) {
       throw new Error(
         `${loggingPrefix} column ${key} is an array and cannot be used as a primary key.`,
       );
     }
-    primaryKeys.push(`${key.column} ${key.desc ? "DESC" : "ASC"}`);
+    primaryKeys.push(`${key.name} ${key.desc ? "DESC" : "ASC"}`);
   }
 
   let interleaveOption = "";
@@ -658,25 +658,25 @@ function generateSpannerTable(
       );
     }
     for (let i = 0; i < parentTable.primaryKeys.length; i++) {
-      if (parentTable.primaryKeys[i].column !== table.primaryKeys[i].column) {
+      if (parentTable.primaryKeys[i].name !== table.primaryKeys[i].name) {
         throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].column}" doesn't match the key "${parentTable.primaryKeys[i].column}" of the parent table.`,
+          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].name}" doesn't match the key "${parentTable.primaryKeys[i].name}" of the parent table.`,
         );
       }
       if (parentTable.primaryKeys[i].desc !== table.primaryKeys[i].desc) {
         throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].column}" is ${table.primaryKeys[i].desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
+          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].name}" is ${table.primaryKeys[i].desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
         );
       }
       let parentColumnDefinition = getColumnDefinition(
         loggingPrefix + "and when validating interleaving,",
         parentTable,
-        parentTable.primaryKeys[i].column,
+        parentTable.primaryKeys[i].name,
       );
       let childColumnDefinition = getColumnDefinition(
         loggingPrefix + "and when validating interleaving,",
         table,
-        table.primaryKeys[i].column,
+        table.primaryKeys[i].name,
       );
       if (parentColumnDefinition.type !== childColumnDefinition.type) {
         throw new Error(
@@ -702,12 +702,18 @@ function generateSpannerTable(
         );
       }
       for (let column of index.columns) {
+        if (!column.name) {
+          throw new Error(
+            `${loggingPrefix} "name" is missing in a colum of index ${index.name}.`,
+          );
+        }
+
         getColumnDefinition(
           loggingPrefix + " and when generating indexes,",
           table,
-          column,
+          column.name,
         );
-        indexColumns.push(column);
+        indexColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
       }
 
       indexDdls.push(`{
