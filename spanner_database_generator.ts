@@ -333,10 +333,9 @@ class WhereClauseGenerator {
         name: leaf.leftColumn,
         table: this.defaultTableAlias,
       };
-    } else {
-      if (!leaf.leftColumn.table) {
-        throw new Error(`${this.loggingPrefix} "table" is missing.`);
-      }
+    }
+    if (!leaf.leftColumn.table) {
+      throw new Error(`${this.loggingPrefix} "table" is missing.`);
     }
     let columnDefinition = resolveColumnDefinition(
       this.loggingPrefix,
@@ -616,6 +615,11 @@ function generateSpannerTable(
         desc: false,
       };
     }
+    if (key.desc == null) {
+      throw new Error(
+        `${loggingPrefix} "desc" is missing in primary key ${key.name}.`,
+      );
+    }
     table.primaryKeys[i] = key;
     if (!key.name) {
       throw new Error(
@@ -708,6 +712,11 @@ function generateSpannerTable(
             desc: false,
           };
         }
+        if (column.desc == null) {
+          throw new Error(
+            `${loggingPrefix} "desc" is missing in index column ${column.name}.`,
+          );
+        }
         getColumnDefinition(
           loggingPrefix + " and when generating indexes,",
           table,
@@ -749,6 +758,9 @@ function generateSpannerSelect(
       as: selectDefinition.table,
     };
   }
+  if (!selectDefinition.table.as) {
+    throw new Error(`${loggingPrefix} "as" is missing in "table" field.`);
+  }
   if (!databaseTables.has(selectDefinition.table.name)) {
     throw new Error(
       `${loggingPrefix} table ${selectDefinition.table.name} is not found in the database.`,
@@ -771,6 +783,11 @@ function generateSpannerSelect(
           name: joinTable.table,
           as: joinTable.table,
         };
+      }
+      if (!joinTable.table.as) {
+        throw new Error(
+          `${loggingPrefix} "as" is missing in join table ${joinTable.table.name}.`,
+        );
       }
       tableAliases.set(joinTable.table.as, joinTable.table.name);
       let rightTable = databaseTables.get(joinTable.table.name);
@@ -826,11 +843,17 @@ function generateSpannerSelect(
             table: defaultTableAlias,
           },
         };
-      } else if (typeof column.column === "string") {
+      }
+      if (typeof column.column === "string") {
         column.column = {
           name: column.column,
           table: defaultTableAlias,
         };
+      }
+      if (!column.column.table) {
+        throw new Error(
+          `${loggingPrefix} "table" is missing in order by column ${column.column.name}.`,
+        );
       }
       resolveColumnDefinition(
         loggingPrefix + " and when generating order by clause,",
@@ -859,6 +882,11 @@ function generateSpannerSelect(
         name: column,
         table: defaultTableAlias,
       };
+    }
+    if (!column.table) {
+      throw new Error(
+        `${loggingPrefix} "table" is missing in get column ${column.name}.`,
+      );
     }
     let columnDefinition = resolveColumnDefinition(
       loggingPrefix + " and when generating select columns,",
