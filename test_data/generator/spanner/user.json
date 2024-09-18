@@ -28,14 +28,11 @@
         "type": "timestamp",
         "allowCommitTimestamp": true
       }],
-      "primaryKeys": [{
-        "name": "userId"
-      }],
+      "primaryKeys": ["userId"],
       "indexes": [{
         "name": "ByTimestamp",
-        "columns": [{
-          "name": "userId"
-        }, {
+        "columns": [
+          "userId", {
           "name": "createdTimestamp",
           "desc": true
         }]
@@ -52,20 +49,14 @@
         "name": "content",
         "type": "bytes"
       }],
-      "primaryKeys": [{
-        "name": "userId"
-      }, {
-        "name": "contentId"
-      }],
+      "primaryKeys": ["userId", "contentId"],
       "interleave": {
         "parentTable": "UserTable"
       }
     }],
     "selects": [{
       "name": "GetLastUser",
-      "fromTable": {
-        "name": "UserTable"
-      },
+      "table": "UserTable",
       "join": [{
         "type": "INNER",
         "table": {
@@ -88,11 +79,7 @@
           "table": "uc"
         }
       },
-      "orderBy": [{
-        "column": {
-          "name": "createdTimestamp"
-        }
-      }],
+      "orderBy": ["createdTimestamp"],
       "limit": 1,
       "getColumns": [{
         "name": "userId",
@@ -113,9 +100,7 @@
       "setColumns": ["content"],
       "where": {
         "op": "=",
-        "leftColumn": {
-          "name": "userId"
-        }
+        "leftColumn": "userId"
       }
     }],
     "deletes": [{
@@ -125,15 +110,11 @@
         "op": "AND",
         "left": {
           "op": "=",
-          "leftColumn": {
-            "name": "userId"
-          }
+          "leftColumn": "userId"
         },
         "right": {
           "op": "=",
-          "leftColumn": {
-            "name": "contentId"
-          }
+          "leftColumn": "contentId"
         }
       }
     }],

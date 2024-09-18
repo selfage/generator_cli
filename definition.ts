@@ -160,21 +160,21 @@ export interface SpannerTableColumnDefinition {
 
 export interface SpannerIndexColumnDefinition {
   name: string;
-  desc?: true;
+  desc: boolean;
 }
 
 export interface SpannerIndexDefinition {
   // Must be of CamelCase.
   name: string;
   // Columns on the table that includes this definition.
-  columns: Array<SpannerIndexColumnDefinition>;
+  columns: Array<string | SpannerIndexColumnDefinition>;
   unique?: true;
   nullFiltered?: true;
 }
 
 export interface SpannerTablePrimaryKeyDefinition {
   name: string;
-  desc?: true;
+  desc: boolean;
 }
 
 export interface SpannerTableInterleaveDefinition {
@@ -186,19 +186,19 @@ export interface SpannerTableDefinition {
   // Must be of CamelCase.
   name: string;
   columns: Array<SpannerTableColumnDefinition>;
-  primaryKeys: Array<SpannerTablePrimaryKeyDefinition>;
+  primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
   indexes?: Array<SpannerIndexDefinition>;
 }
 
 export interface SpannerColumnRef {
   name: string;
-  table?: string;
+  table: string;
 }
 
 export interface SpannerTableRef {
   name: string;
-  as?: string;
+  as: string;
 }
 
 export interface SpannerJoinOnLeaf {
@@ -216,15 +216,14 @@ export interface SpannerJoinOnGate {
 
 export interface SpannerJoin {
   type: "INNER" | "CROSS" | "FULL" | "LEFT" | "RIGHT";
-  table: SpannerTableRef;
+  table: string | SpannerTableRef;
   on?: SpannerJoinOnGate | SpannerJoinOnLeaf;
 }
 
 export interface SpannerWhereLeaf {
-  leftColumn: SpannerColumnRef;
-  function?: string; // Reserved. Not implemented yet. E.g. ARRAY_AGG()
+  leftColumn: string | SpannerColumnRef;
   op: ">" | "<" | ">=" | "<=" | "!=" | "=" | "IS NULL" | "IS NOT NULL";
-  // right value should be an input, except for NULL check.
+  // right value will be an input, except for NULL check.
 }
 
 export interface SpannerWhereGate {
@@ -234,19 +233,19 @@ export interface SpannerWhereGate {
 }
 
 export interface SpannerOrderByColumnRef {
-  column: SpannerColumnRef;
+  column: string | SpannerColumnRef;
   desc?: true;
 }
 
 export interface SpannerSelectDefinition {
   // Must be of CamelCase.
   name: string;
-  fromTable: SpannerTableRef;
+  table: string | SpannerTableRef;
   join?: Array<SpannerJoin>;
   where?: SpannerWhereGate | SpannerWhereLeaf;
-  orderBy?: Array<SpannerOrderByColumnRef>;
+  orderBy?: Array<string | SpannerOrderByColumnRef>;
   limit?: number;
-  getColumns: Array<SpannerColumnRef>;
+  getColumns: Array<string | SpannerColumnRef>;
 }
 
 export interface SpannerInsertDefinition {

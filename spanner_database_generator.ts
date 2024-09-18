@@ -8,6 +8,7 @@ import {
   SpannerSelectDefinition,
   SpannerTableColumnDefinition,
   SpannerTableDefinition,
+  SpannerTablePrimaryKeyDefinition,
   SpannerUpdateDefinition,
   SpannerWhereGate,
   SpannerWhereLeaf,
@@ -327,7 +328,16 @@ class WhereClauseGenerator {
     if (!leaf.leftColumn) {
       throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
     }
-    leaf.leftColumn.table = leaf.leftColumn.table ?? this.defaultTableAlias;
+    if (typeof leaf.leftColumn === "string") {
+      leaf.leftColumn = {
+        name: leaf.leftColumn,
+        table: this.defaultTableAlias,
+      };
+    } else {
+      if (!leaf.leftColumn.table) {
+        throw new Error(`${this.loggingPrefix} "table" is missing.`);
+      }
+    }
     let columnDefinition = resolveColumnDefinition(
       this.loggingPrefix,
       leaf.leftColumn,
@@ -382,7 +392,6 @@ class WhereClauseGenerator {
 class JoinOnClauseGenerator {
   public constructor(
     private loggingPrefix: string,
-    private defaultTableAlias: string,
     private rightTable: SpannerTableDefinition,
     private rightTableAlias: string,
     private tableAliases: Map<string, string>,
@@ -401,7 +410,6 @@ class JoinOnClauseGenerator {
     if (!leaf.leftColumn) {
       throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
     }
-    leaf.leftColumn.table = leaf.leftColumn.table ?? this.defaultTableAlias;
     let leftColumnDefinition = resolveColumnDefinition(
       this.loggingPrefix,
       leaf.leftColumn,
@@ -600,7 +608,15 @@ function generateSpannerTable(
   if (!table.primaryKeys) {
     throw new Error(`${loggingPrefix} "primaryKeys" is missing.`);
   }
-  for (let key of table.primaryKeys) {
+  for (let i = 0; i < table.primaryKeys.length; i++) {
+    let key = table.primaryKeys[i];
+    if (typeof key === "string") {
+      key = {
+        name: key,
+        desc: false,
+      };
+    }
+    table.primaryKeys[i] = key;
     if (!key.name) {
       throw new Error(
         `${loggingPrefix} "name" is missing in "primaryKeys" field.`,
@@ -638,25 +654,29 @@ function generateSpannerTable(
       );
     }
     for (let i = 0; i < parentTable.primaryKeys.length; i++) {
-      if (parentTable.primaryKeys[i].name !== table.primaryKeys[i].name) {
+      let parentKey = parentTable.primaryKeys[
+        i
+      ] as SpannerTablePrimaryKeyDefinition;
+      let childKey = table.primaryKeys[i] as SpannerTablePrimaryKeyDefinition;
+      if (parentKey.name !== childKey.name) {
         throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].name}" doesn't match the key "${parentTable.primaryKeys[i].name}" of the parent table.`,
+          `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" doesn't match the key "${parentKey.name}" of the parent table.`,
         );
       }
-      if (parentTable.primaryKeys[i].desc !== table.primaryKeys[i].desc) {
+      if (parentKey.desc !== childKey.desc) {
         throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${table.primaryKeys[i].name}" is ${table.primaryKeys[i].desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
+          `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" is ${childKey.desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
         );
       }
       let parentColumnDefinition = getColumnDefinition(
         loggingPrefix + "and when validating interleaving,",
         parentTable,
-        parentTable.primaryKeys[i].name,
+        parentKey.name,
       );
       let childColumnDefinition = getColumnDefinition(
         loggingPrefix + "and when validating interleaving,",
         table,
-        table.primaryKeys[i].name,
+        childKey.name,
       );
       if (parentColumnDefinition.type !== childColumnDefinition.type) {
         throw new Error(
@@ -682,12 +702,12 @@ function generateSpannerTable(
         );
       }
       for (let column of index.columns) {
-        if (!column.name) {
-          throw new Error(
-            `${loggingPrefix} "name" is missing in a colum of index ${index.name}.`,
-          );
+        if (typeof column === "string") {
+          column = {
+            name: column,
+            desc: false,
+          };
         }
-
         getColumnDefinition(
           loggingPrefix + " and when generating indexes,",
           table,
@@ -723,36 +743,36 @@ function generateSpannerSelect(
   }
   let loggingPrefix = `When generating select statement ${selectDefinition.name},`;
   let tableAliases = new Map<string, string>();
-  if (!selectDefinition.fromTable.name) {
-    throw new Error(`${loggingPrefix} "name" is missing in "fromTable" field.`);
+  if (typeof selectDefinition.table === "string") {
+    selectDefinition.table = {
+      name: selectDefinition.table,
+      as: selectDefinition.table,
+    };
   }
-  let defaultTableAlias =
-    selectDefinition.fromTable.as ?? selectDefinition.fromTable.name;
-  tableAliases.set(defaultTableAlias, selectDefinition.fromTable.name);
-  if (!databaseTables.has(selectDefinition.fromTable.name)) {
+  if (!databaseTables.has(selectDefinition.table.name)) {
     throw new Error(
-      `${loggingPrefix} table ${selectDefinition.fromTable.name} is not found in the database.`,
+      `${loggingPrefix} table ${selectDefinition.table.name} is not found in the database.`,
     );
   }
 
+  let defaultTableAlias = selectDefinition.table.as;
   let fromTables = new Array<string>();
+  tableAliases.set(selectDefinition.table.as, selectDefinition.table.name);
   fromTables.push(
-    `${selectDefinition.fromTable.name}${selectDefinition.fromTable.as ? " AS " + selectDefinition.fromTable.as : ""}`,
+    `${selectDefinition.table.name}${selectDefinition.table.as !== selectDefinition.table.name ? " AS " + selectDefinition.table.as : ""}`,
   );
   if (selectDefinition.join) {
     for (let joinTable of selectDefinition.join) {
       if (!joinTable.table) {
         throw new Error(`${loggingPrefix} "table" is missing in "join" field.`);
       }
-      if (!joinTable.table.name) {
-        throw new Error(
-          `${loggingPrefix} "name" is missing in "join.table" field.`,
-        );
+      if (typeof joinTable.table === "string") {
+        joinTable.table = {
+          name: joinTable.table,
+          as: joinTable.table,
+        };
       }
-      tableAliases.set(
-        joinTable.table.as ?? joinTable.table.name,
-        joinTable.table.name,
-      );
+      tableAliases.set(joinTable.table.as, joinTable.table.name);
       let rightTable = databaseTables.get(joinTable.table.name);
       if (!rightTable) {
         throw new Error(
@@ -763,7 +783,6 @@ function generateSpannerSelect(
       if (joinTable.on) {
         joinOnClause = new JoinOnClauseGenerator(
           loggingPrefix + ` and when joining ${rightTable.name},`,
-          defaultTableAlias,
           rightTable,
           joinTable.table.as ?? joinTable.table.name,
           tableAliases,
@@ -777,7 +796,7 @@ function generateSpannerSelect(
         );
       }
       fromTables.push(
-        `${joinTable.type} JOIN ${joinTable.table.name}${joinTable.table.as ? " AS " + joinTable.table.as : ""}${joinOnClause}`,
+        `${joinTable.type} JOIN ${joinTable.table.name}${joinTable.table.as !== joinTable.table.name ? " AS " + joinTable.table.as : ""}${joinOnClause}`,
       );
     }
   }
@@ -800,15 +819,27 @@ function generateSpannerSelect(
     let orderByColumns = new Array<string>();
     for (let i = 0; i < selectDefinition.orderBy.length; i++) {
       let column = selectDefinition.orderBy[i];
-      column.column.table = column.column.table ?? defaultTableAlias;
+      if (typeof column === "string") {
+        column = {
+          column: {
+            name: column,
+            table: defaultTableAlias,
+          },
+        };
+      } else if (typeof column.column === "string") {
+        column.column = {
+          name: column.column,
+          table: defaultTableAlias,
+        };
+      }
       resolveColumnDefinition(
         loggingPrefix + " and when generating order by clause,",
-        column.column,
+        column.column as SpannerColumnRef,
         tableAliases,
         databaseTables,
       );
       orderByColumns.push(
-        `${column.column.table}.${column.column.name}${column.desc ? " DESC" : ""}`,
+        `${(column.column as SpannerColumnRef).table}.${(column.column as SpannerColumnRef).name}${column.desc ? " DESC" : ""}`,
       );
     }
     orderByClause = ` ORDER BY ${orderByColumns.join(", ")}`;
@@ -823,7 +854,12 @@ function generateSpannerSelect(
   let outputCollector = new OuputCollector(messageResolver, tsContentBuilder);
   for (let i = 0; i < selectDefinition.getColumns.length; i++) {
     let column = selectDefinition.getColumns[i];
-    column.table = column.table ?? defaultTableAlias;
+    if (typeof column === "string") {
+      column = {
+        name: column,
+        table: defaultTableAlias,
+      };
+    }
     let columnDefinition = resolveColumnDefinition(
       loggingPrefix + " and when generating select columns,",
       column,

@@ -147,21 +147,12 @@ TEST_RUNNER.run({
                     name: "id",
                     desc: true,
                   },
-                  {
-                    name: "stringValue",
-                  },
+                  "stringValue",
                 ],
                 indexes: [
                   {
                     name: "Sort",
-                    columns: [
-                      {
-                        name: "stringValue",
-                      },
-                      {
-                        name: "int64Value",
-                      },
-                    ],
+                    columns: ["stringValue", "int64Value"],
                   },
                   {
                     name: "Sort2",
@@ -211,9 +202,7 @@ TEST_RUNNER.run({
                   op: "AND",
                   left: {
                     op: "=",
-                    leftColumn: {
-                      name: "stringValue",
-                    },
+                    leftColumn: "stringValue",
                   },
                   right: {
                     op: "OR",
@@ -223,29 +212,21 @@ TEST_RUNNER.run({
                         op: "OR",
                         left: {
                           op: ">=",
-                          leftColumn: {
-                            name: "float64Value",
-                          },
+                          leftColumn: "float64Value",
                         },
                         right: {
                           op: "!=",
-                          leftColumn: {
-                            name: "boolValue",
-                          },
+                          leftColumn: "boolValue",
                         },
                       },
                       right: {
                         op: "IS NULL",
-                        leftColumn: {
-                          name: "int64Value",
-                        },
+                        leftColumn: "int64Value",
                       },
                     },
                     right: {
                       op: ">",
-                      leftColumn: {
-                        name: "timestampValue",
-                      },
+                      leftColumn: "timestampValue",
                     },
                   },
                 },
@@ -259,15 +240,11 @@ TEST_RUNNER.run({
                   op: "AND",
                   left: {
                     op: "=",
-                    leftColumn: {
-                      name: "id",
-                    },
+                    leftColumn: "id",
                   },
                   right: {
                     op: "=",
-                    leftColumn: {
-                      name: "stringValue",
-                    },
+                    leftColumn: "stringValue",
                   },
                 },
               },
@@ -275,61 +252,25 @@ TEST_RUNNER.run({
             selects: [
               {
                 name: "SelectARow",
-                fromTable: {
-                  name: "TypesTable",
-                },
+                table: "TypesTable",
                 getColumns: [
-                  {
-                    name: "id",
-                  },
-                  {
-                    name: "stringValue",
-                  },
-                  {
-                    name: "boolValue",
-                  },
-                  {
-                    name: "int64Value",
-                  },
-                  {
-                    name: "float64Value",
-                  },
-                  {
-                    name: "timestampValue",
-                  },
-                  {
-                    name: "bytesValue",
-                  },
-                  {
-                    name: "stringArrayValue",
-                  },
-                  {
-                    name: "boolArrayValue",
-                  },
-                  {
-                    name: "int64ArrayValue",
-                  },
-                  {
-                    name: "float64ArrayValue",
-                  },
-                  {
-                    name: "timestampArrayValue",
-                  },
-                  {
-                    name: "bytesArrayValue",
-                  },
-                  {
-                    name: "user",
-                  },
-                  {
-                    name: "userType",
-                  },
-                  {
-                    name: "userArray",
-                  },
-                  {
-                    name: "userTypeArray",
-                  },
+                  "id",
+                  "stringValue",
+                  "boolValue",
+                  "int64Value",
+                  "float64Value",
+                  "timestampValue",
+                  "bytesValue",
+                  "stringArrayValue",
+                  "boolArrayValue",
+                  "int64ArrayValue",
+                  "float64ArrayValue",
+                  "timestampArrayValue",
+                  "bytesArrayValue",
+                  "user",
+                  "userType",
+                  "userArray",
+                  "userTypeArray",
                 ],
               },
             ],
@@ -608,15 +549,7 @@ export async function deleteARow(
                       allowCommitTimestamp: true,
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "id",
-                      desc: true,
-                    },
-                    {
-                      name: "stringValue",
-                    },
-                  ],
+                  primaryKeys: ["id"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -667,15 +600,7 @@ export async function deleteARow(
                       allowCommitTimestamp: true,
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "id",
-                      desc: true,
-                    },
-                    {
-                      name: "stringValue",
-                    },
-                  ],
+                  primaryKeys: ["id"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -725,15 +650,7 @@ export async function deleteARow(
                       isArray: true,
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "id",
-                      desc: true,
-                    },
-                    {
-                      name: "strings",
-                    },
-                  ],
+                  primaryKeys: ["id", "strings"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -774,15 +691,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "id",
-                      desc: true,
-                    },
-                    {
-                      name: "something",
-                    },
-                  ],
+                  primaryKeys: ["id", "something"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -832,11 +741,7 @@ export async function deleteARow(
                   indexes: [
                     {
                       name: "Sort1",
-                      columns: [
-                        {
-                          name: "id2",
-                        },
-                      ],
+                      columns: ["id2"],
                     },
                   ],
                 },
@@ -878,11 +783,7 @@ export async function deleteARow(
                     type: "string",
                   },
                 ],
-                primaryKeys: [
-                  {
-                    name: "pid",
-                  },
-                ],
+                primaryKeys: ["pid"],
               },
               {
                 name: "ChildTable",
@@ -896,14 +797,7 @@ export async function deleteARow(
                     type: "string",
                   },
                 ],
-                primaryKeys: [
-                  {
-                    name: "pid",
-                  },
-                  {
-                    name: "cid",
-                  },
-                ],
+                primaryKeys: ["pid", "cid"],
                 interleave: {
                   parentTable: "ParentTable",
                   cascadeOnDelete: true,
@@ -968,11 +862,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                 },
                 {
                   name: "ChildTable",
@@ -986,14 +876,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                    {
-                      name: "cid",
-                    },
-                  ],
+                  primaryKeys: ["pid", "cid"],
                   interleave: {
                     parentTable: "SomeTable",
                     cascadeOnDelete: true,
@@ -1042,11 +925,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                 },
                 {
                   name: "ChildTable",
@@ -1060,11 +939,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                   interleave: {
                     parentTable: "ParentTable",
                     cascadeOnDelete: true,
@@ -1111,11 +986,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                 },
                 {
                   name: "ChildTable",
@@ -1129,14 +1000,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "cid",
-                    },
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["cid", "pid"],
                   interleave: {
                     parentTable: "ParentTable",
                     cascadeOnDelete: true,
@@ -1185,11 +1049,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                 },
                 {
                   name: "ChildTable",
@@ -1208,9 +1068,7 @@ export async function deleteARow(
                       name: "pid",
                       desc: true,
                     },
-                    {
-                      name: "cid",
-                    },
+                    "cid",
                   ],
                   interleave: {
                     parentTable: "ParentTable",
@@ -1256,11 +1114,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                  ],
+                  primaryKeys: ["pid"],
                 },
                 {
                   name: "ChildTable",
@@ -1274,14 +1128,7 @@ export async function deleteARow(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "pid",
-                    },
-                    {
-                      name: "cid",
-                    },
-                  ],
+                  primaryKeys: ["pid", "cid"],
                   interleave: {
                     parentTable: "ParentTable",
                     cascadeOnDelete: true,
@@ -1333,11 +1180,7 @@ export async function deleteARow(
                     type: "string",
                   },
                 ],
-                primaryKeys: [
-                  {
-                    name: "f1",
-                  },
-                ],
+                primaryKeys: ["f1"],
               },
               {
                 name: "T2Table",
@@ -1351,11 +1194,7 @@ export async function deleteARow(
                     type: "string",
                   },
                 ],
-                primaryKeys: [
-                  {
-                    name: "f1",
-                  },
-                ],
+                primaryKeys: ["f1"],
               },
               {
                 name: "T3Table",
@@ -1369,26 +1208,20 @@ export async function deleteARow(
                     type: "string",
                   },
                 ],
-                primaryKeys: [
-                  {
-                    name: "f1",
-                  },
-                ],
+                primaryKeys: ["f1"],
               },
             ],
             selects: [
               {
                 name: "S1",
-                fromTable: {
+                table: {
                   name: "T1Table",
                   as: "t1",
                 },
                 join: [
                   {
                     type: "INNER",
-                    table: {
-                      name: "T2Table",
-                    },
+                    table: "T2Table",
                     on: {
                       leftColumn: {
                         name: "f1",
@@ -1439,9 +1272,7 @@ export async function deleteARow(
                   op: "AND",
                   left: {
                     op: "=",
-                    leftColumn: {
-                      name: "f2",
-                    },
+                    leftColumn: "f2",
                   },
                   right: {
                     op: "AND",
@@ -1462,6 +1293,10 @@ export async function deleteARow(
                   },
                 },
                 orderBy: [
+                  "f2",
+                  {
+                    column: "f1",
+                  },
                   {
                     column: {
                       name: "f2",
@@ -1478,8 +1313,9 @@ export async function deleteARow(
                 ],
                 limit: 2,
                 getColumns: [
+                  "f1",
                   {
-                    name: "f1",
+                    name: "f2",
                     table: "t1",
                   },
                   {
@@ -1507,6 +1343,7 @@ export async function deleteARow(
 
 export interface S1Row {
   t1F1?: string,
+  t1F2?: string,
   t2TableF2?: string,
   t3F2?: string,
 }
@@ -1518,7 +1355,7 @@ export async function s1(
   t2TableF2: string,
 ): Promise<Array<S1Row>> {
   let [rows] = await run({
-    sql: "SELECT t1.f1, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2 AND (t3.f1 = @t3F1 AND T2Table.f2 != @t2TableF2)) ORDER BY T2Table.f2 DESC, t3.f1 LIMIT 2",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2 AND (t3.f1 = @t3F1 AND T2Table.f2 != @t2TableF2)) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
       t1F2: t1F2,
       t3F1: t3F1,
@@ -1534,8 +1371,9 @@ export async function s1(
   for (let row of rows) {
     resRows.push({
       t1F1: row.at(0).value == null ? undefined : row.at(0).value,
-      t2TableF2: row.at(1).value == null ? undefined : row.at(1).value,
-      t3F2: row.at(2).value == null ? undefined : row.at(2).value,
+      t1F2: row.at(1).value == null ? undefined : row.at(1).value,
+      t2TableF2: row.at(2).value == null ? undefined : row.at(2).value,
+      t3F2: row.at(3).value == null ? undefined : row.at(3).value,
     });
   }
   return resRows;
@@ -1571,17 +1409,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T2Table",
                     as: "T1Table",
                   },
@@ -1630,19 +1464,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
-                    name: "T1Table",
-                  },
+                  table: "T1Table",
                   join: [
                     {
                       type: "CROSS",
@@ -1697,11 +1525,7 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
                 {
                   name: "T2Table",
@@ -1715,19 +1539,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
-                    name: "T1Table",
-                  },
+                  table: "T1Table",
                   join: [
                     {
                       type: "CROSS",
@@ -1739,6 +1557,7 @@ export async function s1(
                         op: "=",
                         leftColumn: {
                           name: "f3",
+                          table: "T1Table",
                         },
                         rightColumn: "f1",
                       },
@@ -1793,11 +1612,7 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
                 {
                   name: "T2Table",
@@ -1811,19 +1626,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
-                    name: "T1Table",
-                  },
+                  table: "T1Table",
                   join: [
                     {
                       type: "CROSS",
@@ -1835,6 +1644,7 @@ export async function s1(
                         op: "=",
                         leftColumn: {
                           name: "f1",
+                          table: "T1Table",
                         },
                         rightColumn: "f3",
                       },
@@ -1889,11 +1699,7 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
                 {
                   name: "T2Table",
@@ -1907,19 +1713,13 @@ export async function s1(
                       type: "int64",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
-                    name: "T1Table",
-                  },
+                  table: "T1Table",
                   join: [
                     {
                       type: "CROSS",
@@ -1931,6 +1731,7 @@ export async function s1(
                         op: "=",
                         leftColumn: {
                           name: "f2",
+                          table: "T1Table",
                         },
                         rightColumn: "f2",
                       },
@@ -1985,11 +1786,7 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
                 {
                   name: "T2Table",
@@ -2003,19 +1800,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
-                    name: "T1Table",
-                  },
+                  table: "T1Table",
                   join: [
                     {
                       type: "CROSS",
@@ -2027,6 +1818,7 @@ export async function s1(
                         op: ">",
                         leftColumn: {
                           name: "f2",
+                          table: "T1Table",
                         },
                         rightColumn: "f2",
                       },
@@ -2081,17 +1873,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2151,17 +1939,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2169,6 +1953,7 @@ export async function s1(
                     op: "=",
                     leftColumn: {
                       name: "f3",
+                      table: "t1",
                     },
                   },
                   getColumns: [],
@@ -2220,17 +2005,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2238,6 +2019,7 @@ export async function s1(
                     op: "IS NULL",
                     leftColumn: {
                       name: "f1",
+                      table: "t1",
                     },
                   },
                   getColumns: [],
@@ -2289,17 +2071,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2307,6 +2085,7 @@ export async function s1(
                     op: "IS NOT NULL",
                     leftColumn: {
                       name: "f1",
+                      table: "t1",
                     },
                   },
                   getColumns: [],
@@ -2358,17 +2137,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2376,6 +2151,7 @@ export async function s1(
                     op: ">=",
                     leftColumn: {
                       name: "f1",
+                      table: "t1",
                     },
                   },
                   getColumns: [],
@@ -2427,17 +2203,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
@@ -2498,27 +2270,17 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
-                  orderBy: [
-                    {
-                      column: {
-                        name: "f3",
-                      },
-                    },
-                  ],
+                  orderBy: ["f3"],
                   getColumns: [],
                 },
               ],
@@ -2568,25 +2330,17 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
-                  getColumns: [
-                    {
-                      name: "f3",
-                    },
-                  ],
+                  getColumns: ["f3"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2635,17 +2389,13 @@ export async function s1(
                       type: "string",
                     },
                   ],
-                  primaryKeys: [
-                    {
-                      name: "f1",
-                    },
-                  ],
+                  primaryKeys: ["f1"],
                 },
               ],
               selects: [
                 {
                   name: "S1",
-                  fromTable: {
+                  table: {
                     name: "T1Table",
                     as: "t1",
                   },
