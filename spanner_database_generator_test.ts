@@ -208,33 +208,26 @@ TEST_RUNNER.run({
                 table: "TypesTable",
                 setColumns: ["stringValue", "timestampValue"],
                 where: {
-                  type: "gate",
                   op: "AND",
                   left: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "stringValue",
                     },
                   },
                   right: {
-                    type: "gate",
                     op: "OR",
                     left: {
-                      type: "gate",
                       op: "AND",
                       left: {
-                        type: "gate",
                         op: "OR",
                         left: {
-                          type: "leaf",
                           op: ">=",
                           leftColumn: {
                             name: "float64Value",
                           },
                         },
                         right: {
-                          type: "leaf",
                           op: "!=",
                           leftColumn: {
                             name: "boolValue",
@@ -242,7 +235,6 @@ TEST_RUNNER.run({
                         },
                       },
                       right: {
-                        type: "leaf",
                         op: "IS NULL",
                         leftColumn: {
                           name: "int64Value",
@@ -250,7 +242,6 @@ TEST_RUNNER.run({
                       },
                     },
                     right: {
-                      type: "leaf",
                       op: ">",
                       leftColumn: {
                         name: "timestampValue",
@@ -265,17 +256,14 @@ TEST_RUNNER.run({
                 name: "DeleteARow",
                 table: "TypesTable",
                 where: {
-                  type: "gate",
                   op: "AND",
                   left: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "id",
                     },
                   },
                   right: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "stringValue",
@@ -1402,7 +1390,6 @@ export async function deleteARow(
                       name: "T2Table",
                     },
                     on: {
-                      type: "leaf",
                       leftColumn: {
                         name: "f1",
                         table: "t1",
@@ -1418,35 +1405,28 @@ export async function deleteARow(
                       as: "t3",
                     },
                     on: {
-                      type: "gate",
                       op: "AND",
                       left: {
-                        type: "gate",
                         op: "OR",
                         left: {
-                          type: "leaf",
                           op: "=",
                           leftColumn: { name: "f1", table: "T2Table" },
                           rightColumn: "f1",
                         },
                         right: {
-                          type: "leaf",
                           op: "!=",
                           leftColumn: { name: "f1", table: "t1" },
                           rightColumn: "f1",
                         },
                       },
                       right: {
-                        type: "gate",
                         op: "OR",
                         left: {
-                          type: "leaf",
                           op: "=",
                           leftColumn: { name: "f2", table: "T2Table" },
                           rightColumn: "f2",
                         },
                         right: {
-                          type: "leaf",
                           op: "!=",
                           leftColumn: { name: "f2", table: "t1" },
                           rightColumn: "f2",
@@ -1456,20 +1436,16 @@ export async function deleteARow(
                   },
                 ],
                 where: {
-                  type: "gate",
                   op: "AND",
                   left: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "f2",
                     },
                   },
                   right: {
-                    type: "gate",
                     op: "AND",
                     left: {
-                      type: "leaf",
                       op: "=",
                       leftColumn: {
                         name: "f1",
@@ -1477,7 +1453,6 @@ export async function deleteARow(
                       },
                     },
                     right: {
-                      type: "leaf",
                       op: "!=",
                       leftColumn: {
                         name: "f2",
@@ -1761,7 +1736,6 @@ export async function s1(
                         as: "t2",
                       },
                       on: {
-                        type: "leaf",
                         op: "=",
                         leftColumn: {
                           name: "f3",
@@ -1858,7 +1832,6 @@ export async function s1(
                         as: "t2",
                       },
                       on: {
-                        type: "leaf",
                         op: "=",
                         leftColumn: {
                           name: "f1",
@@ -1955,7 +1928,6 @@ export async function s1(
                         as: "t2",
                       },
                       on: {
-                        type: "leaf",
                         op: "=",
                         leftColumn: {
                           name: "f2",
@@ -2052,7 +2024,6 @@ export async function s1(
                         as: "t2",
                       },
                       on: {
-                        type: "leaf",
                         op: ">",
                         leftColumn: {
                           name: "f2",
@@ -2125,7 +2096,6 @@ export async function s1(
                     as: "t1",
                   },
                   where: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "f1",
@@ -2196,7 +2166,6 @@ export async function s1(
                     as: "t1",
                   },
                   where: {
-                    type: "leaf",
                     op: "=",
                     leftColumn: {
                       name: "f3",
@@ -2266,7 +2235,6 @@ export async function s1(
                     as: "t1",
                   },
                   where: {
-                    type: "leaf",
                     op: "IS NULL",
                     leftColumn: {
                       name: "f1",
@@ -2336,7 +2304,6 @@ export async function s1(
                     as: "t1",
                   },
                   where: {
-                    type: "leaf",
                     op: "IS NOT NULL",
                     leftColumn: {
                       name: "f1",
@@ -2406,7 +2373,6 @@ export async function s1(
                     as: "t1",
                   },
                   where: {
-                    type: "leaf",
                     op: ">=",
                     leftColumn: {
                       name: "f1",

@@ -202,7 +202,6 @@ export interface SpannerTableRef {
 }
 
 export interface SpannerJoinOnLeaf {
-  type: "leaf";
   leftColumn: SpannerColumnRef;
   op: ">" | "<" | ">=" | "<=" | "!=" | "=";
   // Must refer to the table to be joined.
@@ -210,7 +209,6 @@ export interface SpannerJoinOnLeaf {
 }
 
 export interface SpannerJoinOnGate {
-  type: "gate";
   left: SpannerJoinOnGate | SpannerJoinOnLeaf;
   op: "AND" | "OR";
   right: SpannerJoinOnGate | SpannerJoinOnLeaf;
@@ -223,7 +221,6 @@ export interface SpannerJoin {
 }
 
 export interface SpannerWhereLeaf {
-  type: "leaf";
   leftColumn: SpannerColumnRef;
   function?: string; // Reserved. Not implemented yet. E.g. ARRAY_AGG()
   op: ">" | "<" | ">=" | "<=" | "!=" | "=" | "IS NULL" | "IS NOT NULL";
@@ -231,7 +228,6 @@ export interface SpannerWhereLeaf {
 }
 
 export interface SpannerWhereGate {
-  type: "gate";
   left: SpannerWhereGate | SpannerWhereLeaf;
   op: "AND" | "OR";
   right: SpannerWhereGate | SpannerWhereLeaf;

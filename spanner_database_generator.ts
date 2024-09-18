@@ -316,15 +316,10 @@ class WhereClauseGenerator {
   ) {}
 
   public generate(where: SpannerWhereGate | SpannerWhereLeaf): string {
-    switch (where.type) {
-      case "gate":
-        return this.generateGate(where);
-      case "leaf":
-        return this.generateLeaf(where);
-      default:
-        throw new Error(
-          `${this.loggingPrefix} a new case in SpannerWhere is not handled.`,
-        );
+    if (ALL_GATE_OP.has(where.op)) {
+      return this.generateGate(where as SpannerWhereGate);
+    } else {
+      return this.generateLeaf(where as SpannerWhereLeaf);
     }
   }
 
@@ -380,11 +375,6 @@ class WhereClauseGenerator {
       throw new Error(`${this.loggingPrefix} "right" is missing.`);
     }
     let rightClause = this.generate(gate.right);
-    if (!ALL_GATE_OP.has(gate.op)) {
-      throw new Error(
-        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_GATE_OP).join(",")}"`,
-      );
-    }
     return `(${leftClause} ${gate.op} ${rightClause})`;
   }
 }
@@ -400,15 +390,10 @@ class JoinOnClauseGenerator {
   ) {}
 
   public generate(joinOn: SpannerJoinOnGate | SpannerJoinOnLeaf): string {
-    switch (joinOn.type) {
-      case "gate":
-        return this.generateGate(joinOn);
-      case "leaf":
-        return this.generateLeaf(joinOn);
-      default:
-        throw new Error(
-          `${this.loggingPrefix} a new case in SpannerJoinOn is not handled.`,
-        );
+    if (ALL_GATE_OP.has(joinOn.op)) {
+      return this.generateGate(joinOn as SpannerJoinOnGate);
+    } else {
+      return this.generateLeaf(joinOn as SpannerJoinOnLeaf);
     }
   }
 
@@ -461,11 +446,6 @@ class JoinOnClauseGenerator {
       throw new Error(`${this.loggingPrefix} "right" is missing.`);
     }
     let rightClause = this.generate(gate.right);
-    if (!ALL_GATE_OP.has(gate.op)) {
-      throw new Error(
-        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_GATE_OP).join(",")}"`,
-      );
-    }
     return `(${leftClause} ${gate.op} ${rightClause})`;
   }
 }
