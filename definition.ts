@@ -132,7 +132,7 @@ export interface NodeServiceDefinition {
 export interface SpannerTableColumnDefinition {
   // Must be of CamelCase.
   name: string;
-  // Supports the following primitive types: boolean, int64, float64, timestamp, string, and bytes.
+  // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
   // `bool` is the same in Spanner and JS/TS.
   // `int64` maps to int64 in Spanner and bigint in JS/TS. Note that Spanner Nodejs client is inefficient in handling int64. Only use it when precision is required.
   // `float64` maps to float64 in Spanner and number in JS/TS.

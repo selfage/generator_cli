@@ -27,7 +27,7 @@ import {
 } from "./util";
 
 let COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE = new Map<string, string>([
-  ["boolean", "boolean"],
+  ["bool", "boolean"],
   ["int64", "bigint"],
   ["float64", "number"],
   ["timestamp", "number"],
@@ -35,7 +35,7 @@ let COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE = new Map<string, string>([
   ["bytes", "Buffer"],
 ]);
 let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
-  ["boolean", "BOOL"],
+  ["bool", "BOOL"],
   ["int64", "INT64"],
   ["float64", "FLOAT64"],
   ["timestamp", "TIMESTAMP"],
