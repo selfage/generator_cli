@@ -1,0 +1,8 @@
+- enum:
+    name: SomeEnum
+- message:
+    # Test data data
+    name: BasicDataData
+- message:
+    # Test data
+    name: BasicData

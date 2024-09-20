@@ -16,14 +16,6 @@ export function normalizeRelativePathForNode(relativePath: string): string {
   }
 }
 
-export function wrapComment(comment?: string): string {
-  if (comment) {
-    return `/* ${comment} */`;
-  } else {
-    return "";
-  }
-}
-
 export function toInitialUppercased(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }

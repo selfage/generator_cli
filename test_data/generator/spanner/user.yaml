@@ -1,0 +1,98 @@
+- message:
+    name: User
+    fields:
+      - name: username
+        type: string
+        index: 1
+      - name: password
+        type: string
+        index: 2
+- spannerDatabase:
+    name: UserDatabase
+    tables:
+      - name: UserTable
+        columns:
+          - name: userId
+            type: float64
+          - name: user
+            type: User
+            nullable: true
+          - name: createdTimestamp
+            type: timestamp
+            allowCommitTimestamp: true
+        primaryKeys:
+          - userId
+        indexes:
+          - name: ByTimestamp
+            columns:
+              - userId
+              - name: createdTimestamp
+                desc: true
+      - name: UserContent
+        columns:
+          - name: userId
+            type: float64
+          - name: contentId
+            type: string
+          - name: content
+            type: bytes
+        primaryKeys:
+          - userId
+          - contentId
+        interleave:
+          parentTable: UserTable
+    selects:
+      - name: GetLastUser
+        table: UserTable
+        join:
+          - type: INNER
+            table:
+              name: UserContent
+              as: uc
+            on:
+              op: =
+              leftColumn:
+                name: userId
+                table: UserTable
+              rightColumn: userId
+        where:
+          op: =
+          leftColumn:
+            name: contentId
+            table: uc
+        orderBy:
+          - createdTimestamp
+        limit: 1
+        getColumns:
+          - name: userId
+            table: UserTable
+          - name: content
+            table: uc
+    inserts:
+      - name: InsertNewUser
+        table: UserTable
+        setColumns:
+          - userId
+          - user
+          - createdTimestamp
+    updates:
+      - name: UpdateUserContent
+        table: UserContent
+        setColumns:
+          - content
+        where:
+          op: =
+          leftColumn: userId
+    deletes:
+      - name: DeleteUserContent
+        table: UserContent
+        where:
+          op: AND
+          left:
+            op: =
+            leftColumn: userId
+          right:
+            op: =
+            leftColumn: contentId
+    outputDdl: ./test_data/generator/spanner/ddl
+    outputSql: ./test_data/generator/spanner/sql

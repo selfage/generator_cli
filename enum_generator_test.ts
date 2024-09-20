@@ -56,45 +56,5 @@ export let COLOR: EnumDescriptor<Color> = {
         );
       },
     },
-    {
-      name: "GenerateWithComment",
-      execute: () => {
-        // Prepare
-        let contentMap = new Map<string, OutputContentBuilder>();
-
-        // Execute
-        generateEnum(
-          "some_file",
-          {
-            name: "Color",
-            values: [{ name: "RED", value: 1, comment: "Red!" }],
-            comment: "Pick!",
-          },
-          contentMap,
-        );
-
-        // Verify
-        assertThat(
-          contentMap.get("./some_file").build(),
-          eqLongStr(`import { EnumDescriptor } from '@selfage/message/descriptor';
-
-/* Pick! */
-export enum Color {
-  /* Red! */
-  RED = 1,
-}
-
-export let COLOR: EnumDescriptor<Color> = {
-  name: 'Color',
-  values: [{
-    name: 'RED',
-    value: 1,
-  }]
-}
-`),
-          `outputContent`,
-        );
-      },
-    },
   ],
 });

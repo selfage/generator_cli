@@ -2,14 +2,12 @@ export interface EnumValue {
   // Recommended to be SNAKE_CASE.
   name: string;
   value: number;
-  comment?: string;
 }
 
 export interface EnumDefinition {
   // Must be of CamelCase.
   name: string;
   values: Array<EnumValue>;
-  comment?: string;
 }
 
 export interface MessageFieldDefinition {
@@ -21,7 +19,6 @@ export interface MessageFieldDefinition {
   isArray?: true;
   // Import relative to CWD. Do not include '.json'.
   import?: string;
-  comment?: string;
   deprecated?: true;
 }
 
@@ -43,7 +40,6 @@ export interface DatastoreQueryTemplate {
   name: string;
   filters?: Array<DatastoreFilterTemplate>;
   orderings?: Array<DatastoreOrdering>;
-  comment?: string;
 }
 
 export interface DatastoreDefinition {
@@ -53,7 +49,6 @@ export interface DatastoreDefinition {
   output: string;
   key: string;
   queries?: Array<DatastoreQueryTemplate>;
-  comment?: string;
 }
 
 export interface MessageDefinition {
@@ -63,7 +58,6 @@ export interface MessageDefinition {
   // Deprecated for now.
   // Requires package `@selfage/datastore_client`.
   // datastore?: DatastoreDefinition;
-  comment?: string;
 }
 
 export interface KeyValueParamDefinition {
@@ -138,7 +132,7 @@ export interface NodeServiceDefinition {
 export interface SpannerTableColumnDefinition {
   // Must be of CamelCase.
   name: string;
-  // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
+  // Supports the following primitive types: boolean, int64, float64, timestamp, string, and bytes.
   // `bool` is the same in Spanner and JS/TS.
   // `int64` maps to int64 in Spanner and bigint in JS/TS. Note that Spanner Nodejs client is inefficient in handling int64. Only use it when precision is required.
   // `float64` maps to float64 in Spanner and number in JS/TS.

@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   program
     .version(packageConfig.version)
     .description(
-      `Generate various TypeScript codes from the definition file written in JSON.`,
+      `Generate various TypeScript codes from the definition file written in YAML.`,
     )
     .argument("<definitionFile>")
     .option(

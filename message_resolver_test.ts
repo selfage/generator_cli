@@ -1,5 +1,11 @@
 import { MessageResolver } from "./message_resolver";
-import { assertThat, assertThrow, eq, eqError } from "@selfage/test_matcher";
+import {
+  assertThat,
+  assertThrow,
+  containStr,
+  eq,
+  eqError,
+} from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
@@ -36,11 +42,7 @@ TEST_RUNNER.run({
         );
 
         // Verify
-        assertThat(
-          err,
-          eqError(new SyntaxError("failed to parse JSON")),
-          `err`,
-        );
+        assertThat(err.message, containStr("failed to parse YAML"), `err`);
       },
     },
     {
@@ -63,11 +65,6 @@ TEST_RUNNER.run({
             definition.message.name,
             eq("BasicData"),
             "BasicData.name",
-          );
-          assertThat(
-            definition.message.comment,
-            eq("Test data"),
-            "BasicData.comment",
           );
 
           // Execute
@@ -109,11 +106,6 @@ TEST_RUNNER.run({
           definition.message.name,
           eq("AnotherData"),
           "AnotherData.name",
-        );
-        assertThat(
-          definition.message.comment,
-          eq("Another data"),
-          "AnotherData.comment",
         );
       },
     },

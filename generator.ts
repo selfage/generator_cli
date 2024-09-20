@@ -8,11 +8,12 @@ import { OutputContentBuilder } from "./output_content_builder";
 import { generateService } from "./service_generator";
 import { generateSpannerDatabase } from "./spanner_database_generator";
 import { normalizeRelativePathForNode } from "./util";
+import { parse } from "yaml";
 
 export function generate(inputFile: string, dryRun?: boolean): void {
   let modulePath = normalizeRelativePathForNode(stripFileExtension(inputFile));
-  let definitions = JSON.parse(
-    fs.readFileSync(modulePath + ".json").toString(),
+  let definitions = parse(
+    fs.readFileSync(modulePath + ".yaml").toString(),
   ) as Array<Definition>;
 
   let messageResolver = new MessageResolver(modulePath);

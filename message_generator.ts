@@ -4,7 +4,7 @@ import {
   OutputContentBuilder,
   TsContentBuilder,
 } from "./output_content_builder";
-import { toUppercaseSnaked, wrapComment } from "./util";
+import { toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
 
@@ -96,17 +96,15 @@ export function generateMessage(
     ${descriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
   }`);
     if (!field.deprecated) {
-      let fieldComment = wrapComment(field.comment);
       fields.push(`
-  ${fieldComment ? fieldComment + "\n  " : ""}${field.name}?: ${fieldTypeName},`);
+  ${field.name}?: ${fieldTypeName},`);
     }
   }
 
   tsContentBuilder.importFromMessageDescriptor("MessageDescriptor");
-  let messageComment = wrapComment(messageDefinition.comment);
   let descriptorName = toUppercaseSnaked(messageDefinition.name);
   tsContentBuilder.push(`
-${messageComment ? messageComment + "\n" : ""}export interface ${messageDefinition.name} {${fields.join("")}
+export interface ${messageDefinition.name} {${fields.join("")}
 }
 
 export let ${descriptorName}: MessageDescriptor<${messageDefinition.name}> = {

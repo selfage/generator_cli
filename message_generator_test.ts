@@ -120,56 +120,6 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
       },
     },
     {
-      name: "GenerateWithComment",
-      execute: () => {
-        // Prepare
-        let outputContentMap = new Map<string, OutputContentBuilder>();
-
-        // Execute
-        generateMessage(
-          "some_file",
-          {
-            name: "BasicData",
-            fields: [
-              {
-                name: "numberField",
-                type: "number",
-                index: 1,
-                comment: "Comment1",
-              },
-            ],
-            comment: "Comment2\nComment3",
-          },
-          undefined,
-          outputContentMap,
-        );
-
-        // Verify
-        assertThat(
-          outputContentMap.get("./some_file").build(),
-          eqLongStr(`import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
-
-/* Comment2
-Comment3 */
-export interface BasicData {
-  /* Comment1 */
-  numberField?: number,
-}
-
-export let BASIC_DATA: MessageDescriptor<BasicData> = {
-  name: 'BasicData',
-  fields: [{
-    name: 'numberField',
-    index: 1,
-    primitiveType: PrimitiveType.NUMBER,
-  }],
-};
-`),
-          `outputContent`,
-        );
-      },
-    },
-    {
       name: "NestedObjects",
       execute: () => {
         // Prepare

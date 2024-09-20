@@ -1,6 +1,7 @@
 import fs = require("fs");
 import resolve = require("resolve");
 import { Definition } from "./definition";
+import { parse } from "yaml";
 
 export class MessageResolver {
   private cachedPathToNameToDefinitions = new Map<
@@ -20,20 +21,20 @@ export class MessageResolver {
     }
     let filePath = resolve.sync(importPath, {
       basedir: ".",
-      extensions: [".json"],
+      extensions: [".yaml"],
     });
     let nameToDefinitions = this.cachedPathToNameToDefinitions.get(filePath);
     if (!nameToDefinitions) {
       nameToDefinitions = new Map<string, Definition>();
       this.cachedPathToNameToDefinitions.set(filePath, nameToDefinitions);
 
-      let jsonStr = fs.readFileSync(filePath).toString();
+      let yamlStr = fs.readFileSync(filePath).toString();
       let definitions: Array<Definition>;
       try {
-        definitions = JSON.parse(jsonStr) as Array<Definition>;
+        definitions = parse(yamlStr) as Array<Definition>;
       } catch (e) {
         e.message =
-          `${loggingPrefix} failed to parse JSON read from "${filePath}".\n` +
+          `${loggingPrefix} failed to parse YAML read from "${filePath}".\n` +
           e.message;
         throw e;
       }
