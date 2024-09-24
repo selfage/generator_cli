@@ -200,35 +200,43 @@ TEST_RUNNER.run({
                 setColumns: ["stringValue", "timestampValue"],
                 where: {
                   op: "AND",
-                  left: {
-                    op: "=",
-                    leftColumn: "stringValue",
-                  },
-                  right: {
-                    op: "OR",
-                    left: {
-                      op: "AND",
-                      left: {
-                        op: "OR",
-                        left: {
-                          op: ">=",
-                          leftColumn: "float64Value",
-                        },
-                        right: {
-                          op: "!=",
-                          leftColumn: "boolValue",
-                        },
-                      },
-                      right: {
-                        op: "IS NULL",
-                        leftColumn: "int64Value",
-                      },
+                  exps: [
+                    {
+                      op: "=",
+                      leftColumn: "stringValue",
                     },
-                    right: {
-                      op: ">",
-                      leftColumn: "timestampValue",
+                    {
+                      op: "OR",
+                      exps: [
+                        {
+                          op: "AND",
+                          exps: [
+                            {
+                              op: "OR",
+                              exps: [
+                                {
+                                  op: ">=",
+                                  leftColumn: "float64Value",
+                                },
+                                {
+                                  op: "!=",
+                                  leftColumn: "boolValue",
+                                },
+                              ],
+                            },
+                            {
+                              op: "IS NULL",
+                              leftColumn: "int64Value",
+                            },
+                          ],
+                        },
+                        {
+                          op: ">",
+                          leftColumn: "timestampValue",
+                        },
+                      ],
                     },
-                  },
+                  ],
                 },
               },
             ],
@@ -238,14 +246,16 @@ TEST_RUNNER.run({
                 table: "TypesTable",
                 where: {
                   op: "AND",
-                  left: {
-                    op: "=",
-                    leftColumn: "id",
-                  },
-                  right: {
-                    op: "=",
-                    leftColumn: "stringValue",
-                  },
+                  exps: [
+                    {
+                      op: "=",
+                      leftColumn: "id",
+                    },
+                    {
+                      op: "=",
+                      leftColumn: "stringValue",
+                    },
+                  ],
                 },
               },
             ],
@@ -1239,58 +1249,63 @@ export async function deleteARow(
                     },
                     on: {
                       op: "AND",
-                      left: {
-                        op: "OR",
-                        left: {
-                          op: "=",
-                          leftColumn: { name: "f1", table: "T2Table" },
-                          rightColumn: "f1",
+                      exps: [
+                        {
+                          op: "OR",
+                          exps: [
+                            {
+                              op: "=",
+                              leftColumn: { name: "f1", table: "T2Table" },
+                              rightColumn: "f1",
+                            },
+                            {
+                              op: "!=",
+                              leftColumn: { name: "f1", table: "t1" },
+                              rightColumn: "f1",
+                            },
+                          ],
                         },
-                        right: {
-                          op: "!=",
-                          leftColumn: { name: "f1", table: "t1" },
-                          rightColumn: "f1",
+                        {
+                          op: "OR",
+                          exps: [
+                            {
+                              op: "=",
+                              leftColumn: { name: "f2", table: "T2Table" },
+                              rightColumn: "f2",
+                            },
+                            {
+                              op: "!=",
+                              leftColumn: { name: "f2", table: "t1" },
+                              rightColumn: "f2",
+                            },
+                          ],
                         },
-                      },
-                      right: {
-                        op: "OR",
-                        left: {
-                          op: "=",
-                          leftColumn: { name: "f2", table: "T2Table" },
-                          rightColumn: "f2",
-                        },
-                        right: {
-                          op: "!=",
-                          leftColumn: { name: "f2", table: "t1" },
-                          rightColumn: "f2",
-                        },
-                      },
+                      ],
                     },
                   },
                 ],
                 where: {
                   op: "AND",
-                  left: {
-                    op: "=",
-                    leftColumn: "f2",
-                  },
-                  right: {
-                    op: "AND",
-                    left: {
+                  exps: [
+                    {
+                      op: "=",
+                      leftColumn: "f2",
+                    },
+                    {
                       op: "=",
                       leftColumn: {
                         name: "f1",
                         table: "t3",
                       },
                     },
-                    right: {
+                    {
                       op: "!=",
                       leftColumn: {
                         name: "f2",
                         table: "T2Table",
                       },
                     },
-                  },
+                  ],
                 },
                 orderBy: [
                   "f2",
@@ -1355,7 +1370,7 @@ export async function s1(
   t2TableF2: string,
 ): Promise<Array<S1Row>> {
   let [rows] = await run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2 AND (t3.f1 = @t3F1 AND T2Table.f2 != @t2TableF2)) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2 AND t3.f1 = @t3F1 AND T2Table.f2 != @t2TableF2) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
       t1F2: t1F2,
       t3F1: t3F1,

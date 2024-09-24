@@ -88,11 +88,10 @@
         table: UserContent
         where:
           op: AND
-          left:
-            op: =
-            leftColumn: userId
-          right:
-            op: =
-            leftColumn: contentId
+          exps:
+            - op: =
+              leftColumn: userId
+            - op: =
+              leftColumn: contentId
     outputDdl: ./test_data/generator/spanner/ddl
     outputSql: ./test_data/generator/spanner/sql

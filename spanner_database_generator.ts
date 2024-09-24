@@ -3,14 +3,14 @@ import {
   SpannerDatabaseDefinition,
   SpannerDeleteDefinition,
   SpannerInsertDefinition,
-  SpannerJoinOnGate,
+  SpannerJoinOnConcat,
   SpannerJoinOnLeaf,
   SpannerSelectDefinition,
   SpannerTableColumnDefinition,
   SpannerTableDefinition,
   SpannerTablePrimaryKeyDefinition,
   SpannerUpdateDefinition,
-  SpannerWhereGate,
+  SpannerWhereConcat,
   SpannerWhereLeaf,
 } from "./definition";
 import { MessageResolver } from "./message_resolver";
@@ -42,7 +42,7 @@ let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["string", "STRING(MAX)"],
   ["bytes", "BYTES(MAX)"],
 ]);
-let ALL_GATE_OP = new Set().add("AND").add("OR");
+let ALL_CONCAT_OP = new Set().add("AND").add("OR");
 let ALL_JOIN_LEAF_OP = new Set()
   .add(">")
   .add("<")
@@ -316,9 +316,9 @@ class WhereClauseGenerator {
     private inputCollector: InputCollector,
   ) {}
 
-  public generate(where: SpannerWhereGate | SpannerWhereLeaf): string {
-    if (ALL_GATE_OP.has(where.op)) {
-      return this.generateGate(where as SpannerWhereGate);
+  public generate(where: SpannerWhereConcat | SpannerWhereLeaf): string {
+    if (ALL_CONCAT_OP.has(where.op)) {
+      return this.generateConcat(where as SpannerWhereConcat);
     } else {
       return this.generateLeaf(where as SpannerWhereLeaf);
     }
@@ -375,16 +375,14 @@ class WhereClauseGenerator {
     }
   }
 
-  private generateGate(gate: SpannerWhereGate): string {
-    if (!gate.left) {
-      throw new Error(`${this.loggingPrefix} "left" is missing.`);
+  private generateConcat(concat: SpannerWhereConcat): string {
+    if (!concat.exps) {
+      throw new Error(
+        `${this.loggingPrefix} "exps" is either missing or not an array.`,
+      );
     }
-    let leftClause = this.generate(gate.left);
-    if (!gate.right) {
-      throw new Error(`${this.loggingPrefix} "right" is missing.`);
-    }
-    let rightClause = this.generate(gate.right);
-    return `(${leftClause} ${gate.op} ${rightClause})`;
+    let clauses = concat.exps.map((exp) => this.generate(exp));
+    return "(" + clauses.join(` ${concat.op} `) + ")";
   }
 }
 
@@ -397,9 +395,9 @@ class JoinOnClauseGenerator {
     private databaseTables: Map<string, SpannerTableDefinition>,
   ) {}
 
-  public generate(joinOn: SpannerJoinOnGate | SpannerJoinOnLeaf): string {
-    if (ALL_GATE_OP.has(joinOn.op)) {
-      return this.generateGate(joinOn as SpannerJoinOnGate);
+  public generate(joinOn: SpannerJoinOnConcat | SpannerJoinOnLeaf): string {
+    if (ALL_CONCAT_OP.has(joinOn.op)) {
+      return this.generateConcat(joinOn as SpannerJoinOnConcat);
     } else {
       return this.generateLeaf(joinOn as SpannerJoinOnLeaf);
     }
@@ -444,16 +442,14 @@ class JoinOnClauseGenerator {
     return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op} ${this.rightTableAlias}.${leaf.rightColumn}`;
   }
 
-  public generateGate(gate: SpannerJoinOnGate): string {
-    if (!gate.left) {
-      throw new Error(`${this.loggingPrefix} "left" is missing.`);
+  public generateConcat(concat: SpannerJoinOnConcat): string {
+    if (!concat.exps) {
+      throw new Error(
+        `${this.loggingPrefix} "exps" is either missing or not an array.`,
+      );
     }
-    let leftClause = this.generate(gate.left);
-    if (!gate.right) {
-      throw new Error(`${this.loggingPrefix} "right" is missing.`);
-    }
-    let rightClause = this.generate(gate.right);
-    return `(${leftClause} ${gate.op} ${rightClause})`;
+    let clauses = concat.exps.map((exp) => this.generate(exp));
+    return "(" + clauses.join(` ${concat.op} `) + ")";
   }
 }
 

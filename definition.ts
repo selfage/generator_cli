@@ -202,16 +202,15 @@ export interface SpannerJoinOnLeaf {
   rightColumn: string;
 }
 
-export interface SpannerJoinOnGate {
-  left: SpannerJoinOnGate | SpannerJoinOnLeaf;
+export interface SpannerJoinOnConcat {
   op: "AND" | "OR";
-  right: SpannerJoinOnGate | SpannerJoinOnLeaf;
+  exps: Array<SpannerJoinOnConcat | SpannerJoinOnLeaf>;
 }
 
 export interface SpannerJoin {
   type: "INNER" | "CROSS" | "FULL" | "LEFT" | "RIGHT";
   table: string | SpannerTableRef;
-  on?: SpannerJoinOnGate | SpannerJoinOnLeaf;
+  on?: SpannerJoinOnConcat | SpannerJoinOnLeaf;
 }
 
 export interface SpannerWhereLeaf {
@@ -220,10 +219,9 @@ export interface SpannerWhereLeaf {
   // right value will be an input, except for NULL check.
 }
 
-export interface SpannerWhereGate {
-  left: SpannerWhereGate | SpannerWhereLeaf;
+export interface SpannerWhereConcat {
   op: "AND" | "OR";
-  right: SpannerWhereGate | SpannerWhereLeaf;
+  exps: Array<SpannerWhereConcat | SpannerWhereLeaf>;
 }
 
 export interface SpannerOrderByColumnRef {
@@ -236,7 +234,7 @@ export interface SpannerSelectDefinition {
   name: string;
   table: string | SpannerTableRef;
   join?: Array<SpannerJoin>;
-  where?: SpannerWhereGate | SpannerWhereLeaf;
+  where?: SpannerWhereConcat | SpannerWhereLeaf;
   orderBy?: Array<string | SpannerOrderByColumnRef>;
   limit?: number;
   getColumns: Array<string | SpannerColumnRef>;
@@ -254,14 +252,14 @@ export interface SpannerUpdateDefinition {
   name: string;
   table: string;
   setColumns: Array<string>;
-  where: SpannerWhereGate | SpannerWhereLeaf;
+  where: SpannerWhereConcat | SpannerWhereLeaf;
 }
 
 export interface SpannerDeleteDefinition {
   // Must be of CamelCase.
   name: string;
   table: string;
-  where: SpannerWhereGate | SpannerWhereLeaf;
+  where: SpannerWhereConcat | SpannerWhereLeaf;
 }
 
 export interface SpannerDatabaseDefinition {
