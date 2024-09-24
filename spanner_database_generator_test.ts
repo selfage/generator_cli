@@ -486,44 +486,44 @@ export async function insertNewRow(
 export async function updateARow(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
   setStringValue: string,
-  typesTableStringValue: string,
-  typesTableFloat64Value: number,
-  typesTableBoolValue: boolean,
-  typesTableTimestampValue: number,
+  typesTableStringValueEq: string,
+  typesTableFloat64ValueGe: number,
+  typesTableBoolValueNe: boolean,
+  typesTableTimestampValueGt: number,
 ): Promise<void> {
   await run({
-    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValue AND (((TypesTable.float64Value >= @typesTableFloat64Value OR TypesTable.boolValue != @typesTableBoolValue) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValue))",
+    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND (((TypesTable.float64Value >= @typesTableFloat64ValueGe OR TypesTable.boolValue != @typesTableBoolValueNe) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
       setStringValue: setStringValue,
-      typesTableStringValue: typesTableStringValue,
-      typesTableFloat64Value: Spanner.float(typesTableFloat64Value),
-      typesTableBoolValue: typesTableBoolValue,
-      typesTableTimestampValue: new Date(typesTableTimestampValue).toISOString(),
+      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableFloat64ValueGe: Spanner.float(typesTableFloat64ValueGe),
+      typesTableBoolValueNe: typesTableBoolValueNe,
+      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
     },
     types: {
       setStringValue: { type: "string" },
-      typesTableStringValue: { type: "string" },
-      typesTableFloat64Value: { type: "float64" },
-      typesTableBoolValue: { type: "bool" },
-      typesTableTimestampValue: { type: "timestamp" },
+      typesTableStringValueEq: { type: "string" },
+      typesTableFloat64ValueGe: { type: "float64" },
+      typesTableBoolValueNe: { type: "bool" },
+      typesTableTimestampValueGt: { type: "timestamp" },
     }
   });
 }
 
 export async function deleteARow(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
-  typesTableId: string,
-  typesTableStringValue: string,
+  typesTableIdEq: string,
+  typesTableStringValueEq: string,
 ): Promise<void> {
   await run({
-    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableId AND TypesTable.stringValue = @typesTableStringValue)",
+    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
-      typesTableId: typesTableId,
-      typesTableStringValue: typesTableStringValue,
+      typesTableIdEq: typesTableIdEq,
+      typesTableStringValueEq: typesTableStringValueEq,
     },
     types: {
-      typesTableId: { type: "string" },
-      typesTableStringValue: { type: "string" },
+      typesTableIdEq: { type: "string" },
+      typesTableStringValueEq: { type: "string" },
     }
   });
 }
@@ -1365,21 +1365,21 @@ export interface S1Row {
 
 export async function s1(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
-  t1F2: string,
-  t3F1: string,
-  t2TableF2: string,
+  t1F2Eq: string,
+  t3F1Eq: string,
+  t2TableF2Ne: string,
 ): Promise<Array<S1Row>> {
   let [rows] = await run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2 AND t3.f1 = @t3F1 AND T2Table.f2 != @t2TableF2) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
-      t1F2: t1F2,
-      t3F1: t3F1,
-      t2TableF2: t2TableF2,
+      t1F2Eq: t1F2Eq,
+      t3F1Eq: t3F1Eq,
+      t2TableF2Ne: t2TableF2Ne,
     },
     types: {
-      t1F2: { type: "string" },
-      t3F1: { type: "string" },
-      t2TableF2: { type: "string" },
+      t1F2Eq: { type: "string" },
+      t3F1Eq: { type: "string" },
+      t2TableF2Ne: { type: "string" },
     }
   });
   let resRows = new Array<S1Row>();

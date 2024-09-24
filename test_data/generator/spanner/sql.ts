@@ -10,15 +10,15 @@ export interface GetLastUserRow {
 
 export async function getLastUser(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
-  ucContentId: string,
+  ucContentIdEq: string,
 ): Promise<Array<GetLastUserRow>> {
   let [rows] = await run({
-    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentId ORDER BY UserTable.createdTimestamp LIMIT 1",
+    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp LIMIT 1",
     params: {
-      ucContentId: ucContentId,
+      ucContentIdEq: ucContentIdEq,
     },
     types: {
-      ucContentId: { type: "string" },
+      ucContentIdEq: { type: "string" },
     }
   });
   let resRows = new Array<GetLastUserRow>();
@@ -52,35 +52,35 @@ export async function insertNewUser(
 export async function updateUserContent(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
   setContent: Buffer,
-  userContentUserId: number,
+  userContentUserIdEq: number,
 ): Promise<void> {
   await run({
-    sql: "UPDATE UserContent SET content = @setContent WHERE UserContent.userId = @userContentUserId",
+    sql: "UPDATE UserContent SET content = @setContent WHERE UserContent.userId = @userContentUserIdEq",
     params: {
       setContent: setContent,
-      userContentUserId: Spanner.float(userContentUserId),
+      userContentUserIdEq: Spanner.float(userContentUserIdEq),
     },
     types: {
       setContent: { type: "bytes" },
-      userContentUserId: { type: "float64" },
+      userContentUserIdEq: { type: "float64" },
     }
   });
 }
 
 export async function deleteUserContent(
   run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
-  userContentUserId: number,
-  userContentContentId: string,
+  userContentUserIdEq: number,
+  userContentContentIdEq: string,
 ): Promise<void> {
   await run({
-    sql: "DELETE UserContent WHERE (UserContent.userId = @userContentUserId AND UserContent.contentId = @userContentContentId)",
+    sql: "DELETE UserContent WHERE (UserContent.userId = @userContentUserIdEq AND UserContent.contentId = @userContentContentIdEq)",
     params: {
-      userContentUserId: Spanner.float(userContentUserId),
-      userContentContentId: userContentContentId,
+      userContentUserIdEq: Spanner.float(userContentUserIdEq),
+      userContentContentIdEq: userContentContentIdEq,
     },
     types: {
-      userContentUserId: { type: "float64" },
-      userContentContentId: { type: "string" },
+      userContentUserIdEq: { type: "float64" },
+      userContentContentIdEq: { type: "string" },
     }
   });
 }

@@ -42,6 +42,14 @@ let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["string", "STRING(MAX)"],
   ["bytes", "BYTES(MAX)"],
 ]);
+let BINARY_OP_NAME = new Map<string, string>([
+  [">", "Gt"],
+  [">=", "Ge"],
+  ["<", "Lt"],
+  ["<=", "Le"],
+  ["=", "Eq"],
+  ["!=", "Ne"],
+]);
 let ALL_CONCAT_OP = new Set().add("AND").add("OR");
 let ALL_JOIN_LEAF_OP = new Set()
   .add(">")
@@ -365,7 +373,7 @@ class WhereClauseGenerator {
         );
       }
 
-      let argVariable = `${toInitalLowercased(leaf.leftColumn.table)}${toInitialUppercased(leaf.leftColumn.name)}`;
+      let argVariable = `${toInitalLowercased(leaf.leftColumn.table)}${toInitialUppercased(leaf.leftColumn.name)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.inputCollector.collect(
         this.loggingPrefix,
         argVariable,
