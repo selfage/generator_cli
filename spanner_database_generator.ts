@@ -210,10 +210,14 @@ class InputCollector {
         }
       }
     }
+    if (columnDefinition.nullable) {
+      conversion = `${argVariable} == null ? null : ${conversion}`;
+      tsType = `${tsType} | null | undefined`;
+    }
 
     this.args.push(`${argVariable}: ${tsType}`);
     this.queryTypes.push(`${argVariable}: ${queryType}`);
-    this.conversions.push(`${argVariable}: ${argVariable} == null ? null : ${conversion}`);
+    this.conversions.push(`${argVariable}: ${conversion}`);
   }
 }
 
@@ -308,10 +312,13 @@ export class OuputCollector {
         }
       }
     }
-    this.fields.push(`${fieldName}?: ${tsType}`);
-    this.conversions.push(
-      `${fieldName}: ${columnVariable}.value == null ? undefined : ${conversion}`,
-    );
+    if (columnDefinition.nullable) {
+      conversion = `${columnVariable}.value == null ? undefined : ${conversion}`;
+      tsType = `${tsType} | undefined`;
+    }
+
+    this.fields.push(`${fieldName}: ${tsType}`);
+    this.conversions.push(`${fieldName}: ${conversion}`);
   }
 }
 

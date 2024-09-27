@@ -369,23 +369,23 @@ import { ExecuteSqlRequest, RunResponse } from '@google-cloud/spanner/build/src/
 import { Spanner } from '@google-cloud/spanner';
 
 export interface SelectARowRow {
-  typesTableId?: string,
-  typesTableStringValue?: string,
-  typesTableBoolValue?: boolean,
-  typesTableInt64Value?: bigint,
-  typesTableFloat64Value?: number,
-  typesTableTimestampValue?: number,
-  typesTableBytesValue?: Buffer,
-  typesTableStringArrayValue?: Array<string>,
-  typesTableBoolArrayValue?: Array<boolean>,
-  typesTableInt64ArrayValue?: Array<bigint>,
-  typesTableFloat64ArrayValue?: Array<number>,
-  typesTableTimestampArrayValue?: Array<number>,
-  typesTableBytesArrayValue?: Array<Buffer>,
-  typesTableUser?: User,
-  typesTableUserType?: UserType,
-  typesTableUserArray?: Array<User>,
-  typesTableUserTypeArray?: Array<UserType>,
+  typesTableId: string,
+  typesTableStringValue: string,
+  typesTableBoolValue: boolean,
+  typesTableInt64Value: bigint | undefined,
+  typesTableFloat64Value: number,
+  typesTableTimestampValue: number,
+  typesTableBytesValue: Buffer | undefined,
+  typesTableStringArrayValue: Array<string>,
+  typesTableBoolArrayValue: Array<boolean>,
+  typesTableInt64ArrayValue: Array<bigint> | undefined,
+  typesTableFloat64ArrayValue: Array<number>,
+  typesTableTimestampArrayValue: Array<number>,
+  typesTableBytesArrayValue: Array<Buffer> | undefined,
+  typesTableUser: User,
+  typesTableUserType: UserType | undefined,
+  typesTableUserArray: Array<User> | undefined,
+  typesTableUserTypeArray: Array<UserType>,
 }
 
 export async function selectARow(
@@ -401,23 +401,23 @@ export async function selectARow(
   let resRows = new Array<SelectARowRow>();
   for (let row of rows) {
     resRows.push({
-      typesTableId: row.at(0).value == null ? undefined : row.at(0).value,
-      typesTableStringValue: row.at(1).value == null ? undefined : row.at(1).value,
-      typesTableBoolValue: row.at(2).value == null ? undefined : row.at(2).value,
+      typesTableId: row.at(0).value,
+      typesTableStringValue: row.at(1).value,
+      typesTableBoolValue: row.at(2).value,
       typesTableInt64Value: row.at(3).value == null ? undefined : BigInt(row.at(3).value.value),
-      typesTableFloat64Value: row.at(4).value == null ? undefined : row.at(4).value.value,
-      typesTableTimestampValue: row.at(5).value == null ? undefined : row.at(5).value.getMicroseconds(),
+      typesTableFloat64Value: row.at(4).value.value,
+      typesTableTimestampValue: row.at(5).value.getMicroseconds(),
       typesTableBytesValue: row.at(6).value == null ? undefined : row.at(6).value,
-      typesTableStringArrayValue: row.at(7).value == null ? undefined : row.at(7).value,
-      typesTableBoolArrayValue: row.at(8).value == null ? undefined : row.at(8).value,
+      typesTableStringArrayValue: row.at(7).value,
+      typesTableBoolArrayValue: row.at(8).value,
       typesTableInt64ArrayValue: row.at(9).value == null ? undefined : row.at(9).value.map((e) => BigInt(e.value.value)),
-      typesTableFloat64ArrayValue: row.at(10).value == null ? undefined : row.at(10).value.map((e) => e.value),
-      typesTableTimestampArrayValue: row.at(11).value == null ? undefined : row.at(11).value.map((e) => e.getMicroseconds()),
+      typesTableFloat64ArrayValue: row.at(10).value.map((e) => e.value),
+      typesTableTimestampArrayValue: row.at(11).value.map((e) => e.getMicroseconds()),
       typesTableBytesArrayValue: row.at(12).value == null ? undefined : row.at(12).value,
-      typesTableUser: row.at(13).value == null ? undefined : deserializeMessage(row.at(13).value, USER),
+      typesTableUser: deserializeMessage(row.at(13).value, USER),
       typesTableUserType: row.at(14).value == null ? undefined : toEnumFromNumber(row.at(14).value.value, USER_TYPE),
       typesTableUserArray: row.at(15).value == null ? undefined : row.at(15).value.map((e) => deserializeMessage(e, USER)),
-      typesTableUserTypeArray: row.at(16).value == null ? undefined : row.at(16).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+      typesTableUserTypeArray: row.at(16).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
     });
   }
   return resRows;
@@ -428,39 +428,39 @@ export async function insertNewRow(
   id: string,
   stringValue: string,
   boolValue: boolean,
-  int64Value: bigint,
+  int64Value: bigint | null | undefined,
   float64Value: number,
-  bytesValue: Buffer,
+  bytesValue: Buffer | null | undefined,
   stringArrayValue: Array<string>,
   boolArrayValue: Array<boolean>,
-  int64ArrayValue: Array<bigint>,
+  int64ArrayValue: Array<bigint> | null | undefined,
   float64ArrayValue: Array<number>,
   timestampArrayValue: Array<number>,
-  bytesArrayValue: Array<Buffer>,
+  bytesArrayValue: Array<Buffer> | null | undefined,
   user: User,
-  userType: UserType,
-  userArray: Array<User>,
+  userType: UserType | null | undefined,
+  userArray: Array<User> | null | undefined,
   userTypeArray: Array<UserType>,
 ): Promise<void> {
   await run({
     sql: "INSERT TypesTable (id, stringValue, boolValue, int64Value, float64Value, timestampValue, bytesValue, stringArrayValue, boolArrayValue, int64ArrayValue, float64ArrayValue, timestampArrayValue, bytesArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int64Value, @float64Value, PENDING_COMMIT_TIMESTAMP(), @bytesValue, @stringArrayValue, @boolArrayValue, @int64ArrayValue, @float64ArrayValue, @timestampArrayValue, @bytesArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
-      id: id == null ? null : id,
-      stringValue: stringValue == null ? null : stringValue,
-      boolValue: boolValue == null ? null : boolValue,
+      id: id,
+      stringValue: stringValue,
+      boolValue: boolValue,
       int64Value: int64Value == null ? null : int64Value.toString(),
-      float64Value: float64Value == null ? null : Spanner.float(float64Value),
+      float64Value: Spanner.float(float64Value),
       bytesValue: bytesValue == null ? null : bytesValue,
-      stringArrayValue: stringArrayValue == null ? null : stringArrayValue,
-      boolArrayValue: boolArrayValue == null ? null : boolArrayValue,
+      stringArrayValue: stringArrayValue,
+      boolArrayValue: boolArrayValue,
       int64ArrayValue: int64ArrayValue == null ? null : int64ArrayValue.map((e) => e.toString()),
-      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
-      timestampArrayValue: timestampArrayValue == null ? null : timestampArrayValue.map((e) => new Date(e).toISOString()),
+      float64ArrayValue: float64ArrayValue.map((e) => Spanner.float(e)),
+      timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
       bytesArrayValue: bytesArrayValue == null ? null : bytesArrayValue,
-      user: user == null ? null : Buffer.from(serializeMessage(user, USER).buffer),
+      user: Buffer.from(serializeMessage(user, USER).buffer),
       userType: userType == null ? null : Spanner.float(userType),
       userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
-      userTypeArray: userTypeArray == null ? null : userTypeArray.map((e) => Spanner.float(e)),
+      userTypeArray: userTypeArray.map((e) => Spanner.float(e)),
     },
     types: {
       id: { type: "string" },
@@ -494,11 +494,11 @@ export async function updateARow(
   await run({
     sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND (((TypesTable.float64Value >= @typesTableFloat64ValueGe OR TypesTable.boolValue != @typesTableBoolValueNe) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
-      setStringValue: setStringValue == null ? null : setStringValue,
-      typesTableStringValueEq: typesTableStringValueEq == null ? null : typesTableStringValueEq,
-      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
-      typesTableBoolValueNe: typesTableBoolValueNe == null ? null : typesTableBoolValueNe,
-      typesTableTimestampValueGt: typesTableTimestampValueGt == null ? null : new Date(typesTableTimestampValueGt).toISOString(),
+      setStringValue: setStringValue,
+      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableFloat64ValueGe: Spanner.float(typesTableFloat64ValueGe),
+      typesTableBoolValueNe: typesTableBoolValueNe,
+      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
     },
     types: {
       setStringValue: { type: "string" },
@@ -518,8 +518,8 @@ export async function deleteARow(
   await run({
     sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
-      typesTableIdEq: typesTableIdEq == null ? null : typesTableIdEq,
-      typesTableStringValueEq: typesTableStringValueEq == null ? null : typesTableStringValueEq,
+      typesTableIdEq: typesTableIdEq,
+      typesTableStringValueEq: typesTableStringValueEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
@@ -1357,10 +1357,10 @@ export async function deleteARow(
           eqLongStr(`import { ExecuteSqlRequest, RunResponse } from '@google-cloud/spanner/build/src/transaction';
 
 export interface S1Row {
-  t1F1?: string,
-  t1F2?: string,
-  t2TableF2?: string,
-  t3F2?: string,
+  t1F1: string,
+  t1F2: string,
+  t2TableF2: string,
+  t3F2: string,
 }
 
 export async function s1(
@@ -1372,9 +1372,9 @@ export async function s1(
   let [rows] = await run({
     sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
-      t1F2Eq: t1F2Eq == null ? null : t1F2Eq,
-      t3F1Eq: t3F1Eq == null ? null : t3F1Eq,
-      t2TableF2Ne: t2TableF2Ne == null ? null : t2TableF2Ne,
+      t1F2Eq: t1F2Eq,
+      t3F1Eq: t3F1Eq,
+      t2TableF2Ne: t2TableF2Ne,
     },
     types: {
       t1F2Eq: { type: "string" },
@@ -1385,10 +1385,10 @@ export async function s1(
   let resRows = new Array<S1Row>();
   for (let row of rows) {
     resRows.push({
-      t1F1: row.at(0).value == null ? undefined : row.at(0).value,
-      t1F2: row.at(1).value == null ? undefined : row.at(1).value,
-      t2TableF2: row.at(2).value == null ? undefined : row.at(2).value,
-      t3F2: row.at(3).value == null ? undefined : row.at(3).value,
+      t1F1: row.at(0).value,
+      t1F2: row.at(1).value,
+      t2TableF2: row.at(2).value,
+      t3F2: row.at(3).value,
     });
   }
   return resRows;
