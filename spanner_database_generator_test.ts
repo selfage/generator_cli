@@ -445,22 +445,22 @@ export async function insertNewRow(
   await run({
     sql: "INSERT TypesTable (id, stringValue, boolValue, int64Value, float64Value, timestampValue, bytesValue, stringArrayValue, boolArrayValue, int64ArrayValue, float64ArrayValue, timestampArrayValue, bytesArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int64Value, @float64Value, PENDING_COMMIT_TIMESTAMP(), @bytesValue, @stringArrayValue, @boolArrayValue, @int64ArrayValue, @float64ArrayValue, @timestampArrayValue, @bytesArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
-      id: id,
-      stringValue: stringValue,
-      boolValue: boolValue,
-      int64Value: int64Value.toString(),
-      float64Value: Spanner.float(float64Value),
-      bytesValue: bytesValue,
-      stringArrayValue: stringArrayValue,
-      boolArrayValue: boolArrayValue,
-      int64ArrayValue: int64ArrayValue.map((e) => e.toString()),
-      float64ArrayValue: float64ArrayValue.map((e) => Spanner.float(e)),
-      timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
-      bytesArrayValue: bytesArrayValue,
-      user: Buffer.from(serializeMessage(user, USER).buffer),
-      userType: Spanner.float(userType),
-      userArray: userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
-      userTypeArray: userTypeArray.map((e) => Spanner.float(e)),
+      id: id == null ? null : id,
+      stringValue: stringValue == null ? null : stringValue,
+      boolValue: boolValue == null ? null : boolValue,
+      int64Value: int64Value == null ? null : int64Value.toString(),
+      float64Value: float64Value == null ? null : Spanner.float(float64Value),
+      bytesValue: bytesValue == null ? null : bytesValue,
+      stringArrayValue: stringArrayValue == null ? null : stringArrayValue,
+      boolArrayValue: boolArrayValue == null ? null : boolArrayValue,
+      int64ArrayValue: int64ArrayValue == null ? null : int64ArrayValue.map((e) => e.toString()),
+      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
+      timestampArrayValue: timestampArrayValue == null ? null : timestampArrayValue.map((e) => new Date(e).toISOString()),
+      bytesArrayValue: bytesArrayValue == null ? null : bytesArrayValue,
+      user: user == null ? null : Buffer.from(serializeMessage(user, USER).buffer),
+      userType: userType == null ? null : Spanner.float(userType),
+      userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
+      userTypeArray: userTypeArray == null ? null : userTypeArray.map((e) => Spanner.float(e)),
     },
     types: {
       id: { type: "string" },
@@ -494,11 +494,11 @@ export async function updateARow(
   await run({
     sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND (((TypesTable.float64Value >= @typesTableFloat64ValueGe OR TypesTable.boolValue != @typesTableBoolValueNe) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
-      setStringValue: setStringValue,
-      typesTableStringValueEq: typesTableStringValueEq,
-      typesTableFloat64ValueGe: Spanner.float(typesTableFloat64ValueGe),
-      typesTableBoolValueNe: typesTableBoolValueNe,
-      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
+      setStringValue: setStringValue == null ? null : setStringValue,
+      typesTableStringValueEq: typesTableStringValueEq == null ? null : typesTableStringValueEq,
+      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
+      typesTableBoolValueNe: typesTableBoolValueNe == null ? null : typesTableBoolValueNe,
+      typesTableTimestampValueGt: typesTableTimestampValueGt == null ? null : new Date(typesTableTimestampValueGt).toISOString(),
     },
     types: {
       setStringValue: { type: "string" },
@@ -518,8 +518,8 @@ export async function deleteARow(
   await run({
     sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
-      typesTableIdEq: typesTableIdEq,
-      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableIdEq: typesTableIdEq == null ? null : typesTableIdEq,
+      typesTableStringValueEq: typesTableStringValueEq == null ? null : typesTableStringValueEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
@@ -1372,9 +1372,9 @@ export async function s1(
   let [rows] = await run({
     sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
-      t1F2Eq: t1F2Eq,
-      t3F1Eq: t3F1Eq,
-      t2TableF2Ne: t2TableF2Ne,
+      t1F2Eq: t1F2Eq == null ? null : t1F2Eq,
+      t3F1Eq: t3F1Eq == null ? null : t3F1Eq,
+      t2TableF2Ne: t2TableF2Ne == null ? null : t2TableF2Ne,
     },
     types: {
       t1F2Eq: { type: "string" },

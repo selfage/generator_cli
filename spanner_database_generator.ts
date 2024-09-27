@@ -213,7 +213,7 @@ class InputCollector {
 
     this.args.push(`${argVariable}: ${tsType}`);
     this.queryTypes.push(`${argVariable}: ${queryType}`);
-    this.conversions.push(`${argVariable}: ${conversion}`);
+    this.conversions.push(`${argVariable}: ${argVariable} == null ? null : ${conversion}`);
   }
 }
 
