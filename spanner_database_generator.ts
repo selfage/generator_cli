@@ -288,7 +288,7 @@ export class OuputCollector {
             conversion = `${columnVariable}.value.value`;
             break;
           case "timestamp":
-            conversion = `${columnVariable}.value.getMicroseconds()`;
+            conversion = `${columnVariable}.value.valueOf()`;
             break;
           default:
             conversion = `${columnVariable}.value`;
@@ -304,7 +304,7 @@ export class OuputCollector {
             conversion = `${columnVariable}.value.map((e) => e.value)`;
             break;
           case "timestamp":
-            conversion = `${columnVariable}.value.map((e) => e.getMicroseconds())`;
+            conversion = `${columnVariable}.value.map((e) => e.valueOf())`;
             break;
           default:
             conversion = `${columnVariable}.value`;
