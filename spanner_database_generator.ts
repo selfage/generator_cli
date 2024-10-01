@@ -910,18 +910,15 @@ function generateSpannerSelect(
     selectColumns.push(`${column.table}.${column.name}`);
   }
 
-  tsContentBuilder.importFromSpannerTransaction(
-    "ExecuteSqlRequest",
-    "RunResponse",
-  );
+  tsContentBuilder.importFromSpanner("Database", "Transaction");
   tsContentBuilder.push(`
 export interface ${selectDefinition.name}Row {${joinArray(outputCollector.fields, "\n  ", ",")}
 }
 
 export async function ${toInitalLowercased(selectDefinition.name)}(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,${joinArray(inputCollector.args, "\n  ", ",")}
+  runner: Database | Transaction,${joinArray(inputCollector.args, "\n  ", ",")}
 ): Promise<Array<${selectDefinition.name}Row>> {
-  let [rows] = await run({
+  let [rows] = await runner.run({
     sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}",
     params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
     },
@@ -976,21 +973,17 @@ function generateSpannerInsert(
     }
   }
 
-  tsContentBuilder.importFromSpannerTransaction(
-    "ExecuteSqlRequest",
-    "RunResponse",
-  );
+  tsContentBuilder.importFromSpannerTransaction("Statement");
   tsContentBuilder.push(`
-export async function ${toInitalLowercased(insertDefinition.name)}(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,${joinArray(inputCollector.args, "\n  ", ",")}
-): Promise<void> {
-  await run({
+export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
     sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
     params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
     },
     types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
     }
-  });
+  };
 }
 `);
 }
@@ -1041,21 +1034,17 @@ function generateSpannerUpdate(
     inputCollector,
   ).generate(updateDefinition.where);
 
-  tsContentBuilder.importFromSpannerTransaction(
-    "ExecuteSqlRequest",
-    "RunResponse",
-  );
+  tsContentBuilder.importFromSpannerTransaction("Statement");
   tsContentBuilder.push(`
-export async function ${toInitalLowercased(updateDefinition.name)}(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,${joinArray(inputCollector.args, "\n  ", ",")}
-): Promise<void> {
-  await run({
+export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
     sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
     params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
     },
     types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
     }
-  });
+  };
 }
 `);
 }
@@ -1089,21 +1078,17 @@ function generateSpannerDelete(
     inputCollector,
   ).generate(deleteDefinition.where);
 
-  tsContentBuilder.importFromSpannerTransaction(
-    "ExecuteSqlRequest",
-    "RunResponse",
-  );
+  tsContentBuilder.importFromSpannerTransaction("Statement");
   tsContentBuilder.push(`
-export async function ${toInitalLowercased(deleteDefinition.name)}(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,${joinArray(inputCollector.args, "\n  ", ",")}
-): Promise<void> {
-  await run({
+export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
     sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
     params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
     },
     types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
     }
-  });
+  };
 }
 `);
 }

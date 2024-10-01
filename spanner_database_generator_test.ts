@@ -365,8 +365,8 @@ TEST_RUNNER.run({
           outputContentMap.get("./database/queries").build(),
           eqLongStr(`import { User, USER, UserType, USER_TYPE } from './user';
 import { deserializeMessage, toEnumFromNumber, serializeMessage } from '@selfage/message/serializer';
-import { ExecuteSqlRequest, RunResponse } from '@google-cloud/spanner/build/src/transaction';
-import { Spanner } from '@google-cloud/spanner';
+import { Database, Transaction, Spanner } from '@google-cloud/spanner';
+import { Statement } from '@google-cloud/spanner/build/src/transaction';
 
 export interface SelectARowRow {
   typesTableId: string,
@@ -389,9 +389,9 @@ export interface SelectARowRow {
 }
 
 export async function selectARow(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
+  runner: Database | Transaction,
 ): Promise<Array<SelectARowRow>> {
-  let [rows] = await run({
+  let [rows] = await runner.run({
     sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int64Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.bytesValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int64ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.bytesArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
     params: {
     },
@@ -423,8 +423,7 @@ export async function selectARow(
   return resRows;
 }
 
-export async function insertNewRow(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
+export function insertNewRowStatement(
   id: string,
   stringValue: string,
   boolValue: boolean,
@@ -441,8 +440,8 @@ export async function insertNewRow(
   userType: UserType | null | undefined,
   userArray: Array<User> | null | undefined,
   userTypeArray: Array<UserType>,
-): Promise<void> {
-  await run({
+): Statement {
+  return {
     sql: "INSERT TypesTable (id, stringValue, boolValue, int64Value, float64Value, timestampValue, bytesValue, stringArrayValue, boolArrayValue, int64ArrayValue, float64ArrayValue, timestampArrayValue, bytesArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int64Value, @float64Value, PENDING_COMMIT_TIMESTAMP(), @bytesValue, @stringArrayValue, @boolArrayValue, @int64ArrayValue, @float64ArrayValue, @timestampArrayValue, @bytesArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
       id: id,
@@ -480,18 +479,17 @@ export async function insertNewRow(
       userArray: { type: "array", child: { type: "bytes" } },
       userTypeArray: { type: "array", child: { type: "float64" } },
     }
-  });
+  };
 }
 
-export async function updateARow(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
+export function updateARowStatement(
   setStringValue: string,
   typesTableStringValueEq: string,
   typesTableFloat64ValueGe: number,
   typesTableBoolValueNe: boolean,
   typesTableTimestampValueGt: number,
-): Promise<void> {
-  await run({
+): Statement {
+  return {
     sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND (((TypesTable.float64Value >= @typesTableFloat64ValueGe OR TypesTable.boolValue != @typesTableBoolValueNe) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
       setStringValue: setStringValue,
@@ -507,15 +505,14 @@ export async function updateARow(
       typesTableBoolValueNe: { type: "bool" },
       typesTableTimestampValueGt: { type: "timestamp" },
     }
-  });
+  };
 }
 
-export async function deleteARow(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
+export function deleteARowStatement(
   typesTableIdEq: string,
   typesTableStringValueEq: string,
-): Promise<void> {
-  await run({
+): Statement {
+  return {
     sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
       typesTableIdEq: typesTableIdEq,
@@ -525,7 +522,7 @@ export async function deleteARow(
       typesTableIdEq: { type: "string" },
       typesTableStringValueEq: { type: "string" },
     }
-  });
+  };
 }
 `),
           "sql",
@@ -1354,7 +1351,7 @@ export async function deleteARow(
         // Verify
         assertThat(
           outputContentMap.get("./database/queries").build(),
-          eqLongStr(`import { ExecuteSqlRequest, RunResponse } from '@google-cloud/spanner/build/src/transaction';
+          eqLongStr(`import { Database, Transaction } from '@google-cloud/spanner';
 
 export interface S1Row {
   t1F1: string,
@@ -1364,12 +1361,12 @@ export interface S1Row {
 }
 
 export async function s1(
-  run: (query: ExecuteSqlRequest) => Promise<RunResponse>,
+  runner: Database | Transaction,
   t1F2Eq: string,
   t3F1Eq: string,
   t2TableF2Ne: string,
 ): Promise<Array<S1Row>> {
-  let [rows] = await run({
+  let [rows] = await runner.run({
     sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
     params: {
       t1F2Eq: t1F2Eq,
