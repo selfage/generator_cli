@@ -738,7 +738,7 @@ function generateSpannerTable(
 
       indexDdls.push(`{
       "name": "${index.name}",
-      "createIndexDdl": "CREATE INDEX${index.unique ? " UNIQUE" : ""}${index.nullFiltered ? " NULL_FILTERED" : ""} ${index.name} ON ${table.name}(${indexColumns.join(", ")})"
+      "createIndexDdl": "CREATE ${index.unique ? "UNIQUE " : ""}${index.nullFiltered ? "NULL_FILTERED " : ""}INDEX ${index.name} ON ${table.name}(${indexColumns.join(", ")})"
     }`);
     }
   }

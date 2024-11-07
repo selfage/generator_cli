@@ -355,7 +355,7 @@ TEST_RUNNER.run({
       "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, int64Value)"
     }, {
       "name": "Sort2",
-      "createIndexDdl": "CREATE INDEX UNIQUE NULL_FILTERED Sort2 ON TypesTable(float64Value DESC)"
+      "createIndexDdl": "CREATE UNIQUE NULL_FILTERED INDEX Sort2 ON TypesTable(float64Value DESC)"
     }]
   }]
 }`),
