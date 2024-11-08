@@ -880,8 +880,9 @@ function generateSpannerSelect(
   }
 
   let limitClause = "";
-  if (selectDefinition.limit) {
-    limitClause = ` LIMIT ${selectDefinition.limit}`;
+  if (selectDefinition.withLimit) {
+    inputCollector.args.push(`limit: number`);
+    limitClause = ` LIMIT @limit`;
   }
 
   let selectColumns = new Array<string>();

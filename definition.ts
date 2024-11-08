@@ -236,7 +236,7 @@ export interface SpannerSelectDefinition {
   join?: Array<SpannerJoin>;
   where?: SpannerWhereConcat | SpannerWhereLeaf;
   orderBy?: Array<string | SpannerOrderByColumnRef>;
-  limit?: number;
+  withLimit?: boolean;
   getColumns: Array<string | SpannerColumnRef>;
 }
 

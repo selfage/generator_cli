@@ -1323,7 +1323,7 @@ export function deleteARowStatement(
                     },
                   },
                 ],
-                limit: 2,
+                withLimit: true,
                 getColumns: [
                   "f1",
                   {
@@ -1365,9 +1365,10 @@ export async function s1(
   t1F2Eq: string,
   t3F1Eq: string,
   t2TableF2Ne: string,
+  limit: number,
 ): Promise<Array<S1Row>> {
   let [rows] = await runner.run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT 2",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit",
     params: {
       t1F2Eq: t1F2Eq,
       t3F1Eq: t3F1Eq,
