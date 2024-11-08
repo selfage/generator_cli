@@ -215,6 +215,15 @@ class InputCollector {
       tsType = `${tsType} | null | undefined`;
     }
 
+    this.collectExplictly(argVariable, tsType, queryType, conversion);
+  }
+
+  public collectExplictly(
+    argVariable: string,
+    tsType: string,
+    queryType: string,
+    conversion: string,
+  ): void {
     this.args.push(`${argVariable}: ${tsType}`);
     this.queryTypes.push(`${argVariable}: ${queryType}`);
     this.conversions.push(`${argVariable}: ${conversion}`);
@@ -881,7 +890,12 @@ function generateSpannerSelect(
 
   let limitClause = "";
   if (selectDefinition.withLimit) {
-    inputCollector.args.push(`limit: number`);
+    inputCollector.collectExplictly(
+      "limit",
+      "number",
+      `{ type: "int64" }`,
+      "limit",
+    );
     limitClause = ` LIMIT @limit`;
   }
 
