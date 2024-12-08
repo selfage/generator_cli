@@ -71,23 +71,14 @@ TEST_RUNNER.run({
                     type: "bool",
                   },
                   {
-                    name: "int64Value",
-                    type: "int64",
-                    nullable: true,
-                  },
-                  {
                     name: "float64Value",
                     type: "float64",
+                    nullable: true,
                   },
                   {
                     name: "timestampValue",
                     type: "timestamp",
                     allowCommitTimestamp: true,
-                  },
-                  {
-                    name: "bytesValue",
-                    type: "bytes",
-                    nullable: true,
                   },
                   {
                     name: "stringArrayValue",
@@ -100,26 +91,15 @@ TEST_RUNNER.run({
                     isArray: true,
                   },
                   {
-                    name: "int64ArrayValue",
-                    type: "int64",
-                    nullable: true,
-                    isArray: true,
-                  },
-                  {
                     name: "float64ArrayValue",
                     type: "float64",
+                    nullable: true,
                     isArray: true,
                   },
                   {
                     name: "timestampArrayValue",
                     type: "timestamp",
                     isArray: true,
-                  },
-                  {
-                    name: "bytesArrayValue",
-                    type: "bytes",
-                    isArray: true,
-                    nullable: true,
                   },
                   {
                     name: "user",
@@ -152,7 +132,7 @@ TEST_RUNNER.run({
                 indexes: [
                   {
                     name: "Sort",
-                    columns: ["stringValue", "int64Value"],
+                    columns: ["stringValue", "float64Value"],
                   },
                   {
                     name: "Sort2",
@@ -176,16 +156,12 @@ TEST_RUNNER.run({
                   "id",
                   "stringValue",
                   "boolValue",
-                  "int64Value",
                   "float64Value",
                   "timestampValue",
-                  "bytesValue",
                   "stringArrayValue",
                   "boolArrayValue",
-                  "int64ArrayValue",
                   "float64ArrayValue",
                   "timestampArrayValue",
-                  "bytesArrayValue",
                   "user",
                   "userType",
                   "userArray",
@@ -212,21 +188,12 @@ TEST_RUNNER.run({
                           op: "AND",
                           exps: [
                             {
-                              op: "OR",
-                              exps: [
-                                {
-                                  op: ">=",
-                                  leftColumn: "float64Value",
-                                },
-                                {
-                                  op: "!=",
-                                  leftColumn: "boolValue",
-                                },
-                              ],
+                              op: ">=",
+                              leftColumn: "float64Value",
                             },
                             {
-                              op: "IS NULL",
-                              leftColumn: "int64Value",
+                              op: "!=",
+                              leftColumn: "boolValue",
                             },
                           ],
                         },
@@ -252,8 +219,8 @@ TEST_RUNNER.run({
                       leftColumn: "id",
                     },
                     {
-                      op: "=",
-                      leftColumn: "stringValue",
+                      op: "IS NULL",
+                      leftColumn: "float64Value",
                     },
                   ],
                 },
@@ -267,16 +234,12 @@ TEST_RUNNER.run({
                   "id",
                   "stringValue",
                   "boolValue",
-                  "int64Value",
                   "float64Value",
                   "timestampValue",
-                  "bytesValue",
                   "stringArrayValue",
                   "boolArrayValue",
-                  "int64ArrayValue",
                   "float64ArrayValue",
                   "timestampArrayValue",
-                  "bytesArrayValue",
                   "user",
                   "userType",
                   "userArray",
@@ -307,17 +270,11 @@ TEST_RUNNER.run({
       "name": "boolValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN boolValue BOOL NOT NULL"
     }, {
-      "name": "int64Value",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN int64Value INT64"
-    }, {
       "name": "float64Value",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64Value FLOAT64 NOT NULL"
+      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64Value FLOAT64"
     }, {
       "name": "timestampValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)"
-    }, {
-      "name": "bytesValue",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN bytesValue BYTES(MAX)"
     }, {
       "name": "stringArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN stringArrayValue Array<STRING(MAX)> NOT NULL"
@@ -325,17 +282,11 @@ TEST_RUNNER.run({
       "name": "boolArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN boolArrayValue Array<BOOL> NOT NULL"
     }, {
-      "name": "int64ArrayValue",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN int64ArrayValue Array<INT64>"
-    }, {
       "name": "float64ArrayValue",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64ArrayValue Array<FLOAT64> NOT NULL"
+      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64ArrayValue Array<FLOAT64>"
     }, {
       "name": "timestampArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN timestampArrayValue Array<TIMESTAMP> NOT NULL"
-    }, {
-      "name": "bytesArrayValue",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN bytesArrayValue Array<BYTES(MAX)>"
     }, {
       "name": "user",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN user BYTES(MAX) NOT NULL"
@@ -349,10 +300,10 @@ TEST_RUNNER.run({
       "name": "userTypeArray",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN userTypeArray Array<FLOAT64> NOT NULL"
     }],
-    "createTableDdl": "CREATE TABLE TypesTable (id STRING(MAX) NOT NULL, stringValue STRING(MAX) NOT NULL, boolValue BOOL NOT NULL, int64Value INT64, float64Value FLOAT64 NOT NULL, timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true), bytesValue BYTES(MAX), stringArrayValue Array<STRING(MAX)> NOT NULL, boolArrayValue Array<BOOL> NOT NULL, int64ArrayValue Array<INT64>, float64ArrayValue Array<FLOAT64> NOT NULL, timestampArrayValue Array<TIMESTAMP> NOT NULL, bytesArrayValue Array<BYTES(MAX)>, user BYTES(MAX) NOT NULL, userType FLOAT64, userArray Array<BYTES(MAX)>, userTypeArray Array<FLOAT64> NOT NULL) PRIMARY KEY (id DESC, stringValue ASC)",
+    "createTableDdl": "CREATE TABLE TypesTable (id STRING(MAX) NOT NULL, stringValue STRING(MAX) NOT NULL, boolValue BOOL NOT NULL, float64Value FLOAT64, timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true), stringArrayValue Array<STRING(MAX)> NOT NULL, boolArrayValue Array<BOOL> NOT NULL, float64ArrayValue Array<FLOAT64>, timestampArrayValue Array<TIMESTAMP> NOT NULL, user BYTES(MAX) NOT NULL, userType FLOAT64, userArray Array<BYTES(MAX)>, userTypeArray Array<FLOAT64> NOT NULL) PRIMARY KEY (id DESC, stringValue ASC)",
     "indexes": [{
       "name": "Sort",
-      "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, int64Value)"
+      "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, float64Value)"
     }, {
       "name": "Sort2",
       "createIndexDdl": "CREATE UNIQUE NULL_FILTERED INDEX Sort2 ON TypesTable(float64Value DESC)"
@@ -363,7 +314,8 @@ TEST_RUNNER.run({
         );
         assertThat(
           outputContentMap.get("./database/queries").build(),
-          eqLongStr(`import { User, USER, UserType, USER_TYPE } from './user';
+          eqLongStr(`import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+import { User, USER, UserType, USER_TYPE } from './user';
 import { deserializeMessage, toEnumFromNumber, serializeMessage } from '@selfage/message/serializer';
 import { Database, Transaction, Spanner } from '@google-cloud/spanner';
 import { Statement } from '@google-cloud/spanner/build/src/transaction';
@@ -372,27 +324,86 @@ export interface SelectARowRow {
   typesTableId: string,
   typesTableStringValue: string,
   typesTableBoolValue: boolean,
-  typesTableInt64Value: bigint | undefined,
-  typesTableFloat64Value: number,
+  typesTableFloat64Value: number | undefined,
   typesTableTimestampValue: number,
-  typesTableBytesValue: Buffer | undefined,
   typesTableStringArrayValue: Array<string>,
   typesTableBoolArrayValue: Array<boolean>,
-  typesTableInt64ArrayValue: Array<bigint> | undefined,
-  typesTableFloat64ArrayValue: Array<number>,
+  typesTableFloat64ArrayValue: Array<number> | undefined,
   typesTableTimestampArrayValue: Array<number>,
-  typesTableBytesArrayValue: Array<Buffer> | undefined,
   typesTableUser: User,
   typesTableUserType: UserType | undefined,
   typesTableUserArray: Array<User> | undefined,
   typesTableUserTypeArray: Array<UserType>,
 }
 
+export let SELECT_A_ROW_ROW: MessageDescriptor<SelectARowRow> = {
+  name: 'SelectARowRow',
+  fields: [{
+    name: 'typesTableId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableStringValue',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableBoolValue',
+    index: 3,
+    primitiveType: PrimitiveType.BOOLEAN,
+  }, {
+    name: 'typesTableFloat64Value',
+    index: 4,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableTimestampValue',
+    index: 5,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableStringArrayValue',
+    index: 6,
+    primitiveType: PrimitiveType.STRING,
+    isArray: true,
+  }, {
+    name: 'typesTableBoolArrayValue',
+    index: 7,
+    primitiveType: PrimitiveType.BOOLEAN,
+    isArray: true,
+  }, {
+    name: 'typesTableFloat64ArrayValue',
+    index: 8,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableTimestampArrayValue',
+    index: 9,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableUser',
+    index: 10,
+    messageType: USER,
+  }, {
+    name: 'typesTableUserType',
+    index: 11,
+    enumType: USER_TYPE,
+    isArray: true,
+  }, {
+    name: 'typesTableUserArray',
+    index: 12,
+    messageType: USER,
+    isArray: true,
+  }, {
+    name: 'typesTableUserTypeArray',
+    index: 13,
+    enumType: USER_TYPE,
+  }],
+};
+
 export async function selectARow(
   runner: Database | Transaction,
 ): Promise<Array<SelectARowRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int64Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.bytesValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int64ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.bytesArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
+    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
     params: {
     },
     types: {
@@ -404,20 +415,16 @@ export async function selectARow(
       typesTableId: row.at(0).value,
       typesTableStringValue: row.at(1).value,
       typesTableBoolValue: row.at(2).value,
-      typesTableInt64Value: row.at(3).value == null ? undefined : BigInt(row.at(3).value.value),
-      typesTableFloat64Value: row.at(4).value.value,
-      typesTableTimestampValue: row.at(5).value.valueOf(),
-      typesTableBytesValue: row.at(6).value == null ? undefined : row.at(6).value,
-      typesTableStringArrayValue: row.at(7).value,
-      typesTableBoolArrayValue: row.at(8).value,
-      typesTableInt64ArrayValue: row.at(9).value == null ? undefined : row.at(9).value.map((e) => BigInt(e.value.value)),
-      typesTableFloat64ArrayValue: row.at(10).value.map((e) => e.value),
-      typesTableTimestampArrayValue: row.at(11).value.map((e) => e.valueOf()),
-      typesTableBytesArrayValue: row.at(12).value == null ? undefined : row.at(12).value,
-      typesTableUser: deserializeMessage(row.at(13).value, USER),
-      typesTableUserType: row.at(14).value == null ? undefined : toEnumFromNumber(row.at(14).value.value, USER_TYPE),
-      typesTableUserArray: row.at(15).value == null ? undefined : row.at(15).value.map((e) => deserializeMessage(e, USER)),
-      typesTableUserTypeArray: row.at(16).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+      typesTableFloat64Value: row.at(3).value == null ? undefined : row.at(3).value.value,
+      typesTableTimestampValue: row.at(4).value.valueOf(),
+      typesTableStringArrayValue: row.at(5).value,
+      typesTableBoolArrayValue: row.at(6).value,
+      typesTableFloat64ArrayValue: row.at(7).value == null ? undefined : row.at(7).value.map((e) => e.value),
+      typesTableTimestampArrayValue: row.at(8).value.map((e) => e.valueOf()),
+      typesTableUser: deserializeMessage(row.at(9).value, USER),
+      typesTableUserType: row.at(10).value == null ? undefined : toEnumFromNumber(row.at(10).value.value, USER_TYPE),
+      typesTableUserArray: row.at(11).value == null ? undefined : row.at(11).value.map((e) => deserializeMessage(e, USER)),
+      typesTableUserTypeArray: row.at(12).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
     });
   }
   return resRows;
@@ -427,35 +434,27 @@ export function insertNewRowStatement(
   id: string,
   stringValue: string,
   boolValue: boolean,
-  int64Value: bigint | null | undefined,
-  float64Value: number,
-  bytesValue: Buffer | null | undefined,
+  float64Value: number | null | undefined,
   stringArrayValue: Array<string>,
   boolArrayValue: Array<boolean>,
-  int64ArrayValue: Array<bigint> | null | undefined,
-  float64ArrayValue: Array<number>,
+  float64ArrayValue: Array<number> | null | undefined,
   timestampArrayValue: Array<number>,
-  bytesArrayValue: Array<Buffer> | null | undefined,
   user: User,
   userType: UserType | null | undefined,
   userArray: Array<User> | null | undefined,
   userTypeArray: Array<UserType>,
 ): Statement {
   return {
-    sql: "INSERT TypesTable (id, stringValue, boolValue, int64Value, float64Value, timestampValue, bytesValue, stringArrayValue, boolArrayValue, int64ArrayValue, float64ArrayValue, timestampArrayValue, bytesArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int64Value, @float64Value, PENDING_COMMIT_TIMESTAMP(), @bytesValue, @stringArrayValue, @boolArrayValue, @int64ArrayValue, @float64ArrayValue, @timestampArrayValue, @bytesArrayValue, @user, @userType, @userArray, @userTypeArray)",
+    sql: "INSERT TypesTable (id, stringValue, boolValue, float64Value, timestampValue, stringArrayValue, boolArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @float64Value, PENDING_COMMIT_TIMESTAMP(), @stringArrayValue, @boolArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
       id: id,
       stringValue: stringValue,
       boolValue: boolValue,
-      int64Value: int64Value == null ? null : int64Value.toString(),
-      float64Value: Spanner.float(float64Value),
-      bytesValue: bytesValue == null ? null : bytesValue,
+      float64Value: float64Value == null ? null : Spanner.float(float64Value),
       stringArrayValue: stringArrayValue,
       boolArrayValue: boolArrayValue,
-      int64ArrayValue: int64ArrayValue == null ? null : int64ArrayValue.map((e) => e.toString()),
-      float64ArrayValue: float64ArrayValue.map((e) => Spanner.float(e)),
+      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
       timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
-      bytesArrayValue: bytesArrayValue == null ? null : bytesArrayValue,
       user: Buffer.from(serializeMessage(user, USER).buffer),
       userType: userType == null ? null : Spanner.float(userType),
       userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
@@ -465,15 +464,11 @@ export function insertNewRowStatement(
       id: { type: "string" },
       stringValue: { type: "string" },
       boolValue: { type: "bool" },
-      int64Value: { type: "int64" },
       float64Value: { type: "float64" },
-      bytesValue: { type: "bytes" },
       stringArrayValue: { type: "array", child: { type: "string" } },
       boolArrayValue: { type: "array", child: { type: "bool" } },
-      int64ArrayValue: { type: "array", child: { type: "int64" } },
       float64ArrayValue: { type: "array", child: { type: "float64" } },
       timestampArrayValue: { type: "array", child: { type: "timestamp" } },
-      bytesArrayValue: { type: "array", child: { type: "bytes" } },
       user: { type: "bytes" },
       userType: { type: "float64" },
       userArray: { type: "array", child: { type: "bytes" } },
@@ -483,44 +478,41 @@ export function insertNewRowStatement(
 }
 
 export function updateARowStatement(
-  setStringValue: string,
   typesTableStringValueEq: string,
-  typesTableFloat64ValueGe: number,
+  typesTableFloat64ValueGe: number | null | undefined,
   typesTableBoolValueNe: boolean,
   typesTableTimestampValueGt: number,
+  setStringValue: string,
 ): Statement {
   return {
-    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND (((TypesTable.float64Value >= @typesTableFloat64ValueGe OR TypesTable.boolValue != @typesTableBoolValueNe) AND TypesTable.int64Value IS NULL) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
+    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
-      setStringValue: setStringValue,
       typesTableStringValueEq: typesTableStringValueEq,
-      typesTableFloat64ValueGe: Spanner.float(typesTableFloat64ValueGe),
+      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
       typesTableBoolValueNe: typesTableBoolValueNe,
       typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
+      setStringValue: setStringValue,
     },
     types: {
-      setStringValue: { type: "string" },
       typesTableStringValueEq: { type: "string" },
       typesTableFloat64ValueGe: { type: "float64" },
       typesTableBoolValueNe: { type: "bool" },
       typesTableTimestampValueGt: { type: "timestamp" },
+      setStringValue: { type: "string" },
     }
   };
 }
 
 export function deleteARowStatement(
   typesTableIdEq: string,
-  typesTableStringValueEq: string,
 ): Statement {
   return {
-    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
+    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.float64Value IS NULL)",
     params: {
       typesTableIdEq: typesTableIdEq,
-      typesTableStringValueEq: typesTableStringValueEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
-      typesTableStringValueEq: { type: "string" },
     }
   };
 }
@@ -1128,7 +1120,7 @@ export function deleteARowStatement(
                   columns: [
                     {
                       name: "pid",
-                      type: "int64",
+                      type: "float64",
                     },
                     {
                       name: "cid",
@@ -1155,7 +1147,7 @@ export function deleteARowStatement(
           error,
           eqError(
             new Error(
-              `primary key pid's type "int64" doesn't match the type "string"`,
+              `primary key pid's type "float64" doesn't match the type "string"`,
             ),
           ),
           "error",
@@ -1351,7 +1343,8 @@ export function deleteARowStatement(
         // Verify
         assertThat(
           outputContentMap.get("./database/queries").build(),
-          eqLongStr(`import { Database, Transaction } from '@google-cloud/spanner';
+          eqLongStr(`import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+import { Database, Transaction } from '@google-cloud/spanner';
 
 export interface S1Row {
   t1F1: string,
@@ -1359,6 +1352,27 @@ export interface S1Row {
   t2TableF2: string,
   t3F2: string,
 }
+
+export let S1_ROW: MessageDescriptor<S1Row> = {
+  name: 'S1Row',
+  fields: [{
+    name: 't1F1',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 't1F2',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 't2TableF2',
+    index: 3,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 't3F2',
+    index: 4,
+    primitiveType: PrimitiveType.STRING,
+  }],
+};
 
 export async function s1(
   runner: Database | Transaction,
@@ -1379,7 +1393,7 @@ export async function s1(
       t1F2Eq: { type: "string" },
       t3F1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
-      limit: { type: "int64" },
+      limit: { type: "float64" },
     }
   });
   let resRows = new Array<S1Row>();
@@ -1725,7 +1739,7 @@ export async function s1(
                     },
                     {
                       name: "f2",
-                      type: "int64",
+                      type: "float64",
                     },
                   ],
                   primaryKeys: ["f1"],
@@ -1768,7 +1782,7 @@ export async function s1(
           error,
           eqError(
             new Error(
-              "when joining T2Table, the left column T1Table.f2 whose type is string doesn't match the right column t2.f2 whose type is int64.",
+              "when joining T2Table, the left column T1Table.f2 whose type is string doesn't match the right column t2.f2 whose type is float64.",
             ),
           ),
           "error",

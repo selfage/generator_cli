@@ -35,7 +35,7 @@
           - name: contentId
             type: string
           - name: content
-            type: bytes
+            type: string
         primaryKeys:
           - userId
           - contentId

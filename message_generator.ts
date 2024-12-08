@@ -46,10 +46,10 @@ export function generateMessage(
       if (!field.type) {
         throw new Error(`${loggingPrefix} "type" is missing on ${field.name}.`);
       }
-      let descriptorLine: string;
+      let typeDescriptorLine: string;
       if (PRIMITIVE_TYPES.has(field.type)) {
         tsContentBuilder.importFromMessageDescriptor("PrimitiveType");
-        descriptorLine = `primitiveType: PrimitiveType.${field.type.toUpperCase()}`;
+        typeDescriptorLine = `primitiveType: PrimitiveType.${field.type.toUpperCase()}`;
       } else {
         let definition = messageResolver.resolve(
           loggingPrefix,
@@ -63,7 +63,7 @@ export function generateMessage(
             field.type,
             enumDescriptorName,
           );
-          descriptorLine = `enumType: ${enumDescriptorName}`;
+          typeDescriptorLine = `enumType: ${enumDescriptorName}`;
         } else if (definition.message) {
           let messageDescriptorName = toUppercaseSnaked(field.type);
           tsContentBuilder.importFromDefinition(
@@ -71,7 +71,7 @@ export function generateMessage(
             field.type,
             messageDescriptorName,
           );
-          descriptorLine = `messageType: ${messageDescriptorName}`;
+          typeDescriptorLine = `messageType: ${messageDescriptorName}`;
         } else {
           throw new Error(
             `${loggingPrefix} a new definition needs to be handled for type ${field.type} of field ${field.name}.`,
@@ -89,7 +89,7 @@ export function generateMessage(
       fieldDescriptors.push(`{
     name: '${field.name}',
     index: ${field.index},
-    ${descriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
+    ${typeDescriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
   }`);
       if (!field.deprecated) {
         fields.push(`

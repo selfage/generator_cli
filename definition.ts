@@ -134,13 +134,13 @@ export interface SpannerTableColumnDefinition {
   name: string;
   // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
   // `bool` is the same in Spanner and JS/TS.
-  // `int64` maps to int64 in Spanner and bigint in JS/TS. Note that Spanner Nodejs client is inefficient in handling int64. Only use it when precision is required.
+  // `int64` is NOT supported because it's ineffecient to handle in JS/TS.
   // `float64` maps to float64 in Spanner and number in JS/TS.
   // `timestamp` maps to timestamp in Spanner and number in milliseconds in JS/TS.
   // `string` maps to string with MAX length in Spanner and string in JS/TS.
-  // `bytes` maps to bytes with MAX length in Spanner and Nodejs Buffer in JS/TS.
-  // `date` is left out because it's error-prone due to timezone ambiguit.
-  // `struct` and `json` types are not supported in favor of the message type below.
+  // `bytes` is NOT supported because it's error-prone due to encoding/decoding.
+  // `date` is NOT supported because it's error-prone due to timezone ambiguit.
+  // `struct` and `json` types are NOT supported in favor of the message type below.
   // Supports the name of a message which must be defined first and can be imported, which maps to bytes in Spanner.
   // Supports the name of an enum which must be defined first and can be imported, which maps to float64 in Spanner.
   type: string;
@@ -288,6 +288,6 @@ export interface Definition {
   webService?: WebServiceDefinition;
   // Generated code requires package `@selfage/service_descriptor`.
   nodeService?: NodeServiceDefinition;
-  // Generated code requires package `@google-cloud/spanner` and `@selfage/spanner_schema_update_cli`.
+  // Generated code requires package `@google-cloud/spanner`, `@selfage/spanner_schema_update_cli` and `@selfage/test_matcher`.
   spannerDatabase?: SpannerDatabaseDefinition;
 }

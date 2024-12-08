@@ -28,19 +28,15 @@ import {
 
 let COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE = new Map<string, string>([
   ["bool", "boolean"],
-  ["int64", "bigint"],
   ["float64", "number"],
   ["timestamp", "number"],
   ["string", "string"],
-  ["bytes", "Buffer"],
 ]);
 let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["bool", "BOOL"],
-  ["int64", "INT64"],
   ["float64", "FLOAT64"],
   ["timestamp", "TIMESTAMP"],
   ["string", "STRING(MAX)"],
-  ["bytes", "BYTES(MAX)"],
 ]);
 let BINARY_OP_NAME = new Map<string, string>([
   [">", "Gt"],
@@ -186,8 +182,8 @@ class InputCollector {
           case "timestamp":
             conversion = `new Date(${argVariable}).toISOString()`;
             break;
-          // bool, string, bytes
           default:
+            // bool, string
             conversion = `${argVariable}`;
         }
       } else {
@@ -204,8 +200,8 @@ class InputCollector {
           case "timestamp":
             conversion = `${argVariable}.map((e) => new Date(e).toISOString())`;
             break;
-          // bool, string, bytes
           default:
+            // bool, string
             conversion = `${argVariable}`;
         }
       }
@@ -233,6 +229,7 @@ class InputCollector {
 export class OuputCollector {
   public fields = new Array<string>();
   public conversions = new Array<string>();
+  public fieldDescriptors = new Array<string>();
 
   public constructor(
     private messageResolver: MessageResolver,
@@ -248,6 +245,8 @@ export class OuputCollector {
     let columnVariable = `row.at(${columnIndex})`;
     let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnDefinition.type);
     let conversion: string;
+    let typeDescriptorLine: string;
+    let isArrayLine: string;
     if (!tsType) {
       let typeDefinition = this.messageResolver.resolve(
         loggingPrefix,
@@ -265,9 +264,11 @@ export class OuputCollector {
           columnDefinition.import,
           tsTypeDescriptor,
         );
+        typeDescriptorLine = `enumType: ${tsTypeDescriptor}`;
         if (!columnDefinition.isArray) {
           tsType = typeDefinition.enum.name;
           conversion = `toEnumFromNumber(${columnVariable}.value.value, ${tsTypeDescriptor})`;
+          isArrayLine = `isArray: true`;
         } else {
           tsType = `Array<${typeDefinition.enum.name}>`;
           conversion = `${columnVariable}.value.map((e) => toEnumFromNumber(e.value, ${tsTypeDescriptor}))`;
@@ -279,20 +280,21 @@ export class OuputCollector {
           columnDefinition.import,
           tsTypeDescriptor,
         );
+        typeDescriptorLine = `messageType: ${tsTypeDescriptor}`;
         if (!columnDefinition.isArray) {
           tsType = typeDefinition.message.name;
           conversion = `deserializeMessage(${columnVariable}.value, ${tsTypeDescriptor})`;
         } else {
           tsType = `Array<${typeDefinition.message.name}>`;
+          isArrayLine = `isArray: true`;
           conversion = `${columnVariable}.value.map((e) => deserializeMessage(e, ${tsTypeDescriptor}))`;
         }
       }
     } else {
+      this.tsContentBuilder.importFromMessageDescriptor("PrimitiveType");
+      typeDescriptorLine = `primitiveType: PrimitiveType.${tsType.toUpperCase()}`;
       if (!columnDefinition.isArray) {
         switch (columnDefinition.type) {
-          case "int64":
-            conversion = `BigInt(${columnVariable}.value.value)`;
-            break;
           case "float64":
             conversion = `${columnVariable}.value.value`;
             break;
@@ -300,15 +302,14 @@ export class OuputCollector {
             conversion = `${columnVariable}.value.valueOf()`;
             break;
           default:
+            // bool, string
             conversion = `${columnVariable}.value`;
             break;
         }
       } else {
         tsType = `Array<${tsType}>`;
+        isArrayLine = `isArray: true`;
         switch (columnDefinition.type) {
-          case "int64":
-            conversion = `${columnVariable}.value.map((e) => BigInt(e.value.value))`;
-            break;
           case "float64":
             conversion = `${columnVariable}.value.map((e) => e.value)`;
             break;
@@ -316,6 +317,7 @@ export class OuputCollector {
             conversion = `${columnVariable}.value.map((e) => e.valueOf())`;
             break;
           default:
+            // bool, string
             conversion = `${columnVariable}.value`;
             break;
         }
@@ -328,6 +330,11 @@ export class OuputCollector {
 
     this.fields.push(`${fieldName}: ${tsType}`);
     this.conversions.push(`${fieldName}: ${conversion}`);
+    this.fieldDescriptors.push(`{
+    name: '${fieldName}',
+    index: ${columnIndex + 1},
+    ${typeDescriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
+  }`);
   }
 }
 
@@ -893,7 +900,7 @@ function generateSpannerSelect(
     inputCollector.collectExplictly(
       "limit",
       "number",
-      `{ type: "int64" }`,
+      `{ type: "float64" }`,
       "limit",
     );
     limitClause = ` LIMIT @limit`;
@@ -926,9 +933,15 @@ function generateSpannerSelect(
   }
 
   tsContentBuilder.importFromSpanner("Database", "Transaction");
+  tsContentBuilder.importFromMessageDescriptor("MessageDescriptor");
   tsContentBuilder.push(`
 export interface ${selectDefinition.name}Row {${joinArray(outputCollector.fields, "\n  ", ",")}
 }
+
+export let ${toUppercaseSnaked(selectDefinition.name)}_ROW: MessageDescriptor<${selectDefinition.name}Row> = {
+  name: '${selectDefinition.name}Row',
+  fields: [${outputCollector.fieldDescriptors.join(", ")}],
+};
 
 export async function ${toInitalLowercased(selectDefinition.name)}(
   runner: Database | Transaction,${joinArray(inputCollector.args, "\n  ", ",")}
@@ -1028,16 +1041,6 @@ function generateSpannerUpdate(
   if (!updateDefinition.table) {
     throw new Error(`${loggingPrefix} "table" is missing.`);
   }
-  for (let column of updateDefinition.setColumns) {
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    let argVariable = `set${toInitialUppercased(column)}`;
-    if (columnDefinition.allowCommitTimestamp) {
-      setItems.push(`${column} = PENDING_COMMIT_TIMESTAMP()`);
-    } else {
-      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
-      setItems.push(`${column} = @${argVariable}`);
-    }
-  }
   let whereClause = new WhereClauseGenerator(
     loggingPrefix + " and when generating where clause,",
     updateDefinition.table,
@@ -1048,6 +1051,17 @@ function generateSpannerUpdate(
     databaseTables,
     inputCollector,
   ).generate(updateDefinition.where);
+
+  for (let column of updateDefinition.setColumns) {
+    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+    let argVariable = `set${toInitialUppercased(column)}`;
+    if (columnDefinition.allowCommitTimestamp) {
+      setItems.push(`${column} = PENDING_COMMIT_TIMESTAMP()`);
+    } else {
+      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
+      setItems.push(`${column} = @${argVariable}`);
+    }
+  }
 
   tsContentBuilder.importFromSpannerTransaction("Statement");
   tsContentBuilder.push(`

@@ -26,9 +26,9 @@
       "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN contentId STRING(MAX) NOT NULL"
     }, {
       "name": "content",
-      "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN content BYTES(MAX) NOT NULL"
+      "addColumnDdl": "ALTER TABLE UserContent ADD COLUMN content STRING(MAX) NOT NULL"
     }],
-    "createTableDdl": "CREATE TABLE UserContent (userId FLOAT64 NOT NULL, contentId STRING(MAX) NOT NULL, content BYTES(MAX) NOT NULL) PRIMARY KEY (userId ASC, contentId ASC), INTERLEAVE IN PARENT UserTable",
+    "createTableDdl": "CREATE TABLE UserContent (userId FLOAT64 NOT NULL, contentId STRING(MAX) NOT NULL, content STRING(MAX) NOT NULL) PRIMARY KEY (userId ASC, contentId ASC), INTERLEAVE IN PARENT UserTable",
     "indexes": []
   }]
 }

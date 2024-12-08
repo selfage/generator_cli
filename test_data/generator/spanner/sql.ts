@@ -1,3 +1,4 @@
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 import { Database, Transaction, Spanner } from '@google-cloud/spanner';
 import { User, USER } from './user';
 import { serializeMessage } from '@selfage/message/serializer';
@@ -5,15 +6,28 @@ import { Statement } from '@google-cloud/spanner/build/src/transaction';
 
 export interface GetLastUserRow {
   userTableUserId: number,
-  ucContent: Buffer,
+  ucContent: string,
 }
+
+export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
+  name: 'GetLastUserRow',
+  fields: [{
+    name: 'userTableUserId',
+    index: 1,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'ucContent',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }],
+};
 
 export async function getLastUser(
   runner: Database | Transaction,
   ucContentIdEq: string,
 ): Promise<Array<GetLastUserRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp LIMIT 1",
+    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp",
     params: {
       ucContentIdEq: ucContentIdEq,
     },
@@ -49,18 +63,18 @@ export function insertNewUserStatement(
 }
 
 export function updateUserContentStatement(
-  setContent: Buffer,
   userContentUserIdEq: number,
+  setContent: string,
 ): Statement {
   return {
     sql: "UPDATE UserContent SET content = @setContent WHERE UserContent.userId = @userContentUserIdEq",
     params: {
-      setContent: setContent,
       userContentUserIdEq: Spanner.float(userContentUserIdEq),
+      setContent: setContent,
     },
     types: {
-      setContent: { type: "bytes" },
       userContentUserIdEq: { type: "float64" },
+      setContent: { type: "string" },
     }
   };
 }
