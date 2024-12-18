@@ -288,6 +288,6 @@ export interface Definition {
   webService?: WebServiceDefinition;
   // Generated code requires package `@selfage/service_descriptor`.
   nodeService?: NodeServiceDefinition;
-  // Generated code requires package `@google-cloud/spanner`, `@selfage/spanner_schema_update_cli` and `@selfage/test_matcher`.
+  // Generated code requires package `@google-cloud/spanner`, `@selfage/spanner_schema_update_cli` and `@selfage/message`.
   spannerDatabase?: SpannerDatabaseDefinition;
 }

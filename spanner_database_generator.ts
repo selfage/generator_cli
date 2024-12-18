@@ -268,9 +268,9 @@ export class OuputCollector {
         if (!columnDefinition.isArray) {
           tsType = typeDefinition.enum.name;
           conversion = `toEnumFromNumber(${columnVariable}.value.value, ${tsTypeDescriptor})`;
-          isArrayLine = `isArray: true`;
         } else {
           tsType = `Array<${typeDefinition.enum.name}>`;
+          isArrayLine = `isArray: true`;
           conversion = `${columnVariable}.value.map((e) => toEnumFromNumber(e.value, ${tsTypeDescriptor}))`;
         }
       } else if (typeDefinition.message) {

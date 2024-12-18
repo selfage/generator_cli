@@ -386,7 +386,6 @@ export let SELECT_A_ROW_ROW: MessageDescriptor<SelectARowRow> = {
     name: 'typesTableUserType',
     index: 11,
     enumType: USER_TYPE,
-    isArray: true,
   }, {
     name: 'typesTableUserArray',
     index: 12,
@@ -396,6 +395,7 @@ export let SELECT_A_ROW_ROW: MessageDescriptor<SelectARowRow> = {
     name: 'typesTableUserTypeArray',
     index: 13,
     enumType: USER_TYPE,
+    isArray: true,
   }],
 };
 
