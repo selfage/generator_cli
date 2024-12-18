@@ -900,8 +900,8 @@ function generateSpannerSelect(
     inputCollector.collectExplictly(
       "limit",
       "number",
-      `{ type: "float64" }`,
-      "limit",
+      `{ type: "int64" }`,
+      "limit.toString()",
     );
     limitClause = ` LIMIT @limit`;
   }

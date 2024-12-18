@@ -1387,13 +1387,13 @@ export async function s1(
       t1F2Eq: t1F2Eq,
       t3F1Eq: t3F1Eq,
       t2TableF2Ne: t2TableF2Ne,
-      limit: limit,
+      limit: limit.toString(),
     },
     types: {
       t1F2Eq: { type: "string" },
       t3F1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
-      limit: { type: "float64" },
+      limit: { type: "int64" },
     }
   });
   let resRows = new Array<S1Row>();
