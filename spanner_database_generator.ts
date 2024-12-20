@@ -63,11 +63,6 @@ let ALL_WHERE_LEAF_OP = new Set()
   .add("=")
   .add("IS NULL")
   .add("IS NOT NULL");
-let INEQUAL_OP = new Set().add(">").add("<").add(">=").add("<=");
-let COLUMN_INEQUAL_TYPE = new Set()
-  .add("int64")
-  .add("float64")
-  .add("timestamp");
 let ALL_JOIN_TYPE = new Set()
   .add("INNER")
   .add("CROSS")
@@ -387,15 +382,6 @@ class WhereClauseGenerator {
       }
       return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op}`;
     } else {
-      if (
-        INEQUAL_OP.has(leaf.op) &&
-        !COLUMN_INEQUAL_TYPE.has(columnDefinition.type)
-      ) {
-        throw new Error(
-          `${this.loggingPrefix} operator ${leaf.op} cannot be used on the column ${leaf.leftColumn.table}.${leaf.leftColumn.name} whose type is ${columnDefinition.type}.`,
-        );
-      }
-
       let argVariable = `${toInitalLowercased(leaf.leftColumn.table)}${toInitialUppercased(leaf.leftColumn.name)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.inputCollector.collect(
         this.loggingPrefix,
@@ -460,14 +446,6 @@ class JoinOnClauseGenerator {
     if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
       throw new Error(
         `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
-      );
-    }
-    if (
-      INEQUAL_OP.has(leaf.op) &&
-      !COLUMN_INEQUAL_TYPE.has(leftColumnDefinition.type)
-    ) {
-      throw new Error(
-        `${this.loggingPrefix} operator ${leaf.op} cannot be used to compare the left column ${leaf.leftColumn.table}.${leaf.leftColumn.name} and the right column ${this.rightTableAlias}.${leaf.rightColumn}.`,
       );
     }
     return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op} ${this.rightTableAlias}.${leaf.rightColumn}`;
