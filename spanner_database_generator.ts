@@ -5,6 +5,7 @@ import {
   SpannerInsertDefinition,
   SpannerJoinOnConcat,
   SpannerJoinOnLeaf,
+  SpannerMessageTableDefintion,
   SpannerSelectDefinition,
   SpannerTableColumnDefinition,
   SpannerTableDefinition,
@@ -37,6 +38,11 @@ let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["float64", "FLOAT64"],
   ["timestamp", "TIMESTAMP"],
   ["string", "STRING(MAX)"],
+]);
+let TS_PRIMITIVE_TYPES_TO_COLUMN_TYPE = new Map<string, string>([
+  ["boolean", "bool"],
+  ["number", "float64"],
+  ["string", "string"],
 ]);
 let BINARY_OP_NAME = new Map<string, string>([
   [">", "Gt"],
@@ -481,22 +487,6 @@ export function generateSpannerDatabase(
     ".json",
     spannerDatabaseDefinition.outputDdl,
   );
-  let databaseTables = new Map<string, SpannerTableDefinition>();
-  let tableDdls = new Array<string>();
-  if (!spannerDatabaseDefinition.tables) {
-    throw new Error(
-      `"tables" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
-    );
-  }
-  for (let table of spannerDatabaseDefinition.tables) {
-    tableDdls.push(
-      generateSpannerTable(table, databaseTables, messageResolver),
-    );
-  }
-  outputDdlContentBuilder.push(`{
-  "tables": [${tableDdls.join(", ")}]
-}`);
-
   if (!spannerDatabaseDefinition.outputSql) {
     throw new Error(
       `"outputSql" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
@@ -507,16 +497,37 @@ export function generateSpannerDatabase(
     definitionModulePath,
     spannerDatabaseDefinition.outputSql,
   );
-  if (spannerDatabaseDefinition.selects) {
-    for (let selectDefinition of spannerDatabaseDefinition.selects) {
-      generateSpannerSelect(
-        selectDefinition,
+
+  let databaseTables = new Map<string, SpannerTableDefinition>();
+  if (
+    !spannerDatabaseDefinition.tables &&
+    !spannerDatabaseDefinition.messageTables
+  ) {
+    throw new Error(
+      `Both "tables" and "messageTables" are missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
+    );
+  }
+  let tableDdls = new Array<string>();
+  if (spannerDatabaseDefinition.tables) {
+    for (let table of spannerDatabaseDefinition.tables) {
+      generateSpannerTable(table, databaseTables, messageResolver, tableDdls);
+    }
+  }
+  if (spannerDatabaseDefinition.messageTables) {
+    for (let table of spannerDatabaseDefinition.messageTables) {
+      generateSpannerMessageTable(
+        table,
         databaseTables,
         messageResolver,
+        tableDdls,
         tsContentBuilder,
       );
     }
   }
+  outputDdlContentBuilder.push(`{
+  "tables": [${tableDdls.join(", ")}]
+}`);
+
   if (spannerDatabaseDefinition.inserts) {
     for (let insertDefinition of spannerDatabaseDefinition.inserts) {
       generateSpannerInsert(
@@ -547,13 +558,24 @@ export function generateSpannerDatabase(
       );
     }
   }
+  if (spannerDatabaseDefinition.selects) {
+    for (let selectDefinition of spannerDatabaseDefinition.selects) {
+      generateSpannerSelect(
+        selectDefinition,
+        databaseTables,
+        messageResolver,
+        tsContentBuilder,
+      );
+    }
+  }
 }
 
 function generateSpannerTable(
   table: SpannerTableDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
   messageResolver: MessageResolver,
-): string {
+  tableDdls: Array<string>,
+) {
   if (!table.name) {
     throw new Error(`"name" is missing on a spanner table.`);
   }
@@ -738,12 +760,304 @@ function generateSpannerTable(
   }
 
   databaseTables.set(table.name, table);
-  return `{
+  tableDdls.push(`{
     "name": "${table.name}",
     "columns": [${addColumnDdls.join(", ")}],
     "createTableDdl": "CREATE TABLE ${table.name} (${createColumnPartialDdls.join(", ")}) PRIMARY KEY (${primaryKeys.join(", ")})${interleaveOption}",
     "indexes": [${indexDdls.join(", ")}]
-  }`;
+  }`);
+}
+
+function generateSpannerMessageTable(
+  table: SpannerMessageTableDefintion,
+  databaseTables: Map<string, SpannerTableDefinition>,
+  messageResolver: MessageResolver,
+  tableDdls: Array<string>,
+  tsContentBuilder: TsContentBuilder,
+) {
+  if (!table.name) {
+    throw new Error(`"name" is missing on a spanner message table.`);
+  }
+  let loggingPrefix = `When coverting message table ${table.name} to Spanner table definition,`;
+  let typeDefinition = messageResolver.resolve(loggingPrefix, table.name);
+  if (!typeDefinition.message) {
+    throw new Error(`${loggingPrefix} message ${table.name} is not found.`);
+  }
+  let messageDefinition = typeDefinition.message;
+
+  if (!table.storedInColumn) {
+    throw new Error(
+      `${loggingPrefix} "storedInColumn" is missing on message table ${table.name}.`,
+    );
+  }
+  if (!table.columns) {
+    throw new Error(
+      `${loggingPrefix} "columns" is missing on message table ${table.name}.`,
+    );
+  }
+  let columns = new Array<SpannerTableColumnDefinition>();
+  for (let column of table.columns) {
+    let field = messageDefinition.fields.find(
+      (fieldDefinition) => fieldDefinition.name === column,
+    );
+    if (!field) {
+      throw new Error(
+        `${loggingPrefix} field ${column} is not found in message ${messageDefinition.name}.`,
+      );
+    }
+    let type = TS_PRIMITIVE_TYPES_TO_COLUMN_TYPE.get(field.type) ?? field.type;
+    columns.push({
+      name: column,
+      type: type,
+      import: field.import,
+      isArray: field.isArray,
+    });
+  }
+  columns.push({
+    name: table.storedInColumn,
+    type: messageDefinition.name,
+  });
+  generateSpannerTable(
+    {
+      name: table.name,
+      columns: columns,
+      primaryKeys: table.primaryKeys,
+      interleave: table.interleave,
+      indexes: table.indexes,
+    },
+    databaseTables,
+    messageResolver,
+    tableDdls,
+  );
+
+  {
+    let inputVariables = new Array<string>();
+    for (let column of table.columns) {
+      inputVariables.push(`${table.storedInColumn}.${column}`);
+    }
+    inputVariables.push(table.storedInColumn);
+    tsContentBuilder.importFromSpannerTransaction("Statement");
+    tsContentBuilder.push(`
+export function ${toInitalLowercased(table.insertStatementName)}Statement(
+  ${table.storedInColumn}: ${messageDefinition.name},
+): Statement {
+  return ${toInitalLowercased(table.insertStatementName)}InternalStatement(
+    ${inputVariables.join(",\n    ")}
+  );
+}
+`);
+    generateSpannerInsert(
+      {
+        name: `${table.insertStatementName}Internal`,
+        table: table.name,
+        setColumns: columns.map((column) => column.name),
+      },
+      databaseTables,
+      messageResolver,
+      tsContentBuilder,
+    );
+  }
+
+  {
+    let inputVariables = new Array<string>();
+    for (let column of table.columns) {
+      inputVariables.push(`${table.storedInColumn}.${column}`);
+    }
+    inputVariables.push(table.storedInColumn);
+    tsContentBuilder.importFromSpannerTransaction("Statement");
+    tsContentBuilder.push(`
+export function ${toInitalLowercased(table.updateStatementName)}Statement(
+  ${table.storedInColumn}: ${messageDefinition.name},
+): Statement {
+  return ${toInitalLowercased(table.updateStatementName)}InternalStatement(
+    ${inputVariables.join(",\n    ")}
+  );
+}
+`);
+    generateSpannerUpdate(
+      {
+        name: `${table.updateStatementName}Internal`,
+        table: table.name,
+        where: {
+          op: "AND",
+          exps: table.primaryKeys.map((key) => ({
+            leftColumn: typeof key === "string" ? key : key.name,
+            op: "=",
+          })),
+        },
+        setColumns: columns
+          .map((column) => column.name)
+          .filter(
+            (column) =>
+              !table.primaryKeys.find((key) =>
+                typeof key === "string" ? key === column : key.name === column,
+              ),
+          ),
+      },
+      databaseTables,
+      messageResolver,
+      tsContentBuilder,
+    );
+  }
+}
+
+function generateSpannerInsert(
+  insertDefinition: SpannerInsertDefinition,
+  databaseTables: Map<string, SpannerTableDefinition>,
+  messageResolver: MessageResolver,
+  tsContentBuilder: TsContentBuilder,
+) {
+  if (!insertDefinition.name) {
+    throw new Error(`"name" is missing on a spanner insert definition.`);
+  }
+  let loggingPrefix = `When generating insert statement ${insertDefinition.name},`;
+  if (!insertDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
+  let table = databaseTables.get(insertDefinition.table);
+  if (!table) {
+    throw new Error(
+      `${loggingPrefix} table ${insertDefinition.table} is not found in the database's definition.`,
+    );
+  }
+
+  let columns = new Array<string>();
+  let values = new Array<string>();
+  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  if (!insertDefinition.setColumns) {
+    throw new Error(`${loggingPrefix} "setColumns" is missing.`);
+  }
+  for (let column of insertDefinition.setColumns) {
+    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+    columns.push(column);
+    let argVariable = column;
+    if (columnDefinition.allowCommitTimestamp) {
+      values.push(`PENDING_COMMIT_TIMESTAMP()`);
+    } else {
+      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
+      values.push(`@${argVariable}`);
+    }
+  }
+
+  tsContentBuilder.importFromSpannerTransaction("Statement");
+  tsContentBuilder.push(`
+export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
+    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
+    },
+    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
+}
+
+function generateSpannerUpdate(
+  updateDefinition: SpannerUpdateDefinition,
+  databaseTables: Map<string, SpannerTableDefinition>,
+  messageResolver: MessageResolver,
+  tsContentBuilder: TsContentBuilder,
+): void {
+  if (!updateDefinition.name) {
+    throw new Error(`"name" is missing on a spanner update definition.`);
+  }
+  let loggingPrefix = `When generating update statement ${updateDefinition.name},`;
+  if (!updateDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
+  let table = databaseTables.get(updateDefinition.table);
+  if (!table) {
+    throw new Error(
+      `${loggingPrefix} table ${updateDefinition.table} is not found in the database's definition.`,
+    );
+  }
+
+  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let setItems = new Array<string>();
+  if (!updateDefinition.table) {
+    throw new Error(`${loggingPrefix} "table" is missing.`);
+  }
+  let whereClause = new WhereClauseGenerator(
+    loggingPrefix + " and when generating where clause,",
+    updateDefinition.table,
+    new Map<string, string>().set(
+      updateDefinition.table,
+      updateDefinition.table,
+    ),
+    databaseTables,
+    inputCollector,
+  ).generate(updateDefinition.where);
+
+  for (let column of updateDefinition.setColumns) {
+    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+    let argVariable = `set${toInitialUppercased(column)}`;
+    if (columnDefinition.allowCommitTimestamp) {
+      setItems.push(`${column} = PENDING_COMMIT_TIMESTAMP()`);
+    } else {
+      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
+      setItems.push(`${column} = @${argVariable}`);
+    }
+  }
+
+  tsContentBuilder.importFromSpannerTransaction("Statement");
+  tsContentBuilder.push(`
+export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
+    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
+    },
+    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
+}
+
+function generateSpannerDelete(
+  deleteDefinition: SpannerDeleteDefinition,
+  databaseTables: Map<string, SpannerTableDefinition>,
+  messageResolver: MessageResolver,
+  tsContentBuilder: TsContentBuilder,
+): void {
+  if (!deleteDefinition.name) {
+    throw new Error(`"name" is missing on a spanner delete definition.`);
+  }
+  let loggingPrefix = `When generating delete statement ${deleteDefinition.name},`;
+  let table = databaseTables.get(deleteDefinition.table);
+  if (!table) {
+    throw new Error(
+      `${loggingPrefix} ${deleteDefinition.table} is not found in the database's definition.`,
+    );
+  }
+
+  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let whereClause = new WhereClauseGenerator(
+    loggingPrefix + " and when generating where clause,",
+    deleteDefinition.table,
+    new Map<string, string>().set(
+      deleteDefinition.table,
+      deleteDefinition.table,
+    ),
+    databaseTables,
+    inputCollector,
+  ).generate(deleteDefinition.where);
+
+  tsContentBuilder.importFromSpannerTransaction("Statement");
+  tsContentBuilder.push(`
+export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
+    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
+    },
+    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
 }
 
 function generateSpannerSelect(
@@ -937,165 +1251,6 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     });
   }
   return resRows;
-}
-`);
-}
-
-function generateSpannerInsert(
-  insertDefinition: SpannerInsertDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
-  tsContentBuilder: TsContentBuilder,
-) {
-  if (!insertDefinition.name) {
-    throw new Error(`"name" is missing on a spanner insert definition.`);
-  }
-  let loggingPrefix = `When generating insert statement ${insertDefinition.name},`;
-  if (!insertDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let table = databaseTables.get(insertDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} table ${insertDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let columns = new Array<string>();
-  let values = new Array<string>();
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
-  if (!insertDefinition.setColumns) {
-    throw new Error(`${loggingPrefix} "setColumns" is missing.`);
-  }
-  for (let column of insertDefinition.setColumns) {
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    columns.push(column);
-    let argVariable = toInitalLowercased(column);
-    if (columnDefinition.allowCommitTimestamp) {
-      values.push(`PENDING_COMMIT_TIMESTAMP()`);
-    } else {
-      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
-      values.push(`@${argVariable}`);
-    }
-  }
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
-}
-`);
-}
-
-function generateSpannerUpdate(
-  updateDefinition: SpannerUpdateDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
-  tsContentBuilder: TsContentBuilder,
-): void {
-  if (!updateDefinition.name) {
-    throw new Error(`"name" is missing on a spanner update definition.`);
-  }
-  let loggingPrefix = `When generating update statement ${updateDefinition.name},`;
-  if (!updateDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let table = databaseTables.get(updateDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} table ${updateDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
-  let setItems = new Array<string>();
-  if (!updateDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let whereClause = new WhereClauseGenerator(
-    loggingPrefix + " and when generating where clause,",
-    updateDefinition.table,
-    new Map<string, string>().set(
-      updateDefinition.table,
-      updateDefinition.table,
-    ),
-    databaseTables,
-    inputCollector,
-  ).generate(updateDefinition.where);
-
-  for (let column of updateDefinition.setColumns) {
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    let argVariable = `set${toInitialUppercased(column)}`;
-    if (columnDefinition.allowCommitTimestamp) {
-      setItems.push(`${column} = PENDING_COMMIT_TIMESTAMP()`);
-    } else {
-      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
-      setItems.push(`${column} = @${argVariable}`);
-    }
-  }
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
-}
-`);
-}
-
-function generateSpannerDelete(
-  deleteDefinition: SpannerDeleteDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
-  tsContentBuilder: TsContentBuilder,
-): void {
-  if (!deleteDefinition.name) {
-    throw new Error(`"name" is missing on a spanner delete definition.`);
-  }
-  let loggingPrefix = `When generating delete statement ${deleteDefinition.name},`;
-  let table = databaseTables.get(deleteDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} ${deleteDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
-  let whereClause = new WhereClauseGenerator(
-    loggingPrefix + " and when generating where clause,",
-    deleteDefinition.table,
-    new Map<string, string>().set(
-      deleteDefinition.table,
-      deleteDefinition.table,
-    ),
-    databaseTables,
-    inputCollector,
-  ).generate(deleteDefinition.where);
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
 }
 `);
 }

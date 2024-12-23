@@ -15,7 +15,7 @@ TEST_RUNNER.run({
   name: "SpannerDatabaseGeneratorTest",
   cases: [
     {
-      name: "AllTypes",
+      name: "AllDataTypes",
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
@@ -314,11 +314,98 @@ TEST_RUNNER.run({
         );
         assertThat(
           outputContentMap.get("./database/queries").build(),
-          eqLongStr(`import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+          eqLongStr(`import { Spanner, Database, Transaction } from '@google-cloud/spanner';
 import { User, USER, UserType, USER_TYPE } from './user';
-import { deserializeMessage, toEnumFromNumber, serializeMessage } from '@selfage/message/serializer';
-import { Database, Transaction, Spanner } from '@google-cloud/spanner';
+import { serializeMessage, deserializeMessage, toEnumFromNumber } from '@selfage/message/serializer';
 import { Statement } from '@google-cloud/spanner/build/src/transaction';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+
+export function insertNewRowStatement(
+  id: string,
+  stringValue: string,
+  boolValue: boolean,
+  float64Value: number | null | undefined,
+  stringArrayValue: Array<string>,
+  boolArrayValue: Array<boolean>,
+  float64ArrayValue: Array<number> | null | undefined,
+  timestampArrayValue: Array<number>,
+  user: User,
+  userType: UserType | null | undefined,
+  userArray: Array<User> | null | undefined,
+  userTypeArray: Array<UserType>,
+): Statement {
+  return {
+    sql: "INSERT TypesTable (id, stringValue, boolValue, float64Value, timestampValue, stringArrayValue, boolArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @float64Value, PENDING_COMMIT_TIMESTAMP(), @stringArrayValue, @boolArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
+    params: {
+      id: id,
+      stringValue: stringValue,
+      boolValue: boolValue,
+      float64Value: float64Value == null ? null : Spanner.float(float64Value),
+      stringArrayValue: stringArrayValue,
+      boolArrayValue: boolArrayValue,
+      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
+      timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
+      user: Buffer.from(serializeMessage(user, USER).buffer),
+      userType: userType == null ? null : Spanner.float(userType),
+      userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
+      userTypeArray: userTypeArray.map((e) => Spanner.float(e)),
+    },
+    types: {
+      id: { type: "string" },
+      stringValue: { type: "string" },
+      boolValue: { type: "bool" },
+      float64Value: { type: "float64" },
+      stringArrayValue: { type: "array", child: { type: "string" } },
+      boolArrayValue: { type: "array", child: { type: "bool" } },
+      float64ArrayValue: { type: "array", child: { type: "float64" } },
+      timestampArrayValue: { type: "array", child: { type: "timestamp" } },
+      user: { type: "bytes" },
+      userType: { type: "float64" },
+      userArray: { type: "array", child: { type: "bytes" } },
+      userTypeArray: { type: "array", child: { type: "float64" } },
+    }
+  };
+}
+
+export function updateARowStatement(
+  typesTableStringValueEq: string,
+  typesTableFloat64ValueGe: number | null | undefined,
+  typesTableBoolValueNe: boolean,
+  typesTableTimestampValueGt: number,
+  setStringValue: string,
+): Statement {
+  return {
+    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
+    params: {
+      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
+      typesTableBoolValueNe: typesTableBoolValueNe,
+      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
+      setStringValue: setStringValue,
+    },
+    types: {
+      typesTableStringValueEq: { type: "string" },
+      typesTableFloat64ValueGe: { type: "float64" },
+      typesTableBoolValueNe: { type: "bool" },
+      typesTableTimestampValueGt: { type: "timestamp" },
+      setStringValue: { type: "string" },
+    }
+  };
+}
+
+export function deleteARowStatement(
+  typesTableIdEq: string,
+): Statement {
+  return {
+    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.float64Value IS NULL)",
+    params: {
+      typesTableIdEq: typesTableIdEq,
+    },
+    types: {
+      typesTableIdEq: { type: "string" },
+    }
+  };
+}
 
 export interface SelectARowRow {
   typesTableId: string,
@@ -428,93 +515,6 @@ export async function selectARow(
     });
   }
   return resRows;
-}
-
-export function insertNewRowStatement(
-  id: string,
-  stringValue: string,
-  boolValue: boolean,
-  float64Value: number | null | undefined,
-  stringArrayValue: Array<string>,
-  boolArrayValue: Array<boolean>,
-  float64ArrayValue: Array<number> | null | undefined,
-  timestampArrayValue: Array<number>,
-  user: User,
-  userType: UserType | null | undefined,
-  userArray: Array<User> | null | undefined,
-  userTypeArray: Array<UserType>,
-): Statement {
-  return {
-    sql: "INSERT TypesTable (id, stringValue, boolValue, float64Value, timestampValue, stringArrayValue, boolArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @float64Value, PENDING_COMMIT_TIMESTAMP(), @stringArrayValue, @boolArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
-    params: {
-      id: id,
-      stringValue: stringValue,
-      boolValue: boolValue,
-      float64Value: float64Value == null ? null : Spanner.float(float64Value),
-      stringArrayValue: stringArrayValue,
-      boolArrayValue: boolArrayValue,
-      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
-      timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
-      user: Buffer.from(serializeMessage(user, USER).buffer),
-      userType: userType == null ? null : Spanner.float(userType),
-      userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
-      userTypeArray: userTypeArray.map((e) => Spanner.float(e)),
-    },
-    types: {
-      id: { type: "string" },
-      stringValue: { type: "string" },
-      boolValue: { type: "bool" },
-      float64Value: { type: "float64" },
-      stringArrayValue: { type: "array", child: { type: "string" } },
-      boolArrayValue: { type: "array", child: { type: "bool" } },
-      float64ArrayValue: { type: "array", child: { type: "float64" } },
-      timestampArrayValue: { type: "array", child: { type: "timestamp" } },
-      user: { type: "bytes" },
-      userType: { type: "float64" },
-      userArray: { type: "array", child: { type: "bytes" } },
-      userTypeArray: { type: "array", child: { type: "float64" } },
-    }
-  };
-}
-
-export function updateARowStatement(
-  typesTableStringValueEq: string,
-  typesTableFloat64ValueGe: number | null | undefined,
-  typesTableBoolValueNe: boolean,
-  typesTableTimestampValueGt: number,
-  setStringValue: string,
-): Statement {
-  return {
-    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
-    params: {
-      typesTableStringValueEq: typesTableStringValueEq,
-      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
-      typesTableBoolValueNe: typesTableBoolValueNe,
-      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
-      setStringValue: setStringValue,
-    },
-    types: {
-      typesTableStringValueEq: { type: "string" },
-      typesTableFloat64ValueGe: { type: "float64" },
-      typesTableBoolValueNe: { type: "bool" },
-      typesTableTimestampValueGt: { type: "timestamp" },
-      setStringValue: { type: "string" },
-    }
-  };
-}
-
-export function deleteARowStatement(
-  typesTableIdEq: string,
-): Statement {
-  return {
-    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.float64Value IS NULL)",
-    params: {
-      typesTableIdEq: typesTableIdEq,
-    },
-    types: {
-      typesTableIdEq: { type: "string" },
-    }
-  };
 }
 `),
           "sql",
@@ -1151,6 +1151,306 @@ export function deleteARowStatement(
             ),
           ),
           "error",
+        );
+      },
+    },
+    {
+      name: "MessageTable",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockMessageResolver = new (class extends MockMessageResolver {
+          public resolve(
+            loggingPrefix: string,
+            typeName: string,
+            importPath?: string,
+          ): Definition {
+            this.called += 1;
+            switch (typeName) {
+              case "SomeData":
+                assertThat(importPath, eq(undefined), "import path");
+                return {
+                  message: {
+                    name: "SomeData",
+                    fields: [
+                      {
+                        name: "id1",
+                        type: "string",
+                        index: 1,
+                      },
+                      {
+                        name: "id2",
+                        type: "number",
+                        index: 2,
+                      },
+                      {
+                        name: "stringValue",
+                        type: "string",
+                        index: 3,
+                      },
+                      {
+                        name: "boolValue",
+                        type: "boolean",
+                        index: 4,
+                      },
+                      {
+                        name: "numberValue",
+                        type: "number",
+                        index: 5,
+                      },
+                    ],
+                  },
+                };
+              default:
+                throw new Error(`Unexpeced type ${typeName}`);
+            }
+          }
+        })();
+
+        // Execute
+        generateSpannerDatabase(
+          "./database/user",
+          {
+            name: "UserDatabase",
+            messageTables: [
+              {
+                name: "SomeData",
+                storedInColumn: "someData",
+                columns: ["id1", "id2", "boolValue", "numberValue"],
+                primaryKeys: [
+                  "id1",
+                  {
+                    name: "id2",
+                    desc: true,
+                  },
+                ],
+                indexes: [
+                  {
+                    name: "Sort",
+                    columns: ["numberValue"],
+                  },
+                  {
+                    name: "Filter",
+                    columns: ["boolValue", "numberValue"],
+                  },
+                ],
+                insertStatementName: "InsertNewSomeData",
+                updateStatementName: "UpdateSomeData",
+              },
+            ],
+            deletes: [
+              {
+                name: "DeleteSomeData",
+                table: "SomeData",
+                where: {
+                  op: "AND",
+                  exps: [
+                    {
+                      op: "=",
+                      leftColumn: "id1",
+                    },
+                    {
+                      op: "=",
+                      leftColumn: "id2",
+                    },
+                  ],
+                },
+              },
+            ],
+            selects: [
+              {
+                name: "ListData",
+                table: "SomeData",
+                where: {
+                  op: "AND",
+                  exps: [
+                    {
+                      op: "<",
+                      leftColumn: "numberValue",
+                    },
+                  ],
+                },
+                getColumns: ["someData"],
+              },
+            ],
+            outputDdl: "./database/schema_ddl",
+            outputSql: "./database/queries",
+          },
+          mockMessageResolver,
+          outputContentMap,
+        );
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./database/schema_ddl").build(),
+          eqLongStr(`{
+  "tables": [{
+    "name": "SomeData",
+    "columns": [{
+      "name": "id1",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id1 STRING(MAX) NOT NULL"
+    }, {
+      "name": "id2",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id2 FLOAT64 NOT NULL"
+    }, {
+      "name": "boolValue",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN boolValue BOOL NOT NULL"
+    }, {
+      "name": "numberValue",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN numberValue FLOAT64 NOT NULL"
+    }, {
+      "name": "someData",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN someData BYTES(MAX) NOT NULL"
+    }],
+    "createTableDdl": "CREATE TABLE SomeData (id1 STRING(MAX) NOT NULL, id2 FLOAT64 NOT NULL, boolValue BOOL NOT NULL, numberValue FLOAT64 NOT NULL, someData BYTES(MAX) NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
+    "indexes": [{
+      "name": "Sort",
+      "createIndexDdl": "CREATE INDEX Sort ON SomeData(numberValue)"
+    }, {
+      "name": "Filter",
+      "createIndexDdl": "CREATE INDEX Filter ON SomeData(boolValue, numberValue)"
+    }]
+  }]
+}`),
+          "ddl",
+        );
+        assertThat(
+          outputContentMap.get("./database/queries").build(),
+          eqLongStr(`import { Statement } from '@google-cloud/spanner/build/src/transaction';
+import { Spanner, Database, Transaction } from '@google-cloud/spanner';
+import { SomeData, SOME_DATA } from './user';
+import { serializeMessage, deserializeMessage } from '@selfage/message/serializer';
+import { MessageDescriptor } from '@selfage/message/descriptor';
+
+export function insertNewSomeDataStatement(
+  someData: SomeData,
+): Statement {
+  return insertNewSomeDataInternalStatement(
+    someData.id1,
+    someData.id2,
+    someData.boolValue,
+    someData.numberValue,
+    someData
+  );
+}
+
+export function insertNewSomeDataInternalStatement(
+  id1: string,
+  id2: number,
+  boolValue: boolean,
+  numberValue: number,
+  someData: SomeData,
+): Statement {
+  return {
+    sql: "INSERT SomeData (id1, id2, boolValue, numberValue, someData) VALUES (@id1, @id2, @boolValue, @numberValue, @someData)",
+    params: {
+      id1: id1,
+      id2: Spanner.float(id2),
+      boolValue: boolValue,
+      numberValue: Spanner.float(numberValue),
+      someData: Buffer.from(serializeMessage(someData, SOME_DATA).buffer),
+    },
+    types: {
+      id1: { type: "string" },
+      id2: { type: "float64" },
+      boolValue: { type: "bool" },
+      numberValue: { type: "float64" },
+      someData: { type: "bytes" },
+    }
+  };
+}
+
+export function updateSomeDataStatement(
+  someData: SomeData,
+): Statement {
+  return updateSomeDataInternalStatement(
+    someData.id1,
+    someData.id2,
+    someData.boolValue,
+    someData.numberValue,
+    someData
+  );
+}
+
+export function updateSomeDataInternalStatement(
+  someDataId1Eq: string,
+  someDataId2Eq: number,
+  setBoolValue: boolean,
+  setNumberValue: number,
+  setSomeData: SomeData,
+): Statement {
+  return {
+    sql: "UPDATE SomeData SET boolValue = @setBoolValue, numberValue = @setNumberValue, someData = @setSomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
+    params: {
+      someDataId1Eq: someDataId1Eq,
+      someDataId2Eq: Spanner.float(someDataId2Eq),
+      setBoolValue: setBoolValue,
+      setNumberValue: Spanner.float(setNumberValue),
+      setSomeData: Buffer.from(serializeMessage(setSomeData, SOME_DATA).buffer),
+    },
+    types: {
+      someDataId1Eq: { type: "string" },
+      someDataId2Eq: { type: "float64" },
+      setBoolValue: { type: "bool" },
+      setNumberValue: { type: "float64" },
+      setSomeData: { type: "bytes" },
+    }
+  };
+}
+
+export function deleteSomeDataStatement(
+  someDataId1Eq: string,
+  someDataId2Eq: number,
+): Statement {
+  return {
+    sql: "DELETE SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
+    params: {
+      someDataId1Eq: someDataId1Eq,
+      someDataId2Eq: Spanner.float(someDataId2Eq),
+    },
+    types: {
+      someDataId1Eq: { type: "string" },
+      someDataId2Eq: { type: "float64" },
+    }
+  };
+}
+
+export interface ListDataRow {
+  someDataSomeData: SomeData,
+}
+
+export let LIST_DATA_ROW: MessageDescriptor<ListDataRow> = {
+  name: 'ListDataRow',
+  fields: [{
+    name: 'someDataSomeData',
+    index: 1,
+    messageType: SOME_DATA,
+  }],
+};
+
+export async function listData(
+  runner: Database | Transaction,
+  someDataNumberValueLt: number,
+): Promise<Array<ListDataRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT SomeData.someData FROM SomeData WHERE (SomeData.numberValue < @someDataNumberValueLt)",
+    params: {
+      someDataNumberValueLt: Spanner.float(someDataNumberValueLt),
+    },
+    types: {
+      someDataNumberValueLt: { type: "float64" },
+    }
+  });
+  let resRows = new Array<ListDataRow>();
+  for (let row of rows) {
+    resRows.push({
+      someDataSomeData: deserializeMessage(row.at(0).value, SOME_DATA),
+    });
+  }
+  return resRows;
+}
+`),
+          "sql",
         );
       },
     },

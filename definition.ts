@@ -130,7 +130,7 @@ export interface NodeServiceDefinition {
 }
 
 export interface SpannerTableColumnDefinition {
-  // Must be of CamelCase.
+  // Must be of camelCase.
   name: string;
   // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
   // `bool` is the same in Spanner and JS/TS.
@@ -183,6 +183,24 @@ export interface SpannerTableDefinition {
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
   indexes?: Array<SpannerIndexDefinition>;
+}
+
+export interface SpannerMessageTableDefintion {
+  // Must be of CamelCase. Serves as the name of the table as well as refers to a defined message.
+  name: string;
+  // Must of of camelCase.
+  storedInColumn: string;
+  // Refers to fields defined in the message.
+  // `boolean` maps to bool in Spanner.
+  // `number` maps to float64 in Spanner.
+  // `string` maps to string with MAX length in Spanner.
+  // Referneced enum maps to float64 in Spanner.
+  columns: Array<string>;
+  primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
+  interleave?: SpannerTableInterleaveDefinition;
+  indexes?: Array<SpannerIndexDefinition>;
+  insertStatementName: string;
+  updateStatementName: string;
 }
 
 export interface SpannerColumnRef {
@@ -265,7 +283,8 @@ export interface SpannerDeleteDefinition {
 export interface SpannerDatabaseDefinition {
   // Must be of CamelCase.
   name: string;
-  tables: Array<SpannerTableDefinition>;
+  tables?: Array<SpannerTableDefinition>;
+  messageTables?: Array<SpannerMessageTableDefintion>;
   selects?: Array<SpannerSelectDefinition>;
   inserts?: Array<SpannerInsertDefinition>;
   updates?: Array<SpannerUpdateDefinition>;
