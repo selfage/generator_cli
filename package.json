@@ -1,6 +1,6 @@
 {
   "name": "@selfage/generator_cli",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Code generation for message, service, and database.",
   "repository": {
     "type": "git",

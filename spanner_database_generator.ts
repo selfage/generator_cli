@@ -830,6 +830,11 @@ function generateSpannerMessageTable(
   );
 
   {
+    if (!table.insertStatementName) {
+      throw new Error(
+        `${loggingPrefix} "insertStatementName" is missing on message table ${table.name}.`,
+      );
+    }
     let inputVariables = new Array<string>();
     for (let column of table.columns) {
       inputVariables.push(`${table.storedInColumn}.${column}`);
@@ -858,6 +863,11 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
   }
 
   {
+    if (!table.updateStatementName) {
+      throw new Error(
+        `${loggingPrefix} "updateStatementName" is missing on message table ${table.name}.`,
+      );
+    }
     let inputVariables = new Array<string>();
     for (let column of table.columns) {
       inputVariables.push(`${table.storedInColumn}.${column}`);
