@@ -1,5 +1,5 @@
 import { Definition } from "./definition";
-import { MockMessageResolver } from "./message_resolver_mock";
+import { MockDefinitionResolver } from "./definition_resolver_mock";
 import { OutputContentBuilder } from "./output_content_builder";
 import { generateSpannerDatabase } from "./spanner_database_generator";
 import {
@@ -19,7 +19,7 @@ TEST_RUNNER.run({
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -30,18 +30,16 @@ TEST_RUNNER.run({
               case "User":
                 assertThat(importPath, eq(undefined), "import path");
                 return {
-                  message: {
-                    name: "User",
-                    fields: [],
-                  },
+                  kind: "Message",
+                  name: "User",
+                  fields: [],
                 };
               case "UserType":
                 assertThat(importPath, eq(undefined), "import path");
                 return {
-                  enum: {
-                    name: "UserType",
-                    values: [],
-                  },
+                  kind: "Enum",
+                  name: "UserType",
+                  values: [],
                 };
               default:
                 throw new Error(`Unexpeced type ${typeName}`);
@@ -53,9 +51,11 @@ TEST_RUNNER.run({
         generateSpannerDatabase(
           "./database/user",
           {
+            kind: "SpannerDatabase",
             name: "UserDatabase",
             tables: [
               {
+                kind: "Table",
                 name: "TypesTable",
                 columns: [
                   {
@@ -250,7 +250,7 @@ TEST_RUNNER.run({
             outputDdl: "./database/schema_ddl",
             outputSql: "./database/queries",
           },
-          mockMessageResolver,
+          mockDefinitionResolver,
           outputContentMap,
         );
 
@@ -526,16 +526,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "TypesTable",
                   columns: [
                     {
@@ -554,7 +557,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -576,16 +579,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "TypesTable",
                   columns: [
                     {
@@ -605,7 +611,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -627,16 +633,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "TypesTable",
                   columns: [
                     {
@@ -655,7 +664,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -673,16 +682,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "TypesTable",
                   columns: [
                     {
@@ -696,7 +708,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -714,16 +726,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "TypesTable",
                   columns: [
                     {
@@ -748,7 +763,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -766,15 +781,18 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         generateSpannerDatabase(
           "./database/user",
           {
+            kind: "SpannerDatabase",
             name: "UserDatabase",
             tables: [
               {
+                kind: "Table",
                 name: "ParentTable",
                 columns: [
                   {
@@ -785,6 +803,7 @@ export async function selectARow(
                 primaryKeys: ["pid"],
               },
               {
+                kind: "Table",
                 name: "ChildTable",
                 columns: [
                   {
@@ -806,7 +825,7 @@ export async function selectARow(
             outputDdl: "./database/schema_ddl",
             outputSql: "./database/queries",
           },
-          mockMessageResolver,
+          mockDefinitionResolver,
           outputContentMap,
         );
 
@@ -844,16 +863,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "ParentTable",
                   columns: [
                     {
@@ -864,6 +886,7 @@ export async function selectARow(
                   primaryKeys: ["pid"],
                 },
                 {
+                  kind: "Table",
                   name: "ChildTable",
                   columns: [
                     {
@@ -885,7 +908,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -907,16 +930,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "ParentTable",
                   columns: [
                     {
@@ -927,6 +953,7 @@ export async function selectARow(
                   primaryKeys: ["pid"],
                 },
                 {
+                  kind: "Table",
                   name: "ChildTable",
                   columns: [
                     {
@@ -948,7 +975,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -968,16 +995,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "ParentTable",
                   columns: [
                     {
@@ -988,6 +1018,7 @@ export async function selectARow(
                   primaryKeys: ["pid"],
                 },
                 {
+                  kind: "Table",
                   name: "ChildTable",
                   columns: [
                     {
@@ -1009,7 +1040,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1031,16 +1062,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "ParentTable",
                   columns: [
                     {
@@ -1051,6 +1085,7 @@ export async function selectARow(
                   primaryKeys: ["pid"],
                 },
                 {
+                  kind: "Table",
                   name: "ChildTable",
                   columns: [
                     {
@@ -1078,7 +1113,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1096,16 +1131,19 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "ParentTable",
                   columns: [
                     {
@@ -1116,6 +1154,7 @@ export async function selectARow(
                   primaryKeys: ["pid"],
                 },
                 {
+                  kind: "Table",
                   name: "ChildTable",
                   columns: [
                     {
@@ -1137,7 +1176,7 @@ export async function selectARow(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1159,7 +1198,7 @@ export async function selectARow(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -1170,36 +1209,35 @@ export async function selectARow(
               case "SomeData":
                 assertThat(importPath, eq(undefined), "import path");
                 return {
-                  message: {
-                    name: "SomeData",
-                    fields: [
-                      {
-                        name: "id1",
-                        type: "string",
-                        index: 1,
-                      },
-                      {
-                        name: "id2",
-                        type: "number",
-                        index: 2,
-                      },
-                      {
-                        name: "stringValue",
-                        type: "string",
-                        index: 3,
-                      },
-                      {
-                        name: "boolValue",
-                        type: "boolean",
-                        index: 4,
-                      },
-                      {
-                        name: "numberValue",
-                        type: "number",
-                        index: 5,
-                      },
-                    ],
-                  },
+                  kind: "Message",
+                  name: "SomeData",
+                  fields: [
+                    {
+                      name: "id1",
+                      type: "string",
+                      index: 1,
+                    },
+                    {
+                      name: "id2",
+                      type: "number",
+                      index: 2,
+                    },
+                    {
+                      name: "stringValue",
+                      type: "string",
+                      index: 3,
+                    },
+                    {
+                      name: "boolValue",
+                      type: "boolean",
+                      index: 4,
+                    },
+                    {
+                      name: "numberValue",
+                      type: "number",
+                      index: 5,
+                    },
+                  ],
                 };
               default:
                 throw new Error(`Unexpeced type ${typeName}`);
@@ -1211,9 +1249,11 @@ export async function selectARow(
         generateSpannerDatabase(
           "./database/user",
           {
+            kind: "SpannerDatabase",
             name: "UserDatabase",
-            messageTables: [
+            tables: [
               {
+                kind: "MessageTable",
                 name: "SomeData",
                 storedInColumn: "someData",
                 columns: ["id1", "id2", "boolValue", "numberValue"],
@@ -1276,7 +1316,7 @@ export async function selectARow(
             outputDdl: "./database/schema_ddl",
             outputSql: "./database/queries",
           },
-          mockMessageResolver,
+          mockDefinitionResolver,
           outputContentMap,
         );
 
@@ -1459,15 +1499,18 @@ export async function listData(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         generateSpannerDatabase(
           "./database/user",
           {
+            kind: "SpannerDatabase",
             name: "UserDatabase",
             tables: [
               {
+                kind: "Table",
                 name: "T1Table",
                 columns: [
                   {
@@ -1482,6 +1525,7 @@ export async function listData(
                 primaryKeys: ["f1"],
               },
               {
+                kind: "Table",
                 name: "T2Table",
                 columns: [
                   {
@@ -1496,6 +1540,7 @@ export async function listData(
                 primaryKeys: ["f1"],
               },
               {
+                kind: "Table",
                 name: "T3Table",
                 columns: [
                   {
@@ -1636,7 +1681,7 @@ export async function listData(
             outputDdl: "./database/schema_ddl",
             outputSql: "./database/queries",
           },
-          mockMessageResolver,
+          mockDefinitionResolver,
           outputContentMap,
         );
 
@@ -1717,16 +1762,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -1754,7 +1802,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1772,16 +1820,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -1815,7 +1866,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1833,16 +1884,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -1857,6 +1911,7 @@ export async function s1(
                   primaryKeys: ["f1"],
                 },
                 {
+                  kind: "Table",
                   name: "T2Table",
                   columns: [
                     {
@@ -1898,7 +1953,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -1920,16 +1975,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -1944,6 +2002,7 @@ export async function s1(
                   primaryKeys: ["f1"],
                 },
                 {
+                  kind: "Table",
                   name: "T2Table",
                   columns: [
                     {
@@ -1985,7 +2044,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2007,16 +2066,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2031,6 +2093,7 @@ export async function s1(
                   primaryKeys: ["f1"],
                 },
                 {
+                  kind: "Table",
                   name: "T2Table",
                   columns: [
                     {
@@ -2072,7 +2135,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2094,16 +2157,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2138,7 +2204,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2160,16 +2226,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2204,7 +2273,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2226,16 +2295,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2270,7 +2342,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2292,16 +2364,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2336,7 +2411,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2358,16 +2433,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2403,7 +2481,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2425,16 +2503,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2463,7 +2544,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2485,16 +2566,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2522,7 +2606,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );
@@ -2544,16 +2628,19 @@ export async function s1(
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {})();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
 
         // Execute
         let error = assertThrow(() =>
           generateSpannerDatabase(
             "./database/user",
             {
+              kind: "SpannerDatabase",
               name: "UserDatabase",
               tables: [
                 {
+                  kind: "Table",
                   name: "T1Table",
                   columns: [
                     {
@@ -2586,7 +2673,7 @@ export async function s1(
               outputDdl: "./database/schema_ddl",
               outputSql: "./database/queries",
             },
-            mockMessageResolver,
+            mockDefinitionResolver,
             outputContentMap,
           ),
         );

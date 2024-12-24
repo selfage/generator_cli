@@ -1,13 +1,13 @@
-- message:
-    name: GetCommentsRequest
-    fields:
-      - name: videoId
-        type: string
-        index: 1
-- message:
-    name: GetCommentsResponse
-    fields:
-      - name: text
-        type: string
-        isArray: true
-        index: 1
+- kind: Message
+  name: GetCommentsRequest
+  fields:
+    - name: videoId
+      type: string
+      index: 1
+- kind: Message
+  name: GetCommentsResponse
+  fields:
+    - name: text
+      type: string
+      isArray: true
+      index: 1

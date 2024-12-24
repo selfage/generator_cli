@@ -14,7 +14,7 @@ import {
   SpannerWhereConcat,
   SpannerWhereLeaf,
 } from "./definition";
-import { MessageResolver } from "./message_resolver";
+import { DefinitionResolver } from "./definition_resolver";
 import {
   OutputContentBuilder,
   SimpleContentBuilder,
@@ -119,7 +119,7 @@ class InputCollector {
   public conversions = new Array<string>();
 
   public constructor(
-    private messageResolver: MessageResolver,
+    private definitionResolver: DefinitionResolver,
     private tsContentBuilder: TsContentBuilder,
   ) {}
 
@@ -132,7 +132,7 @@ class InputCollector {
     let queryType: string;
     let conversion: string;
     if (!tsType) {
-      let typeDefinition = this.messageResolver.resolve(
+      let typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
         columnDefinition.type,
         columnDefinition.import,
@@ -141,30 +141,30 @@ class InputCollector {
         columnDefinition.import,
         columnDefinition.type,
       );
-      if (typeDefinition.enum) {
+      if (typeDefinition.kind === "Enum") {
         this.tsContentBuilder.importFromSpanner("Spanner");
         if (!columnDefinition.isArray) {
-          tsType = typeDefinition.enum.name;
+          tsType = typeDefinition.name;
           queryType = `{ type: "float64" }`;
           conversion = `Spanner.float(${argVariable})`;
         } else {
-          tsType = `Array<${typeDefinition.enum.name}>`;
+          tsType = `Array<${typeDefinition.name}>`;
           queryType = `{ type: "array", child: { type: "float64" } }`;
           conversion = `${argVariable}.map((e) => Spanner.float(e))`;
         }
-      } else if (typeDefinition.message) {
+      } else if (typeDefinition.kind === "Message") {
         this.tsContentBuilder.importFromMessageSerializer("serializeMessage");
-        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.message.name);
+        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
         this.tsContentBuilder.importFromDefinition(
           columnDefinition.import,
           tsTypeDescriptor,
         );
         if (!columnDefinition.isArray) {
-          tsType = typeDefinition.message.name;
+          tsType = typeDefinition.name;
           queryType = `{ type: "bytes" }`;
           conversion = `Buffer.from(serializeMessage(${argVariable}, ${tsTypeDescriptor}).buffer)`;
         } else {
-          tsType = `Array<${typeDefinition.message.name}>`;
+          tsType = `Array<${typeDefinition.name}>`;
           queryType = `{ type: "array", child: { type: "bytes" } }`;
           conversion = `${argVariable}.map((e) => Buffer.from(serializeMessage(e, ${tsTypeDescriptor}).buffer))`;
         }
@@ -233,7 +233,7 @@ export class OuputCollector {
   public fieldDescriptors = new Array<string>();
 
   public constructor(
-    private messageResolver: MessageResolver,
+    private definitionResolver: DefinitionResolver,
     private tsContentBuilder: TsContentBuilder,
   ) {}
 
@@ -249,7 +249,7 @@ export class OuputCollector {
     let typeDescriptorLine: string;
     let isArrayLine: string;
     if (!tsType) {
-      let typeDefinition = this.messageResolver.resolve(
+      let typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
         columnDefinition.type,
         columnDefinition.import,
@@ -258,35 +258,35 @@ export class OuputCollector {
         columnDefinition.import,
         columnDefinition.type,
       );
-      if (typeDefinition.enum) {
+      if (typeDefinition.kind === "Enum") {
         this.tsContentBuilder.importFromMessageSerializer("toEnumFromNumber");
-        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.enum.name);
+        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
         this.tsContentBuilder.importFromDefinition(
           columnDefinition.import,
           tsTypeDescriptor,
         );
         typeDescriptorLine = `enumType: ${tsTypeDescriptor}`;
         if (!columnDefinition.isArray) {
-          tsType = typeDefinition.enum.name;
+          tsType = typeDefinition.name;
           conversion = `toEnumFromNumber(${columnVariable}.value.value, ${tsTypeDescriptor})`;
         } else {
-          tsType = `Array<${typeDefinition.enum.name}>`;
+          tsType = `Array<${typeDefinition.name}>`;
           isArrayLine = `isArray: true`;
           conversion = `${columnVariable}.value.map((e) => toEnumFromNumber(e.value, ${tsTypeDescriptor}))`;
         }
-      } else if (typeDefinition.message) {
+      } else if (typeDefinition.kind === "Message") {
         this.tsContentBuilder.importFromMessageSerializer("deserializeMessage");
-        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.message.name);
+        let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
         this.tsContentBuilder.importFromDefinition(
           columnDefinition.import,
           tsTypeDescriptor,
         );
         typeDescriptorLine = `messageType: ${tsTypeDescriptor}`;
         if (!columnDefinition.isArray) {
-          tsType = typeDefinition.message.name;
+          tsType = typeDefinition.name;
           conversion = `deserializeMessage(${columnVariable}.value, ${tsTypeDescriptor})`;
         } else {
-          tsType = `Array<${typeDefinition.message.name}>`;
+          tsType = `Array<${typeDefinition.name}>`;
           isArrayLine = `isArray: true`;
           conversion = `${columnVariable}.value.map((e) => deserializeMessage(e, ${tsTypeDescriptor}))`;
         }
@@ -471,7 +471,7 @@ class JoinOnClauseGenerator {
 export function generateSpannerDatabase(
   definitionModulePath: string,
   spannerDatabaseDefinition: SpannerDatabaseDefinition,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ) {
   if (!spannerDatabaseDefinition.name) {
@@ -499,26 +499,25 @@ export function generateSpannerDatabase(
   );
 
   let databaseTables = new Map<string, SpannerTableDefinition>();
-  if (
-    !spannerDatabaseDefinition.tables &&
-    !spannerDatabaseDefinition.messageTables
-  ) {
+  if (!spannerDatabaseDefinition.tables) {
     throw new Error(
-      `Both "tables" and "messageTables" are missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
+      `"table" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
     );
   }
   let tableDdls = new Array<string>();
-  if (spannerDatabaseDefinition.tables) {
-    for (let table of spannerDatabaseDefinition.tables) {
-      generateSpannerTable(table, databaseTables, messageResolver, tableDdls);
-    }
-  }
-  if (spannerDatabaseDefinition.messageTables) {
-    for (let table of spannerDatabaseDefinition.messageTables) {
+  for (let table of spannerDatabaseDefinition.tables) {
+    if (table.kind === "Table") {
+      generateSpannerTable(
+        table,
+        databaseTables,
+        definitionResolver,
+        tableDdls,
+      );
+    } else if (table.kind === "MessageTable") {
       generateSpannerMessageTable(
         table,
         databaseTables,
-        messageResolver,
+        definitionResolver,
         tableDdls,
         tsContentBuilder,
       );
@@ -533,7 +532,7 @@ export function generateSpannerDatabase(
       generateSpannerInsert(
         insertDefinition,
         databaseTables,
-        messageResolver,
+        definitionResolver,
         tsContentBuilder,
       );
     }
@@ -543,7 +542,7 @@ export function generateSpannerDatabase(
       generateSpannerUpdate(
         updateDefinition,
         databaseTables,
-        messageResolver,
+        definitionResolver,
         tsContentBuilder,
       );
     }
@@ -553,7 +552,7 @@ export function generateSpannerDatabase(
       generateSpannerDelete(
         deleteDefinition,
         databaseTables,
-        messageResolver,
+        definitionResolver,
         tsContentBuilder,
       );
     }
@@ -563,7 +562,7 @@ export function generateSpannerDatabase(
       generateSpannerSelect(
         selectDefinition,
         databaseTables,
-        messageResolver,
+        definitionResolver,
         tsContentBuilder,
       );
     }
@@ -573,7 +572,7 @@ export function generateSpannerDatabase(
 function generateSpannerTable(
   table: SpannerTableDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tableDdls: Array<string>,
 ) {
   if (!table.name) {
@@ -611,14 +610,14 @@ function generateSpannerTable(
     }
 
     if (!type) {
-      let definition = messageResolver.resolve(
+      let definition = definitionResolver.resolve(
         loggingPrefix,
         column.type,
         column.import,
       );
-      if (definition.enum) {
+      if (definition.kind === "Enum") {
         type = "FLOAT64";
-      } else if (definition.message) {
+      } else if (definition.kind === "Message") {
         type = "BYTES(MAX)";
       }
     }
@@ -771,7 +770,7 @@ function generateSpannerTable(
 function generateSpannerMessageTable(
   table: SpannerMessageTableDefintion,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tableDdls: Array<string>,
   tsContentBuilder: TsContentBuilder,
 ) {
@@ -779,11 +778,10 @@ function generateSpannerMessageTable(
     throw new Error(`"name" is missing on a spanner message table.`);
   }
   let loggingPrefix = `When coverting message table ${table.name} to Spanner table definition,`;
-  let typeDefinition = messageResolver.resolve(loggingPrefix, table.name);
-  if (!typeDefinition.message) {
+  let messageDefinition = definitionResolver.resolve(loggingPrefix, table.name);
+  if (messageDefinition.kind !== "Message") {
     throw new Error(`${loggingPrefix} message ${table.name} is not found.`);
   }
-  let messageDefinition = typeDefinition.message;
 
   if (!table.storedInColumn) {
     throw new Error(
@@ -819,6 +817,7 @@ function generateSpannerMessageTable(
   });
   generateSpannerTable(
     {
+      kind: "Table",
       name: table.name,
       columns: columns,
       primaryKeys: table.primaryKeys,
@@ -826,7 +825,7 @@ function generateSpannerMessageTable(
       indexes: table.indexes,
     },
     databaseTables,
-    messageResolver,
+    definitionResolver,
     tableDdls,
   );
 
@@ -853,7 +852,7 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
         setColumns: columns.map((column) => column.name),
       },
       databaseTables,
-      messageResolver,
+      definitionResolver,
       tsContentBuilder,
     );
   }
@@ -895,7 +894,7 @@ export function ${toInitalLowercased(table.updateStatementName)}Statement(
           ),
       },
       databaseTables,
-      messageResolver,
+      definitionResolver,
       tsContentBuilder,
     );
   }
@@ -904,7 +903,7 @@ export function ${toInitalLowercased(table.updateStatementName)}Statement(
 function generateSpannerInsert(
   insertDefinition: SpannerInsertDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tsContentBuilder: TsContentBuilder,
 ) {
   if (!insertDefinition.name) {
@@ -923,7 +922,7 @@ function generateSpannerInsert(
 
   let columns = new Array<string>();
   let values = new Array<string>();
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
   if (!insertDefinition.setColumns) {
     throw new Error(`${loggingPrefix} "setColumns" is missing.`);
   }
@@ -957,7 +956,7 @@ export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArra
 function generateSpannerUpdate(
   updateDefinition: SpannerUpdateDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tsContentBuilder: TsContentBuilder,
 ): void {
   if (!updateDefinition.name) {
@@ -974,7 +973,7 @@ function generateSpannerUpdate(
     );
   }
 
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
   let setItems = new Array<string>();
   if (!updateDefinition.table) {
     throw new Error(`${loggingPrefix} "table" is missing.`);
@@ -1019,7 +1018,7 @@ export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArra
 function generateSpannerDelete(
   deleteDefinition: SpannerDeleteDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tsContentBuilder: TsContentBuilder,
 ): void {
   if (!deleteDefinition.name) {
@@ -1033,7 +1032,7 @@ function generateSpannerDelete(
     );
   }
 
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
   let whereClause = new WhereClauseGenerator(
     loggingPrefix + " and when generating where clause,",
     deleteDefinition.table,
@@ -1063,7 +1062,7 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArra
 function generateSpannerSelect(
   selectDefinition: SpannerSelectDefinition,
   databaseTables: Map<string, SpannerTableDefinition>,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   tsContentBuilder: TsContentBuilder,
 ) {
   if (!selectDefinition.name) {
@@ -1138,7 +1137,7 @@ function generateSpannerSelect(
   }
 
   let whereClause = "";
-  let inputCollector = new InputCollector(messageResolver, tsContentBuilder);
+  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
   if (selectDefinition.where) {
     whereClause = new WhereClauseGenerator(
       loggingPrefix + " and when generating where clause,",
@@ -1199,7 +1198,10 @@ function generateSpannerSelect(
   }
 
   let selectColumns = new Array<string>();
-  let outputCollector = new OuputCollector(messageResolver, tsContentBuilder);
+  let outputCollector = new OuputCollector(
+    definitionResolver,
+    tsContentBuilder,
+  );
   for (let i = 0; i < selectDefinition.getColumns.length; i++) {
     let column = selectDefinition.getColumns[i];
     if (typeof column === "string") {

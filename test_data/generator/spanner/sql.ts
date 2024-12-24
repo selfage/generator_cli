@@ -1,49 +1,8 @@
-import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
-import { Database, Transaction, Spanner } from '@google-cloud/spanner';
+import { Spanner, Database, Transaction } from '@google-cloud/spanner';
 import { User, USER } from './user';
 import { serializeMessage } from '@selfage/message/serializer';
 import { Statement } from '@google-cloud/spanner/build/src/transaction';
-
-export interface GetLastUserRow {
-  userTableUserId: number,
-  ucContent: string,
-}
-
-export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
-  name: 'GetLastUserRow',
-  fields: [{
-    name: 'userTableUserId',
-    index: 1,
-    primitiveType: PrimitiveType.NUMBER,
-  }, {
-    name: 'ucContent',
-    index: 2,
-    primitiveType: PrimitiveType.STRING,
-  }],
-};
-
-export async function getLastUser(
-  runner: Database | Transaction,
-  ucContentIdEq: string,
-): Promise<Array<GetLastUserRow>> {
-  let [rows] = await runner.run({
-    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp",
-    params: {
-      ucContentIdEq: ucContentIdEq,
-    },
-    types: {
-      ucContentIdEq: { type: "string" },
-    }
-  });
-  let resRows = new Array<GetLastUserRow>();
-  for (let row of rows) {
-    resRows.push({
-      userTableUserId: row.at(0).value.value,
-      ucContent: row.at(1).value,
-    });
-  }
-  return resRows;
-}
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export function insertNewUserStatement(
   userId: number,
@@ -94,4 +53,45 @@ export function deleteUserContentStatement(
       userContentContentIdEq: { type: "string" },
     }
   };
+}
+
+export interface GetLastUserRow {
+  userTableUserId: number,
+  ucContent: string,
+}
+
+export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
+  name: 'GetLastUserRow',
+  fields: [{
+    name: 'userTableUserId',
+    index: 1,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'ucContent',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }],
+};
+
+export async function getLastUser(
+  runner: Database | Transaction,
+  ucContentIdEq: string,
+): Promise<Array<GetLastUserRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp",
+    params: {
+      ucContentIdEq: ucContentIdEq,
+    },
+    types: {
+      ucContentIdEq: { type: "string" },
+    }
+  });
+  let resRows = new Array<GetLastUserRow>();
+  for (let row of rows) {
+    resRows.push({
+      userTableUserId: row.at(0).value.value,
+      ucContent: row.at(1).value,
+    });
+  }
+  return resRows;
 }

@@ -1,5 +1,5 @@
 import { MessageDefinition } from "./definition";
-import { MessageResolver } from "./message_resolver";
+import { DefinitionResolver } from "./definition_resolver";
 import {
   OutputContentBuilder,
   TsContentBuilder,
@@ -11,7 +11,7 @@ let PRIMITIVE_TYPES = new Set<string>(["string", "number", "boolean"]);
 export function generateMessage(
   definitionModulePath: string,
   messageDefinition: MessageDefinition,
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
   if (!messageDefinition.name) {
@@ -51,12 +51,12 @@ export function generateMessage(
         tsContentBuilder.importFromMessageDescriptor("PrimitiveType");
         typeDescriptorLine = `primitiveType: PrimitiveType.${field.type.toUpperCase()}`;
       } else {
-        let definition = messageResolver.resolve(
+        let definition = definitionResolver.resolve(
           loggingPrefix,
           field.type,
           field.import,
         );
-        if (definition.enum) {
+        if (definition.kind === "Enum") {
           let enumDescriptorName = toUppercaseSnaked(field.type);
           tsContentBuilder.importFromDefinition(
             field.import,
@@ -64,7 +64,7 @@ export function generateMessage(
             enumDescriptorName,
           );
           typeDescriptorLine = `enumType: ${enumDescriptorName}`;
-        } else if (definition.message) {
+        } else if (definition.kind === "Message") {
           let messageDescriptorName = toUppercaseSnaked(field.type);
           tsContentBuilder.importFromDefinition(
             field.import,

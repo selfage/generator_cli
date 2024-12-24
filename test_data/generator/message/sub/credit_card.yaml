@@ -1,6 +1,6 @@
-- message:
-    name: CreditCard
-    fields:
-      - name: CardNumber
-        type: number
-        index: 1
+- kind: Message
+  name: CreditCard
+  fields:
+    - name: CardNumber
+      type: number
+      index: 1

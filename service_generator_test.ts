@@ -1,5 +1,5 @@
 import { Definition } from "./definition";
-import { MockMessageResolver } from "./message_resolver_mock";
+import { MockDefinitionResolver } from "./definition_resolver_mock";
 import {
   OutputContentBuilder,
   TsContentBuilder,
@@ -16,7 +16,7 @@ TEST_RUNNER.run({
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -27,11 +27,17 @@ TEST_RUNNER.run({
               case "GetCommentsRequestBody":
                 assertThat(importPath, eq(undefined), `importPath`);
                 return {
-                  message: { name: "GetCommentsRequestBody", fields: [] },
+                  kind: "Message",
+                  name: "GetCommentsRequestBody",
+                  fields: [],
                 };
               case "GetCommentsResponse":
                 assertThat(importPath, eq(undefined), `importPath`);
-                return { message: { name: "GetCommentsResponse", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "GetCommentsResponse",
+                  fields: [],
+                };
               default:
                 throw new Error("Unexpected type.");
             }
@@ -62,14 +68,14 @@ TEST_RUNNER.run({
             response: "GetCommentsResponse",
           },
           "web",
-          mockMessageResolver,
+          mockDefinitionResolver,
           descriptorContentBuilder,
           clientContentBuilder,
           handlerContentBuilder,
         );
 
         // Verify
-        assertThat(mockMessageResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
         assertThat(
           outputContentMap.get("./interface/get_comments").build(),
           eqLongStr(`import { WebRemoteCallDescriptor } from '@selfage/service_descriptor';
@@ -130,7 +136,7 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -141,11 +147,17 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
               case "GetHistoryRequestBody":
                 assertThat(importPath, eq("./request"), `importPath`);
                 return {
-                  message: { name: "GetHistoryRequestBody", fields: [] },
+                  kind: "Message",
+                  name: "GetHistoryRequestBody",
+                  fields: [],
                 };
               case "GetHistoryResponse":
                 assertThat(importPath, eq("./response"), `importPath`);
-                return { message: { name: "GetHistoryResponse", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "GetHistoryResponse",
+                  fields: [],
+                };
               default:
                 throw new Error(`Unexpected type ${typeName}.`);
             }
@@ -179,14 +191,14 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
             importResponse: "./response",
           },
           "web",
-          mockMessageResolver,
+          mockDefinitionResolver,
           descriptorContentBuilder,
           clientContentBuilder,
           handlerContentBuilder,
         );
 
         // Verify
-        assertThat(mockMessageResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
         assertThat(
           outputContentMap.get("./interface/get_history").build(),
           eqLongStr(`import { GET_HISTORY_REQUEST_BODY } from '../request';
@@ -255,7 +267,7 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -266,11 +278,17 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
               case "UploadFileMetadata":
                 assertThat(importPath, eq(undefined), `importPath`);
                 return {
-                  message: { name: "UploadFileMetadata", fields: [] },
+                  kind: "Message",
+                  name: "UploadFileMetadata",
+                  fields: [],
                 };
               case "UploadFileResponse":
                 assertThat(importPath, eq(undefined), `importPath`);
-                return { message: { name: "UploadFileResponse", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "UploadFileResponse",
+                  fields: [],
+                };
               default:
                 throw new Error(`Unexpected type ${typeName}.`);
             }
@@ -305,14 +323,14 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
             response: "UploadFileResponse",
           },
           "node",
-          mockMessageResolver,
+          mockDefinitionResolver,
           descriptorContentBuilder,
           clientContentBuilder,
           handlerContentBuilder,
         );
 
         // Verify
-        assertThat(mockMessageResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
         assertThat(
           outputContentMap.get("./interface/upload_file").build(),
           eqLongStr(`import { PrimitveTypeForBody, NodeRemoteCallDescriptor } from '@selfage/service_descriptor';

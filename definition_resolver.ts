@@ -3,7 +3,7 @@ import resolve = require("resolve");
 import { Definition } from "./definition";
 import { parse } from "yaml";
 
-export class MessageResolver {
+export class DefinitionResolver {
   private cachedPathToNameToDefinitions = new Map<
     string,
     Map<string, Definition>
@@ -39,11 +39,7 @@ export class MessageResolver {
         throw e;
       }
       for (let definition of definitions) {
-        if (definition.message) {
-          nameToDefinitions.set(definition.message.name, definition);
-        } else if (definition.enum) {
-          nameToDefinitions.set(definition.enum.name, definition);
-        }
+        nameToDefinitions.set(definition.name, definition);
       }
     }
     let definition = nameToDefinitions.get(name);

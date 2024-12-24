@@ -1,4 +1,4 @@
-import { MessageResolver } from "./message_resolver";
+import { DefinitionResolver } from "./definition_resolver";
 import {
   assertThat,
   assertThrow,
@@ -9,19 +9,19 @@ import {
 import { TEST_RUNNER } from "@selfage/test_runner";
 
 TEST_RUNNER.run({
-  name: "MessageResolverTest",
+  name: "DefinitionResolverTest",
   cases: [
     {
       name: "MissingFile",
       execute: () => {
         // Prepare
-        let messageResolver = new MessageResolver(
+        let definitionResolver = new DefinitionResolver(
           "./test_data/message_resolver/non_exist",
         );
 
         // Execute
         let err = assertThrow(() =>
-          messageResolver.resolve("When testing,", "BasicData"),
+          definitionResolver.resolve("When testing,", "BasicData"),
         );
 
         // Verify
@@ -29,46 +29,42 @@ TEST_RUNNER.run({
       },
     },
     {
-      name: "MalformedJson",
+      name: "MalformedYaml",
       execute: () => {
         // Prepare
-        let messageResolver = new MessageResolver(
+        let definitionResolver = new DefinitionResolver(
           "./test_data/message_resolver/malformed",
         );
 
         // Execute
         let err = assertThrow(() =>
-          messageResolver.resolve("When testing,", "BasicData"),
+          definitionResolver.resolve("When testing,", "BasicData"),
         );
 
         // Verify
-        assertThat(err.message, containStr("failed to parse YAML"), `err`);
+        assertThat(err.message, containStr("definitions is not iterable"), `err`);
       },
     },
     {
       name: "CategorizeTypeAndGetDefinitionFromCurrentModule",
       execute: () => {
         // Prepare
-        let messageResolver = new MessageResolver(
+        let definitionResolver = new DefinitionResolver(
           "./test_data/message_resolver/basic",
         );
 
         {
           // Execute
-          let definition = messageResolver.resolve(
+          let definition = definitionResolver.resolve(
             "When testing,",
             "BasicData",
           );
 
           // Verify
-          assertThat(
-            definition.message.name,
-            eq("BasicData"),
-            "BasicData.name",
-          );
+          assertThat(definition.name, eq("BasicData"), "BasicData.name");
 
           // Execute
-          let definition2 = messageResolver.resolve(
+          let definition2 = definitionResolver.resolve(
             "When testing,",
             "BasicData",
           );
@@ -79,10 +75,13 @@ TEST_RUNNER.run({
 
         {
           // Execute
-          let definition = messageResolver.resolve("When testing,", "SomeEnum");
+          let definition = definitionResolver.resolve(
+            "When testing,",
+            "SomeEnum",
+          );
 
           // Verify
-          assertThat(Boolean(definition.enum), eq(true), "SomeEnum is enum");
+          assertThat(definition.kind, eq("Enum"), "SomeEnum is enum");
         }
       },
     },
@@ -90,23 +89,19 @@ TEST_RUNNER.run({
       name: "GetDefinitionFromImportedPath",
       execute: () => {
         // Prepare
-        let messageResolver = new MessageResolver(
+        let definitionResolver = new DefinitionResolver(
           "./test_data/message_resolver/basic",
         );
 
         // Execute
-        let definition = messageResolver.resolve(
+        let definition = definitionResolver.resolve(
           "When testing,",
           "AnotherData",
           "./test_data/message_resolver/inside/another",
         );
 
         // Verify
-        assertThat(
-          definition.message.name,
-          eq("AnotherData"),
-          "AnotherData.name",
-        );
+        assertThat(definition.name, eq("AnotherData"), "AnotherData.name");
       },
     },
   ],

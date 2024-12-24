@@ -1,8 +1,8 @@
-- enum:
-    name: SomeEnum
-- message:
-    # Test data data
-    name: BasicDataData
-- message:
-    # Test data
-    name: BasicData
+- kind: Enum
+  name: SomeEnum
+- kind: Message
+  # Test data data
+  name: BasicDataData
+- kind: Message
+  # Test data
+  name: BasicData

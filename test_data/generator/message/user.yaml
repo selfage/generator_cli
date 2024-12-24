@@ -1,15 +1,15 @@
-- message:
-    name: User
-    fields:
-      - name: id
-        type: string
-        index: 1
-      - name: userInfo
-        type: UserInfo
-        import: ./test_data/generator/message/user_info
-        index: 2
-      - name: creditCards
-        type: CreditCard
-        isArray: true
-        import: ./test_data/generator/message/sub/credit_card
-        index: 3
+- kind: Message
+  name: User
+  fields:
+    - name: id
+      type: string
+      index: 1
+    - name: userInfo
+      type: UserInfo
+      import: ./test_data/generator/message/user_info
+      index: 2
+    - name: creditCards
+      type: CreditCard
+      isArray: true
+      import: ./test_data/generator/message/sub/credit_card
+      index: 3

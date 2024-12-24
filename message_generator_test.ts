@@ -1,6 +1,6 @@
 import { Definition } from "./definition";
+import { MockDefinitionResolver } from "./definition_resolver_mock";
 import { generateMessage } from "./message_generator";
-import { MockMessageResolver } from "./message_resolver_mock";
 import { OutputContentBuilder } from "./output_content_builder";
 import { assertThat, eq, eqLongStr } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
@@ -18,6 +18,7 @@ TEST_RUNNER.run({
         generateMessage(
           "some_file",
           {
+            kind: "Message",
             name: "BasicData",
             fields: [
               {
@@ -124,7 +125,7 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockMessageResolver = new (class extends MockMessageResolver {
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
           public resolve(
             loggingPrefix: string,
             typeName: string,
@@ -135,23 +136,39 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
               case 1:
                 assertThat(typeName, eq("BasicData"), `1st typeName`);
                 assertThat(importPath, eq(undefined), `1st importPath`);
-                return { message: { name: "any", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "any",
+                  fields: [],
+                };
               case 2:
                 assertThat(typeName, eq("BasicData2"), `2nd typeName`);
                 assertThat(importPath, eq("./another_file"), `2nd importPath`);
-                return { message: { name: "any", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "any",
+                  fields: [],
+                };
               case 3:
                 assertThat(typeName, eq("TestEnum"), `3rd typeName`);
                 assertThat(importPath, eq(undefined), `3rd importPath`);
-                return { enum: { name: "any", values: [] } };
+                return { kind: "Enum", name: "any", values: [] };
               case 4:
                 assertThat(typeName, eq("BasicData"), `4th typeName`);
                 assertThat(importPath, eq(undefined), `4th importPath`);
-                return { message: { name: "any", fields: [] } };
+                return {
+                  kind: "Message",
+                  name: "any",
+                  fields: [],
+                };
               case 5:
                 assertThat(typeName, eq("TestEnum"), `5th typeName`);
                 assertThat(importPath, eq(undefined), `5th importPath`);
-                return { enum: { name: "any", values: [] } };
+                return {
+                  kind: "Enum",
+                  name: "any",
+                  values: [],
+                };
               default:
                 throw new Error("Unpexpected");
             }
@@ -162,6 +179,7 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
         generateMessage(
           "./some_file",
           {
+            kind: "Message",
             name: "NestedObj",
             fields: [
               {
@@ -194,12 +212,12 @@ export let BASIC_DATA: MessageDescriptor<BasicData> = {
               },
             ],
           },
-          mockMessageResolver,
+          mockDefinitionResolver,
           outputContentMap,
         );
 
         // Verify
-        assertThat(mockMessageResolver.called, eq(5), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(5), "resolve called");
         assertThat(
           outputContentMap.get("./some_file").build(),
           eqLongStr(`import { BasicData2, BASIC_DATA2 } from './another_file';

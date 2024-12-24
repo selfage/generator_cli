@@ -16,6 +16,7 @@ TEST_RUNNER.run({
         generateEnum(
           "some_file",
           {
+            kind: "Enum",
             name: "Color",
             values: [
               {

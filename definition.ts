@@ -4,7 +4,9 @@ export interface EnumValue {
   value: number;
 }
 
+// Generated code requires package `@selfage/message`.
 export interface EnumDefinition {
+  kind: "Enum";
   // Must be of CamelCase.
   name: string;
   values: Array<EnumValue>;
@@ -51,7 +53,9 @@ export interface DatastoreDefinition {
   queries?: Array<DatastoreQueryTemplate>;
 }
 
+// Generated code requires package `@selfage/message`.
 export interface MessageDefinition {
+  kind: "Message";
   // Must be of CamelCase.
   name: string;
   fields: Array<MessageFieldDefinition>;
@@ -88,7 +92,9 @@ export interface WebRemoteCallDefinition {
   importResponse?: string;
 }
 
+// Generated code requires package `@selfage/service_descriptor`.
 export interface WebServiceDefinition {
+  kind: "WebService";
   // Must be of CamelCase.
   name: string;
   remoteCalls: Array<WebRemoteCallDefinition>;
@@ -117,7 +123,9 @@ export interface NodeRemoteCallDefinition {
   importResponse?: string;
 }
 
+// Generated code requires package `@selfage/service_descriptor`.
 export interface NodeServiceDefinition {
+  kind: "NodeService";
   // Must be of CamelCase.
   name: string;
   remoteCalls: Array<NodeRemoteCallDefinition>;
@@ -177,6 +185,7 @@ export interface SpannerTableInterleaveDefinition {
 }
 
 export interface SpannerTableDefinition {
+  kind: "Table";
   // Must be of CamelCase.
   name: string;
   columns: Array<SpannerTableColumnDefinition>;
@@ -186,6 +195,7 @@ export interface SpannerTableDefinition {
 }
 
 export interface SpannerMessageTableDefintion {
+  kind: "MessageTable";
   // Must be of CamelCase. Serves as the name of the table as well as refers to a defined message.
   name: string;
   // Must of of camelCase.
@@ -280,11 +290,12 @@ export interface SpannerDeleteDefinition {
   where: SpannerWhereConcat | SpannerWhereLeaf;
 }
 
+// Generated code requires package `@google-cloud/spanner`, `@selfage/spanner_schema_update_cli` and `@selfage/message`.
 export interface SpannerDatabaseDefinition {
+  kind: "SpannerDatabase";
   // Must be of CamelCase.
   name: string;
-  tables?: Array<SpannerTableDefinition>;
-  messageTables?: Array<SpannerMessageTableDefintion>;
+  tables?: Array<SpannerTableDefinition | SpannerMessageTableDefintion>;
   selects?: Array<SpannerSelectDefinition>;
   inserts?: Array<SpannerInsertDefinition>;
   updates?: Array<SpannerUpdateDefinition>;
@@ -297,16 +308,9 @@ export interface SpannerDatabaseDefinition {
   outputSql: string;
 }
 
-export interface Definition {
-  // One of the below.
-  // Generated code requires package `@selfage/message`.
-  enum?: EnumDefinition;
-  // Generated code requires package `@selfage/message`.
-  message?: MessageDefinition;
-  // Generated code requires package `@selfage/service_descriptor`.
-  webService?: WebServiceDefinition;
-  // Generated code requires package `@selfage/service_descriptor`.
-  nodeService?: NodeServiceDefinition;
-  // Generated code requires package `@google-cloud/spanner`, `@selfage/spanner_schema_update_cli` and `@selfage/message`.
-  spannerDatabase?: SpannerDatabaseDefinition;
-}
+export type Definition =
+  | EnumDefinition
+  | MessageDefinition
+  | WebServiceDefinition
+  | NodeServiceDefinition
+  | SpannerDatabaseDefinition;

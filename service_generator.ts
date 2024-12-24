@@ -4,7 +4,7 @@ import {
   WebRemoteCallDefinition,
   WebServiceDefinition,
 } from "./definition";
-import { MessageResolver } from "./message_resolver";
+import { DefinitionResolver } from "./definition_resolver";
 import {
   OutputContentBuilder,
   TsContentBuilder,
@@ -18,7 +18,7 @@ export function generateService(
   definitionModulePath: string,
   serviceDefinition: NodeServiceDefinition | WebServiceDefinition,
   kind: "node" | "web",
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
   let descriptorContentBuilder = TsContentBuilder.get(
@@ -55,7 +55,7 @@ export function generateService(
       definitionModulePath,
       remoteCall,
       kind,
-      messageResolver,
+      definitionResolver,
       descriptorContentBuilder,
       clientContentBuilder,
       handlerContentBuilder,
@@ -67,7 +67,7 @@ export function generateRemoteCall(
   definitionModulePath: string,
   remoteCallDefinition: NodeRemoteCallDefinition | WebRemoteCallDefinition,
   kind: "node" | "web",
-  messageResolver: MessageResolver,
+  definitionResolver: DefinitionResolver,
   descriptorContentBuilder: TsContentBuilder,
   clientContentBuilder: TsContentBuilder,
   handlerContentBuilder: TsContentBuilder,
@@ -88,12 +88,12 @@ export function generateRemoteCall(
     primitiveType: PrimitveTypeForBody.${remoteCallDefinition.body.toUpperCase()},
   },`;
   } else {
-    let requesBodytDefinition = messageResolver.resolve(
+    let requesBodytDefinition = definitionResolver.resolve(
       loggingPrefix,
       remoteCallDefinition.body,
       remoteCallDefinition.importBody,
     );
-    if (!requesBodytDefinition.message) {
+    if (requesBodytDefinition.kind !== "Message") {
       throw new Error(
         `${loggingPrefix} request body ${remoteCallDefinition.body} is not a message.`,
       );
@@ -118,12 +118,12 @@ export function generateRemoteCall(
         `${loggingPrefix} "type" is missing in the "metadata" field.`,
       );
     }
-    let metadataDefinition = messageResolver.resolve(
+    let metadataDefinition = definitionResolver.resolve(
       loggingPrefix,
       remoteCallDefinition.metadata.type,
       remoteCallDefinition.metadata.import,
     );
-    if (!metadataDefinition.message) {
+    if (metadataDefinition.kind !== "Message") {
       throw new Error(
         `${loggingPrefix} metadata type ${remoteCallDefinition.metadata.type} is not a message.`,
       );
@@ -159,12 +159,12 @@ export function generateRemoteCall(
   if (!remoteCallDefinition.response) {
     throw new Error(`${loggingPrefix} "response" is missing.`);
   }
-  let responseDefinition = messageResolver.resolve(
+  let responseDefinition = definitionResolver.resolve(
     loggingPrefix,
     remoteCallDefinition.response,
     remoteCallDefinition.importResponse,
   );
-  if (!responseDefinition.message) {
+  if (responseDefinition.kind !== "Message") {
     throw new Error(
       `${loggingPrefix} response type ${remoteCallDefinition.response} is not a message.`,
     );

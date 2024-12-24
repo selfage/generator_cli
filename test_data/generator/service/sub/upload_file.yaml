@@ -1,15 +1,15 @@
-- message:
-    name: UploadFileRequestMetadata
-    fields:
-      - name: fileName
-        type: string
-        index: 1
-- message:
-    name: UploadFileResponse
-    fields:
-      - name: bytesSent
-        type: number
-        index: 1
-      - name: success
-        type: boolean
-        index: 2
+- kind: Message
+  name: UploadFileRequestMetadata
+  fields:
+    - name: fileName
+      type: string
+      index: 1
+- kind: Message
+  name: UploadFileResponse
+  fields:
+    - name: bytesSent
+      type: number
+      index: 1
+    - name: success
+      type: boolean
+      index: 2

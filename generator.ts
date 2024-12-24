@@ -1,9 +1,9 @@
 import fs = require("fs");
 import { Definition } from "./definition";
+import { DefinitionResolver } from "./definition_resolver";
 import { generateEnum } from "./enum_generator";
 import { stripFileExtension } from "./io_helper";
 import { generateMessage } from "./message_generator";
-import { MessageResolver } from "./message_resolver";
 import { OutputContentBuilder } from "./output_content_builder";
 import { generateService } from "./service_generator";
 import { generateSpannerDatabase } from "./spanner_database_generator";
@@ -16,39 +16,39 @@ export function generate(inputFile: string, dryRun?: boolean): void {
     fs.readFileSync(modulePath + ".yaml").toString(),
   ) as Array<Definition>;
 
-  let messageResolver = new MessageResolver(modulePath);
+  let definitionResolver = new DefinitionResolver(modulePath);
   let outputContentMap = new Map<string, OutputContentBuilder>();
   for (let definition of definitions) {
-    if (definition.enum) {
-      generateEnum(modulePath, definition.enum, outputContentMap);
-    } else if (definition.message) {
+    if (definition.kind === "Enum") {
+      generateEnum(modulePath, definition, outputContentMap);
+    } else if (definition.kind === "Message") {
       generateMessage(
         modulePath,
-        definition.message,
-        messageResolver,
+        definition,
+        definitionResolver,
         outputContentMap,
       );
-    } else if (definition.webService) {
+    } else if (definition.kind === "WebService") {
       generateService(
         modulePath,
-        definition.webService,
+        definition,
         "web",
-        messageResolver,
+        definitionResolver,
         outputContentMap,
       );
-    } else if (definition.nodeService) {
+    } else if (definition.kind === "NodeService") {
       generateService(
         modulePath,
-        definition.nodeService,
+        definition,
         "node",
-        messageResolver,
+        definitionResolver,
         outputContentMap,
       );
-    } else if (definition.spannerDatabase) {
+    } else if (definition.kind === "SpannerDatabase") {
       generateSpannerDatabase(
         modulePath,
-        definition.spannerDatabase,
-        messageResolver,
+        definition,
+        definitionResolver,
         outputContentMap,
       );
     }
