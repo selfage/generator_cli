@@ -868,8 +868,18 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
         `${loggingPrefix} "updateStatementName" is missing on message table ${table.name}.`,
       );
     }
+    let primaryKeys = table.primaryKeys.map((key) =>
+      typeof key === "string" ? key : key.name,
+    );
+    let setColumns = table.columns.filter(
+      (column) => !primaryKeys.includes(column),
+    );
+
     let inputVariables = new Array<string>();
-    for (let column of table.columns) {
+    for (let column of primaryKeys) {
+      inputVariables.push(`${table.storedInColumn}.${column}`);
+    }
+    for (let column of setColumns) {
       inputVariables.push(`${table.storedInColumn}.${column}`);
     }
     inputVariables.push(table.storedInColumn);
@@ -883,25 +893,20 @@ export function ${toInitalLowercased(table.updateStatementName)}Statement(
   );
 }
 `);
+
+    setColumns.push(table.storedInColumn);
     generateSpannerUpdate(
       {
         name: `${table.updateStatementName}Internal`,
         table: table.name,
         where: {
           op: "AND",
-          exps: table.primaryKeys.map((key) => ({
-            leftColumn: typeof key === "string" ? key : key.name,
+          exps: primaryKeys.map((key) => ({
+            leftColumn: key,
             op: "=",
           })),
         },
-        setColumns: columns
-          .map((column) => column.name)
-          .filter(
-            (column) =>
-              !table.primaryKeys.find((key) =>
-                typeof key === "string" ? key === column : key.name === column,
-              ),
-          ),
+        setColumns,
       },
       databaseTables,
       definitionResolver,

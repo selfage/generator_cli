@@ -1256,7 +1256,7 @@ export async function selectARow(
                 kind: "MessageTable",
                 name: "SomeData",
                 storedInColumn: "someData",
-                columns: ["id1", "id2", "boolValue", "numberValue"],
+                columns: ["id2", "boolValue", "id1", "numberValue"],
                 primaryKeys: [
                   "id1",
                   {
@@ -1327,14 +1327,14 @@ export async function selectARow(
   "tables": [{
     "name": "SomeData",
     "columns": [{
-      "name": "id1",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id1 STRING(MAX) NOT NULL"
-    }, {
       "name": "id2",
       "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id2 FLOAT64 NOT NULL"
     }, {
       "name": "boolValue",
       "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN boolValue BOOL NOT NULL"
+    }, {
+      "name": "id1",
+      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id1 STRING(MAX) NOT NULL"
     }, {
       "name": "numberValue",
       "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN numberValue FLOAT64 NOT NULL"
@@ -1342,7 +1342,7 @@ export async function selectARow(
       "name": "someData",
       "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN someData BYTES(MAX) NOT NULL"
     }],
-    "createTableDdl": "CREATE TABLE SomeData (id1 STRING(MAX) NOT NULL, id2 FLOAT64 NOT NULL, boolValue BOOL NOT NULL, numberValue FLOAT64 NOT NULL, someData BYTES(MAX) NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
+    "createTableDdl": "CREATE TABLE SomeData (id2 FLOAT64 NOT NULL, boolValue BOOL NOT NULL, id1 STRING(MAX) NOT NULL, numberValue FLOAT64 NOT NULL, someData BYTES(MAX) NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
     "indexes": [{
       "name": "Sort",
       "createIndexDdl": "CREATE INDEX Sort ON SomeData(numberValue)"
@@ -1366,34 +1366,34 @@ export function insertNewSomeDataStatement(
   someData: SomeData,
 ): Statement {
   return insertNewSomeDataInternalStatement(
-    someData.id1,
     someData.id2,
     someData.boolValue,
+    someData.id1,
     someData.numberValue,
     someData
   );
 }
 
 export function insertNewSomeDataInternalStatement(
-  id1: string,
   id2: number,
   boolValue: boolean,
+  id1: string,
   numberValue: number,
   someData: SomeData,
 ): Statement {
   return {
-    sql: "INSERT SomeData (id1, id2, boolValue, numberValue, someData) VALUES (@id1, @id2, @boolValue, @numberValue, @someData)",
+    sql: "INSERT SomeData (id2, boolValue, id1, numberValue, someData) VALUES (@id2, @boolValue, @id1, @numberValue, @someData)",
     params: {
-      id1: id1,
       id2: Spanner.float(id2),
       boolValue: boolValue,
+      id1: id1,
       numberValue: Spanner.float(numberValue),
       someData: Buffer.from(serializeMessage(someData, SOME_DATA).buffer),
     },
     types: {
-      id1: { type: "string" },
       id2: { type: "float64" },
       boolValue: { type: "bool" },
+      id1: { type: "string" },
       numberValue: { type: "float64" },
       someData: { type: "bytes" },
     }
