@@ -862,12 +862,7 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
     );
   }
 
-  {
-    if (!table.updateStatementName) {
-      throw new Error(
-        `${loggingPrefix} "updateStatementName" is missing on message table ${table.name}.`,
-      );
-    }
+  if (table.updateStatementName) {
     let primaryKeys = table.primaryKeys.map((key) =>
       typeof key === "string" ? key : key.name,
     );
