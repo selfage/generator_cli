@@ -209,8 +209,10 @@ export interface SpannerMessageTableDefintion {
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
   indexes?: Array<SpannerIndexDefinition>;
-  insertStatementName: string;
-  updateStatementName: string;
+  insertStatementName?: string;
+  deleteStatementName?: string;
+  getStatementName?: string;
+  updateStatementName?: string;
 }
 
 export interface SpannerColumnRef {

@@ -1,6 +1,6 @@
 {
   "name": "@selfage/generator_cli",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "description": "Code generation for message, service, and database.",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
     "SQL",
     "TypeScript"
   ],
-  "author": "Yuxuan Xie <teststaybaka@gmail.com> (http://www.yuxuanxie.com)",
+  "author": "Yuxuan Xie <ykuyo.dev@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/selfage/generator_cli/issues"

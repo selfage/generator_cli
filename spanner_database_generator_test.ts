@@ -1275,26 +1275,9 @@ export async function selectARow(
                   },
                 ],
                 insertStatementName: "InsertNewSomeData",
+                deleteStatementName: "DeleteSomeData",
+                getStatementName: "GetSomeData",
                 updateStatementName: "UpdateSomeData",
-              },
-            ],
-            deletes: [
-              {
-                name: "DeleteSomeData",
-                table: "SomeData",
-                where: {
-                  op: "AND",
-                  exps: [
-                    {
-                      op: "=",
-                      leftColumn: "id1",
-                    },
-                    {
-                      op: "=",
-                      leftColumn: "id2",
-                    },
-                  ],
-                },
               },
             ],
             selects: [
@@ -1400,6 +1383,61 @@ export function insertNewSomeDataInternalStatement(
   };
 }
 
+export function deleteSomeDataStatement(
+  someDataId1Eq: string,
+  someDataId2Eq: number,
+): Statement {
+  return {
+    sql: "DELETE SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
+    params: {
+      someDataId1Eq: someDataId1Eq,
+      someDataId2Eq: Spanner.float(someDataId2Eq),
+    },
+    types: {
+      someDataId1Eq: { type: "string" },
+      someDataId2Eq: { type: "float64" },
+    }
+  };
+}
+
+export interface GetSomeDataRow {
+  someDataSomeData: SomeData,
+}
+
+export let GET_SOME_DATA_ROW: MessageDescriptor<GetSomeDataRow> = {
+  name: 'GetSomeDataRow',
+  fields: [{
+    name: 'someDataSomeData',
+    index: 1,
+    messageType: SOME_DATA,
+  }],
+};
+
+export async function getSomeData(
+  runner: Database | Transaction,
+  someDataId1Eq: string,
+  someDataId2Eq: number,
+): Promise<Array<GetSomeDataRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT SomeData.someData FROM SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
+    params: {
+      someDataId1Eq: someDataId1Eq,
+      someDataId2Eq: Spanner.float(someDataId2Eq),
+    },
+    types: {
+      someDataId1Eq: { type: "string" },
+      someDataId2Eq: { type: "float64" },
+    }
+  });
+  let resRows = new Array<GetSomeDataRow>();
+  for (let row of rows) {
+    resRows.push({
+      someDataSomeData: deserializeMessage(row.at(0).value, SOME_DATA),
+    });
+  }
+  return resRows;
+}
+
 export function updateSomeDataStatement(
   someData: SomeData,
 ): Statement {
@@ -1434,23 +1472,6 @@ export function updateSomeDataInternalStatement(
       setBoolValue: { type: "bool" },
       setNumberValue: { type: "float64" },
       setSomeData: { type: "bytes" },
-    }
-  };
-}
-
-export function deleteSomeDataStatement(
-  someDataId1Eq: string,
-  someDataId2Eq: number,
-): Statement {
-  return {
-    sql: "DELETE SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
-    params: {
-      someDataId1Eq: someDataId1Eq,
-      someDataId2Eq: Spanner.float(someDataId2Eq),
-    },
-    types: {
-      someDataId1Eq: { type: "string" },
-      someDataId2Eq: { type: "float64" },
     }
   };
 }

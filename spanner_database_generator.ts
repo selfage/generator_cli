@@ -829,12 +829,7 @@ function generateSpannerMessageTable(
     tableDdls,
   );
 
-  {
-    if (!table.insertStatementName) {
-      throw new Error(
-        `${loggingPrefix} "insertStatementName" is missing on message table ${table.name}.`,
-      );
-    }
+  if (table.insertStatementName) {
     let inputVariables = new Array<string>();
     for (let column of table.columns) {
       inputVariables.push(`${table.storedInColumn}.${column}`);
@@ -855,6 +850,45 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
         name: `${table.insertStatementName}Internal`,
         table: table.name,
         setColumns: columns.map((column) => column.name),
+      },
+      databaseTables,
+      definitionResolver,
+      tsContentBuilder,
+    );
+  }
+
+  if (table.deleteStatementName) {
+    generateSpannerDelete(
+      {
+        name: table.deleteStatementName,
+        table: table.name,
+        where: {
+          op: "AND",
+          exps: table.primaryKeys.map((key) => ({
+            leftColumn: typeof key === "string" ? key : key.name,
+            op: "=",
+          })),
+        },
+      },
+      databaseTables,
+      definitionResolver,
+      tsContentBuilder,
+    );
+  }
+
+  if (table.getStatementName) {
+    generateSpannerSelect(
+      {
+        name: table.getStatementName,
+        table: table.name,
+        where: {
+          op: "AND",
+          exps: table.primaryKeys.map((key) => ({
+            leftColumn: typeof key === "string" ? key : key.name,
+            op: "=",
+          })),
+        },
+        getColumns: [table.storedInColumn],
       },
       databaseTables,
       definitionResolver,
