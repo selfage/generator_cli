@@ -1274,10 +1274,10 @@ export async function selectARow(
                     columns: ["boolValue", "numberValue"],
                   },
                 ],
-                insertStatementName: "InsertNewSomeData",
-                deleteStatementName: "DeleteSomeData",
-                getStatementName: "GetSomeData",
-                updateStatementName: "UpdateSomeData",
+                insert: "InsertNewSomeData",
+                delete: "DeleteSomeData",
+                get: "GetSomeData",
+                update: "UpdateSomeData",
               },
             ],
             selects: [
@@ -1509,6 +1509,330 @@ export async function listData(
     });
   }
   return resRows;
+}
+`),
+          "sql",
+        );
+      },
+    },
+    {
+      name: "TaskTable",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        generateSpannerDatabase(
+          "./database/task",
+          {
+            kind: "SpannerDatabase",
+            name: "TaskDatabase",
+            tables: [
+              {
+                kind: "TaskTable",
+                name: "WorkingTask",
+                columns: [
+                  {
+                    name: "id1",
+                    type: "string",
+                  },
+                  {
+                    name: "id2",
+                    type: "string",
+                  },
+                  {
+                    name: "payload",
+                    type: "string",
+                  },
+                ],
+                retryCountColumn: "retryCount",
+                executionTimeColumn: "executionTime",
+                createdTimeColumn: "createdTime",
+                primaryKeys: [
+                  "id1",
+                  {
+                    name: "id2",
+                    desc: true,
+                  },
+                ],
+                executionTimeIndex: "ByExecutionTime",
+                insert: "InsertWorkingTask",
+                delete: "DeleteWorkingTask",
+                get: "GetWorkingTask",
+                getMetadata: "GetWorkingTaskMetadata",
+                listPendingTasks: "ListPendingWorkingTasks",
+                updateMetadata: "UpdateWorkingTaskMetadata",
+              },
+            ],
+            outputDdl: "./database/schema_ddl",
+            outputSql: "./database/queries",
+          },
+          mockDefinitionResolver,
+          outputContentMap,
+        );
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./database/schema_ddl").build(),
+          eqLongStr(`{
+  "tables": [{
+    "name": "WorkingTask",
+    "columns": [{
+      "name": "id1",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN id1 STRING(MAX) NOT NULL"
+    }, {
+      "name": "id2",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN id2 STRING(MAX) NOT NULL"
+    }, {
+      "name": "payload",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN payload STRING(MAX) NOT NULL"
+    }, {
+      "name": "retryCount",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN retryCount FLOAT64 NOT NULL"
+    }, {
+      "name": "executionTime",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN executionTime TIMESTAMP NOT NULL"
+    }, {
+      "name": "createdTime",
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN createdTime TIMESTAMP NOT NULL"
+    }],
+    "createTableDdl": "CREATE TABLE WorkingTask (id1 STRING(MAX) NOT NULL, id2 STRING(MAX) NOT NULL, payload STRING(MAX) NOT NULL, retryCount FLOAT64 NOT NULL, executionTime TIMESTAMP NOT NULL, createdTime TIMESTAMP NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
+    "indexes": [{
+      "name": "ByExecutionTime",
+      "createIndexDdl": "CREATE INDEX ByExecutionTime ON WorkingTask(executionTime)"
+    }]
+  }]
+}`),
+          "ddl",
+        );
+        assertThat(
+          outputContentMap.get("./database/queries").build(),
+          eqLongStr(`import { Spanner, Database, Transaction } from '@google-cloud/spanner';
+import { Statement } from '@google-cloud/spanner/build/src/transaction';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+
+export function insertWorkingTaskStatement(
+  id1: string,
+  id2: string,
+  payload: string,
+  retryCount: number,
+  executionTime: number,
+  createdTime: number,
+): Statement {
+  return {
+    sql: "INSERT WorkingTask (id1, id2, payload, retryCount, executionTime, createdTime) VALUES (@id1, @id2, @payload, @retryCount, @executionTime, @createdTime)",
+    params: {
+      id1: id1,
+      id2: id2,
+      payload: payload,
+      retryCount: Spanner.float(retryCount),
+      executionTime: new Date(executionTime).toISOString(),
+      createdTime: new Date(createdTime).toISOString(),
+    },
+    types: {
+      id1: { type: "string" },
+      id2: { type: "string" },
+      payload: { type: "string" },
+      retryCount: { type: "float64" },
+      executionTime: { type: "timestamp" },
+      createdTime: { type: "timestamp" },
+    }
+  };
+}
+
+export function deleteWorkingTaskStatement(
+  workingTaskId1Eq: string,
+  workingTaskId2Eq: string,
+): Statement {
+  return {
+    sql: "DELETE WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
+    params: {
+      workingTaskId1Eq: workingTaskId1Eq,
+      workingTaskId2Eq: workingTaskId2Eq,
+    },
+    types: {
+      workingTaskId1Eq: { type: "string" },
+      workingTaskId2Eq: { type: "string" },
+    }
+  };
+}
+
+export interface GetWorkingTaskRow {
+  workingTaskId1: string,
+  workingTaskId2: string,
+  workingTaskPayload: string,
+  workingTaskRetryCount: number,
+  workingTaskExecutionTime: number,
+  workingTaskCreatedTime: number,
+}
+
+export let GET_WORKING_TASK_ROW: MessageDescriptor<GetWorkingTaskRow> = {
+  name: 'GetWorkingTaskRow',
+  fields: [{
+    name: 'workingTaskId1',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'workingTaskId2',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'workingTaskPayload',
+    index: 3,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'workingTaskRetryCount',
+    index: 4,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'workingTaskExecutionTime',
+    index: 5,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'workingTaskCreatedTime',
+    index: 6,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
+};
+
+export async function getWorkingTask(
+  runner: Database | Transaction,
+  workingTaskId1Eq: string,
+  workingTaskId2Eq: string,
+): Promise<Array<GetWorkingTaskRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT WorkingTask.id1, WorkingTask.id2, WorkingTask.payload, WorkingTask.retryCount, WorkingTask.executionTime, WorkingTask.createdTime FROM WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
+    params: {
+      workingTaskId1Eq: workingTaskId1Eq,
+      workingTaskId2Eq: workingTaskId2Eq,
+    },
+    types: {
+      workingTaskId1Eq: { type: "string" },
+      workingTaskId2Eq: { type: "string" },
+    }
+  });
+  let resRows = new Array<GetWorkingTaskRow>();
+  for (let row of rows) {
+    resRows.push({
+      workingTaskId1: row.at(0).value,
+      workingTaskId2: row.at(1).value,
+      workingTaskPayload: row.at(2).value,
+      workingTaskRetryCount: row.at(3).value.value,
+      workingTaskExecutionTime: row.at(4).value.valueOf(),
+      workingTaskCreatedTime: row.at(5).value.valueOf(),
+    });
+  }
+  return resRows;
+}
+
+export interface ListPendingWorkingTasksRow {
+  workingTaskId1: string,
+  workingTaskId2: string,
+}
+
+export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingTasksRow> = {
+  name: 'ListPendingWorkingTasksRow',
+  fields: [{
+    name: 'workingTaskId1',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'workingTaskId2',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }],
+};
+
+export async function listPendingWorkingTasks(
+  runner: Database | Transaction,
+  workingTaskExecutionTimeLe: number,
+): Promise<Array<ListPendingWorkingTasksRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT WorkingTask.id1, WorkingTask.id2 FROM WorkingTask WHERE WorkingTask.executionTime <= @workingTaskExecutionTimeLe",
+    params: {
+      workingTaskExecutionTimeLe: new Date(workingTaskExecutionTimeLe).toISOString(),
+    },
+    types: {
+      workingTaskExecutionTimeLe: { type: "timestamp" },
+    }
+  });
+  let resRows = new Array<ListPendingWorkingTasksRow>();
+  for (let row of rows) {
+    resRows.push({
+      workingTaskId1: row.at(0).value,
+      workingTaskId2: row.at(1).value,
+    });
+  }
+  return resRows;
+}
+
+export interface GetWorkingTaskMetadataRow {
+  workingTaskRetryCount: number,
+  workingTaskExecutionTime: number,
+}
+
+export let GET_WORKING_TASK_METADATA_ROW: MessageDescriptor<GetWorkingTaskMetadataRow> = {
+  name: 'GetWorkingTaskMetadataRow',
+  fields: [{
+    name: 'workingTaskRetryCount',
+    index: 1,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'workingTaskExecutionTime',
+    index: 2,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
+};
+
+export async function getWorkingTaskMetadata(
+  runner: Database | Transaction,
+  workingTaskId1Eq: string,
+  workingTaskId2Eq: string,
+): Promise<Array<GetWorkingTaskMetadataRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT WorkingTask.retryCount, WorkingTask.executionTime FROM WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
+    params: {
+      workingTaskId1Eq: workingTaskId1Eq,
+      workingTaskId2Eq: workingTaskId2Eq,
+    },
+    types: {
+      workingTaskId1Eq: { type: "string" },
+      workingTaskId2Eq: { type: "string" },
+    }
+  });
+  let resRows = new Array<GetWorkingTaskMetadataRow>();
+  for (let row of rows) {
+    resRows.push({
+      workingTaskRetryCount: row.at(0).value.value,
+      workingTaskExecutionTime: row.at(1).value.valueOf(),
+    });
+  }
+  return resRows;
+}
+
+export function updateWorkingTaskMetadataStatement(
+  workingTaskId1Eq: string,
+  workingTaskId2Eq: string,
+  setRetryCount: number,
+  setExecutionTime: number,
+): Statement {
+  return {
+    sql: "UPDATE WorkingTask SET retryCount = @setRetryCount, executionTime = @setExecutionTime WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
+    params: {
+      workingTaskId1Eq: workingTaskId1Eq,
+      workingTaskId2Eq: workingTaskId2Eq,
+      setRetryCount: Spanner.float(setRetryCount),
+      setExecutionTime: new Date(setExecutionTime).toISOString(),
+    },
+    types: {
+      workingTaskId1Eq: { type: "string" },
+      workingTaskId2Eq: { type: "string" },
+      setRetryCount: { type: "float64" },
+      setExecutionTime: { type: "timestamp" },
+    }
+  };
 }
 `),
           "sql",

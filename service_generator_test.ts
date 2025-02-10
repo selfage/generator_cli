@@ -2,9 +2,11 @@ import { Definition } from "./definition";
 import { MockDefinitionResolver } from "./definition_resolver_mock";
 import {
   OutputContentBuilder,
-  TsContentBuilder,
 } from "./output_content_builder";
-import { generateRemoteCall } from "./service_generator";
+import {
+  generateRemoteCallsGroup,
+  generateService,
+} from "./service_generator";
 import { assertThat, eq, eqLongStr } from "@selfage/test_matcher";
 import { TEST_RUNNER } from "@selfage/test_runner";
 
@@ -12,7 +14,75 @@ TEST_RUNNER.run({
   name: "ServiceGeneratorTest",
   cases: [
     {
-      name: "GetCommentsService",
+      name: "CommentWebService",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+
+        // Execute
+        generateService(
+          "./interface/comment_service",
+          {
+            kind: "Service",
+            name: "CommentWebService",
+            clientType: "WEB",
+          },
+          outputContentMap,
+        );
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./interface/comment_service").build(),
+          eqLongStr(`import { ClientType } from '@selfage/service_descriptor/client_type';
+import { HttpsServiceDescriptor } from '@selfage/service_descriptor';
+
+export let COMMENT_WEB_SERVICE: HttpsServiceDescriptor = {
+  name: "CommentWebService",
+  clientType: ClientType.WEB,
+  protocol: "https",
+  port: 443,
+}
+`),
+          "output content",
+        );
+      },
+    },
+    {
+      name: "CommentNodeService",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+
+        // Execute
+        generateService(
+          "./interface/comment_service",
+          {
+            kind: "Service",
+            name: "CommentNodeService",
+            clientType: "NODE",
+          },
+          outputContentMap,
+        );
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./interface/comment_service").build(),
+          eqLongStr(`import { ClientType } from '@selfage/service_descriptor/client_type';
+import { HttpServiceDescriptor } from '@selfage/service_descriptor';
+
+export let COMMENT_NODE_SERVICE: HttpServiceDescriptor = {
+  name: "CommentNodeService",
+  clientType: ClientType.NODE,
+  protocol: "http",
+  port: 80,
+}
+`),
+          "output content",
+        );
+      },
+    },
+    {
+      name: "GetCommentsRemoteCall",
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
@@ -24,15 +94,34 @@ TEST_RUNNER.run({
           ): Definition {
             this.called += 1;
             switch (typeName) {
+              case "CommentWebService":
+                assertThat(
+                  importPath,
+                  eq("./comment_service"),
+                  `importPath for CommentWebService`,
+                );
+                return {
+                  kind: "Service",
+                  name: "CommentWebService",
+                  clientType: "WEB",
+                };
               case "GetCommentsRequestBody":
-                assertThat(importPath, eq(undefined), `importPath`);
+                assertThat(
+                  importPath,
+                  eq(undefined),
+                  `importPath for GetCommentsRequestBody`,
+                );
                 return {
                   kind: "Message",
                   name: "GetCommentsRequestBody",
                   fields: [],
                 };
               case "GetCommentsResponse":
-                assertThat(importPath, eq(undefined), `importPath`);
+                assertThat(
+                  importPath,
+                  eq(undefined),
+                  `importPath for GetCommentsResponse`,
+                );
                 return {
                   kind: "Message",
                   name: "GetCommentsResponse",
@@ -43,45 +132,40 @@ TEST_RUNNER.run({
             }
           }
         })();
-        let descriptorContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_comments",
-        );
-        let clientContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_comments",
-          "./web/client",
-        );
-        let handlerContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_comments",
-          "./backend/handler",
-        );
 
         // Execute
-        generateRemoteCall(
+        generateRemoteCallsGroup(
           "./interface/get_comments",
           {
-            name: "GetComments",
-            path: "/get_comments",
-            body: "GetCommentsRequestBody",
-            response: "GetCommentsResponse",
+            kind: "RemoteCallsGroup",
+            name: "CommentWebCalls",
+            service: "CommentWebService",
+            importService: "./comment_service",
+            calls: [
+              {
+                name: "GetComments",
+                path: "/get_comments",
+                body: "GetCommentsRequestBody",
+                response: "GetCommentsResponse",
+              },
+            ],
+            outputClient: "./web/client",
+            outputHandler: "./web/handler",
           },
-          "web",
           mockDefinitionResolver,
-          descriptorContentBuilder,
-          clientContentBuilder,
-          handlerContentBuilder,
+          outputContentMap,
         );
 
         // Verify
-        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(3), "resolve called");
         assertThat(
           outputContentMap.get("./interface/get_comments").build(),
-          eqLongStr(`import { WebRemoteCallDescriptor } from '@selfage/service_descriptor';
+          eqLongStr(`import { COMMENT_WEB_SERVICE } from '../comment_service';
+import { RemoteCallDescriptor } from '@selfage/service_descriptor';
 
-export let GET_COMMENTS: WebRemoteCallDescriptor = {
+export let GET_COMMENTS: RemoteCallDescriptor = {
   name: "GetComments",
+  service: COMMENT_WEB_SERVICE,
   path: "/get_comments",
   body: {
     messageType: GET_COMMENTS_REQUEST_BODY,
@@ -96,30 +180,25 @@ export let GET_COMMENTS: WebRemoteCallDescriptor = {
         assertThat(
           outputContentMap.get("./web/client").build(),
           eqLongStr(`import { GetCommentsRequestBody, GetCommentsResponse, GET_COMMENTS } from '../interface/get_comments';
-import { WebClientInterface, WebClientOptions } from '@selfage/service_descriptor/client_interface';
+import { ClientRequestInterface } from '@selfage/service_descriptor/client_request_interface';
 
-export function getComments(
-  client: WebClientInterface,
+export function newGetCommentsRequest(
   body: GetCommentsRequestBody,
-  options?: WebClientOptions,
-): Promise<GetCommentsResponse> {
-  return client.send(
-    {
-      descriptor: GET_COMMENTS,
-      body,
-    },
-    options,
-  );
+): ClientRequestInterface<GetCommentsResponse> {
+  return {
+    descriptor: GET_COMMENTS,
+    body,
+  };
 }
 `),
-          "output web client content",
+          "output client content",
         );
         assertThat(
-          outputContentMap.get("./backend/handler").build(),
+          outputContentMap.get("./web/handler").build(),
           eqLongStr(`import { GetCommentsRequestBody, GET_COMMENTS, GetCommentsResponse } from '../interface/get_comments';
-import { WebHandlerInterface } from '@selfage/service_descriptor/handler_interface';
+import { RemoteCallHandlerInterface } from '@selfage/service_descriptor/remote_call_handler_interface';
 
-export abstract class GetCommentsHandlerInterface implements WebHandlerInterface {
+export abstract class GetCommentsHandlerInterface implements RemoteCallHandlerInterface {
   public descriptor = GET_COMMENTS;
   public abstract handle(
     loggingPrefix: string,
@@ -132,7 +211,7 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
       },
     },
     {
-      name: "GetHistoryService",
+      name: "GetHistoryRemoteCall",
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
@@ -144,15 +223,34 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
           ): Definition {
             this.called += 1;
             switch (typeName) {
+              case "HistoryNodeSerivce":
+                assertThat(
+                  importPath,
+                  eq("./history_service"),
+                  `importPath for HistoryNodeSerivce`,
+                );
+                return {
+                  kind: "Service",
+                  name: "HistoryNodeSerivce",
+                  clientType: "NODE",
+                };
               case "GetHistoryRequestBody":
-                assertThat(importPath, eq("./request"), `importPath`);
+                assertThat(
+                  importPath,
+                  eq("./request"),
+                  `importPath for GetHistoryRequestBody`,
+                );
                 return {
                   kind: "Message",
                   name: "GetHistoryRequestBody",
                   fields: [],
                 };
               case "GetHistoryResponse":
-                assertThat(importPath, eq("./response"), `importPath`);
+                assertThat(
+                  importPath,
+                  eq("./response"),
+                  `importPath for GetHistoryResponse`,
+                );
                 return {
                   kind: "Message",
                   name: "GetHistoryResponse",
@@ -163,55 +261,50 @@ export abstract class GetCommentsHandlerInterface implements WebHandlerInterface
             }
           }
         })();
-        let descriptorContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-        );
-        let clientContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-          "./web/client",
-        );
-        let handlerContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/get_history",
-          "./backend/handler",
-        );
 
         // Execute
-        generateRemoteCall(
+        generateRemoteCallsGroup(
           "./interface/get_history",
           {
-            name: "GetHistory",
-            path: "/get_history",
-            sessionKey: "s",
-            body: "GetHistoryRequestBody",
-            importBody: "./request",
-            response: "GetHistoryResponse",
-            importResponse: "./response",
+            kind: "RemoteCallsGroup",
+            name: "HistoryNodeCalls",
+            service: "HistoryNodeSerivce",
+            importService: "./history_service",
+            calls: [
+              {
+                name: "GetHistory",
+                path: "/get_history",
+                authKey: "s",
+                body: "GetHistoryRequestBody",
+                importBody: "./request",
+                response: "GetHistoryResponse",
+                importResponse: "./response",
+              },
+            ],
+            outputClient: "./node/client",
+            outputHandler: "./node/handler",
           },
-          "web",
           mockDefinitionResolver,
-          descriptorContentBuilder,
-          clientContentBuilder,
-          handlerContentBuilder,
+          outputContentMap,
         );
 
         // Verify
-        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(3), "resolve called");
         assertThat(
           outputContentMap.get("./interface/get_history").build(),
-          eqLongStr(`import { GET_HISTORY_REQUEST_BODY } from '../request';
+          eqLongStr(`import { HISTORY_NODE_SERIVCE } from '../history_service';
+import { GET_HISTORY_REQUEST_BODY } from '../request';
 import { GET_HISTORY_RESPONSE } from '../response';
-import { WebRemoteCallDescriptor } from '@selfage/service_descriptor';
+import { RemoteCallDescriptor } from '@selfage/service_descriptor';
 
-export let GET_HISTORY: WebRemoteCallDescriptor = {
+export let GET_HISTORY: RemoteCallDescriptor = {
   name: "GetHistory",
+  service: HISTORY_NODE_SERIVCE,
   path: "/get_history",
   body: {
     messageType: GET_HISTORY_REQUEST_BODY,
   },
-  sessionKey: "s",
+  authKey: "s",
   response: {
     messageType: GET_HISTORY_RESPONSE,
   },
@@ -220,41 +313,36 @@ export let GET_HISTORY: WebRemoteCallDescriptor = {
           "output content",
         );
         assertThat(
-          outputContentMap.get("./web/client").build(),
+          outputContentMap.get("./node/client").build(),
           eqLongStr(`import { GetHistoryRequestBody } from '../request';
 import { GetHistoryResponse } from '../response';
 import { GET_HISTORY } from '../interface/get_history';
-import { WebClientInterface, WebClientOptions } from '@selfage/service_descriptor/client_interface';
+import { ClientRequestInterface } from '@selfage/service_descriptor/client_request_interface';
 
-export function getHistory(
-  client: WebClientInterface,
+export function newGetHistoryRequest(
   body: GetHistoryRequestBody,
-  options?: WebClientOptions,
-): Promise<GetHistoryResponse> {
-  return client.send(
-    {
-      descriptor: GET_HISTORY,
-      body,
-    },
-    options,
-  );
+): ClientRequestInterface<GetHistoryResponse> {
+  return {
+    descriptor: GET_HISTORY,
+    body,
+  };
 }
 `),
-          "output web client content",
+          "output client content",
         );
         assertThat(
-          outputContentMap.get("./backend/handler").build(),
+          outputContentMap.get("./node/handler").build(),
           eqLongStr(`import { GetHistoryRequestBody } from '../request';
 import { GET_HISTORY } from '../interface/get_history';
 import { GetHistoryResponse } from '../response';
-import { WebHandlerInterface } from '@selfage/service_descriptor/handler_interface';
+import { RemoteCallHandlerInterface } from '@selfage/service_descriptor/remote_call_handler_interface';
 
-export abstract class GetHistoryHandlerInterface implements WebHandlerInterface {
+export abstract class GetHistoryHandlerInterface implements RemoteCallHandlerInterface {
   public descriptor = GET_HISTORY;
   public abstract handle(
     loggingPrefix: string,
     body: GetHistoryRequestBody,
-    sessionStr: string,
+    authStr: string,
   ): Promise<GetHistoryResponse>;
 }
 `),
@@ -263,7 +351,7 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
       },
     },
     {
-      name: "UploadFileService",
+      name: "UploadFileRemoteCall",
       execute: () => {
         // Prepare
         let outputContentMap = new Map<string, OutputContentBuilder>();
@@ -275,15 +363,34 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
           ): Definition {
             this.called += 1;
             switch (typeName) {
+              case "UploadFileService":
+                assertThat(
+                  importPath,
+                  eq(undefined),
+                  `importPath for UploadFileService`,
+                );
+                return {
+                  kind: "Service",
+                  name: "UploadFileService",
+                  clientType: "NODE",
+                };
               case "UploadFileMetadata":
-                assertThat(importPath, eq(undefined), `importPath`);
+                assertThat(
+                  importPath,
+                  eq(undefined),
+                  `importPath for UploadFileMetadata`,
+                );
                 return {
                   kind: "Message",
                   name: "UploadFileMetadata",
                   fields: [],
                 };
               case "UploadFileResponse":
-                assertThat(importPath, eq(undefined), `importPath`);
+                assertThat(
+                  importPath,
+                  eq(undefined),
+                  `importPath for UploadFileResponse`,
+                );
                 return {
                   kind: "Message",
                   name: "UploadFileResponse",
@@ -294,49 +401,42 @@ export abstract class GetHistoryHandlerInterface implements WebHandlerInterface 
             }
           }
         })();
-        let descriptorContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/upload_file",
-        );
-        let clientContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/upload_file",
-          "./interface/client",
-        );
-        let handlerContentBuilder = TsContentBuilder.get(
-          outputContentMap,
-          "./interface/upload_file",
-          "./interface/handler",
-        );
 
         // Execute
-        generateRemoteCall(
+        generateRemoteCallsGroup(
           "./interface/upload_file",
           {
-            name: "UploadFile",
-            path: "/upload_file",
-            metadata: {
-              key: "s",
-              type: "UploadFileMetadata",
-            },
-            body: "bytes",
-            response: "UploadFileResponse",
+            kind: "RemoteCallsGroup",
+            name: "UploadFileGroup",
+            service: "UploadFileService",
+            calls: [
+              {
+                name: "UploadFile",
+                path: "/upload_file",
+                metadata: {
+                  key: "s",
+                  type: "UploadFileMetadata",
+                },
+                body: "bytes",
+                response: "UploadFileResponse",
+              },
+            ],
+            outputClient: "./interface/client",
+            outputHandler: "./interface/handler",
           },
-          "node",
           mockDefinitionResolver,
-          descriptorContentBuilder,
-          clientContentBuilder,
-          handlerContentBuilder,
+          outputContentMap,
         );
 
         // Verify
-        assertThat(mockDefinitionResolver.called, eq(2), "resolve called");
+        assertThat(mockDefinitionResolver.called, eq(3), "resolve called");
         assertThat(
           outputContentMap.get("./interface/upload_file").build(),
-          eqLongStr(`import { PrimitveTypeForBody, NodeRemoteCallDescriptor } from '@selfage/service_descriptor';
+          eqLongStr(`import { PrimitveTypeForBody, RemoteCallDescriptor } from '@selfage/service_descriptor';
 
-export let UPLOAD_FILE: NodeRemoteCallDescriptor = {
+export let UPLOAD_FILE: RemoteCallDescriptor = {
   name: "UploadFile",
+  service: UPLOAD_FILE_SERVICE,
   path: "/upload_file",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
@@ -355,33 +455,28 @@ export let UPLOAD_FILE: NodeRemoteCallDescriptor = {
         assertThat(
           outputContentMap.get("./interface/client").build(),
           eqLongStr(`import { UploadFileMetadata, UploadFileResponse, UPLOAD_FILE } from './upload_file';
-import { NodeClientInterface, NodeClientOptions } from '@selfage/service_descriptor/client_interface';
+import { ClientRequestInterface } from '@selfage/service_descriptor/client_request_interface';
 
-export function uploadFile(
-  client: NodeClientInterface,
+export function newUploadFileRequest(
   body: Blob,
   metadata: UploadFileMetadata,
-  options?: NodeClientOptions,
-): Promise<UploadFileResponse> {
-  return client.send(
-    {
-      descriptor: UPLOAD_FILE,
-      body,
+): ClientRequestInterface<UploadFileResponse> {
+  return {
+    descriptor: UPLOAD_FILE,
+    body,
       metadata,
-    },
-    options,
-  );
+  };
 }
 `),
-          "output node client content",
+          "output client content",
         );
         assertThat(
           outputContentMap.get("./interface/handler").build(),
           eqLongStr(`import { Readable } from 'stream';
 import { UploadFileMetadata, UPLOAD_FILE, UploadFileResponse } from './upload_file';
-import { NodeHandlerInterface } from '@selfage/service_descriptor/handler_interface';
+import { RemoteCallHandlerInterface } from '@selfage/service_descriptor/remote_call_handler_interface';
 
-export abstract class UploadFileHandlerInterface implements NodeHandlerInterface {
+export abstract class UploadFileHandlerInterface implements RemoteCallHandlerInterface {
   public descriptor = UPLOAD_FILE;
   public abstract handle(
     loggingPrefix: string,

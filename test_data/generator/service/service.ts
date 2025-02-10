@@ -1,6 +1,6 @@
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
-import { GET_COMMENTS_REQUEST, GET_COMMENTS_RESPONSE } from './sub/get_comments';
-import { NodeRemoteCallDescriptor, PrimitveTypeForBody, WebRemoteCallDescriptor } from '@selfage/service_descriptor';
+import { ClientType } from '@selfage/service_descriptor/client_type';
+import { HttpsServiceDescriptor, PrimitveTypeForBody, RemoteCallDescriptor } from '@selfage/service_descriptor';
 import { UPLOAD_FILE_REQUEST_METADATA, UPLOAD_FILE_RESPONSE } from './sub/upload_file';
 
 export interface UserSession {
@@ -21,19 +21,16 @@ export let USER_SESSION: MessageDescriptor<UserSession> = {
   }],
 };
 
-export let GET_COMMENTS: NodeRemoteCallDescriptor = {
-  name: "GetComments",
-  path: "/GetComments",
-  body: {
-    messageType: GET_COMMENTS_REQUEST,
-  },
-  response: {
-    messageType: GET_COMMENTS_RESPONSE,
-  },
+export let WEB_SERVICE: HttpsServiceDescriptor = {
+  name: "WebService",
+  clientType: ClientType.WEB,
+  protocol: "https",
+  port: 443,
 }
 
-export let UPLOAD_FILE: WebRemoteCallDescriptor = {
+export let UPLOAD_FILE: RemoteCallDescriptor = {
   name: "UploadFile",
+  service: WEB_SERVICE,
   path: "/UploadFile",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
@@ -42,7 +39,7 @@ export let UPLOAD_FILE: WebRemoteCallDescriptor = {
     key: "sd",
     type: UPLOAD_FILE_REQUEST_METADATA,
   },
-  sessionKey: "su",
+  authKey: "su",
   response: {
     messageType: UPLOAD_FILE_RESPONSE,
   },

@@ -18,12 +18,16 @@
       importResponse: ./test_data/generator/service/sub/get_comments
   outputClient: ./test_data/generator/service/client
   outputHandler: ./test_data/generator/service/handler
-- kind: WebService
-  name: Web
-  remoteCalls:
+- kind: Service
+  name: WebService
+  clientType: WEB
+- kind: RemoteCallsGroup
+  name: WebCalls
+  service: WebService
+  calls:
     - name: UploadFile
       path: /UploadFile
-      sessionKey: su
+      authKey: su
       metadata:
         key: sd
         type: UploadFileRequestMetadata
@@ -33,4 +37,3 @@
       importResponse: ./test_data/generator/service/sub/upload_file
   outputClient: ./test_data/generator/service/client
   outputHandler: ./test_data/generator/service/handler
-

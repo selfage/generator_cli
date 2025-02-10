@@ -5,7 +5,7 @@ import { generateEnum } from "./enum_generator";
 import { stripFileExtension } from "./io_helper";
 import { generateMessage } from "./message_generator";
 import { OutputContentBuilder } from "./output_content_builder";
-import { generateService } from "./service_generator";
+import { generateRemoteCallsGroup, generateService } from "./service_generator";
 import { generateSpannerDatabase } from "./spanner_database_generator";
 import { normalizeRelativePathForNode } from "./util";
 import { parse } from "yaml";
@@ -28,19 +28,12 @@ export function generate(inputFile: string, dryRun?: boolean): void {
         definitionResolver,
         outputContentMap,
       );
-    } else if (definition.kind === "WebService") {
-      generateService(
+    } else if (definition.kind === "Service") {
+      generateService(modulePath, definition, outputContentMap);
+    } else if (definition.kind === "RemoteCallsGroup") {
+      generateRemoteCallsGroup(
         modulePath,
         definition,
-        "web",
-        definitionResolver,
-        outputContentMap,
-      );
-    } else if (definition.kind === "NodeService") {
-      generateService(
-        modulePath,
-        definition,
-        "node",
         definitionResolver,
         outputContentMap,
       );

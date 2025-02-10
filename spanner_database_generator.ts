@@ -2,6 +2,7 @@ import {
   SpannerColumnRef,
   SpannerDatabaseDefinition,
   SpannerDeleteDefinition,
+  SpannerIndexDefinition,
   SpannerInsertDefinition,
   SpannerJoinOnConcat,
   SpannerJoinOnLeaf,
@@ -10,6 +11,7 @@ import {
   SpannerTableColumnDefinition,
   SpannerTableDefinition,
   SpannerTablePrimaryKeyDefinition,
+  SpannerTaskTableDefinition,
   SpannerUpdateDefinition,
   SpannerWhereConcat,
   SpannerWhereLeaf,
@@ -521,6 +523,14 @@ export function generateSpannerDatabase(
         tableDdls,
         tsContentBuilder,
       );
+    } else if (table.kind === "TaskTable") {
+      generateSpannerTaskTable(
+        table,
+        databaseTables,
+        definitionResolver,
+        tableDdls,
+        tsContentBuilder,
+      );
     }
   }
   outputDdlContentBuilder.push(`{
@@ -775,7 +785,7 @@ function generateSpannerMessageTable(
   tsContentBuilder: TsContentBuilder,
 ) {
   if (!table.name) {
-    throw new Error(`"name" is missing on a spanner message table.`);
+    throw new Error(`"name" is missing on a Spanner message table.`);
   }
   let loggingPrefix = `When coverting message table ${table.name} to Spanner table definition,`;
   let messageDefinition = definitionResolver.resolve(loggingPrefix, table.name);
@@ -829,7 +839,7 @@ function generateSpannerMessageTable(
     tableDdls,
   );
 
-  if (table.insertStatementName) {
+  if (table.insert) {
     let inputVariables = new Array<string>();
     for (let column of table.columns) {
       inputVariables.push(`${table.storedInColumn}.${column}`);
@@ -837,17 +847,17 @@ function generateSpannerMessageTable(
     inputVariables.push(table.storedInColumn);
     tsContentBuilder.importFromSpannerTransaction("Statement");
     tsContentBuilder.push(`
-export function ${toInitalLowercased(table.insertStatementName)}Statement(
+export function ${toInitalLowercased(table.insert)}Statement(
   ${table.storedInColumn}: ${messageDefinition.name},
 ): Statement {
-  return ${toInitalLowercased(table.insertStatementName)}InternalStatement(
+  return ${toInitalLowercased(table.insert)}InternalStatement(
     ${inputVariables.join(",\n    ")}
   );
 }
 `);
     generateSpannerInsert(
       {
-        name: `${table.insertStatementName}Internal`,
+        name: `${table.insert}Internal`,
         table: table.name,
         setColumns: columns.map((column) => column.name),
       },
@@ -857,10 +867,10 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
     );
   }
 
-  if (table.deleteStatementName) {
+  if (table.delete) {
     generateSpannerDelete(
       {
-        name: table.deleteStatementName,
+        name: table.delete,
         table: table.name,
         where: {
           op: "AND",
@@ -876,10 +886,10 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
     );
   }
 
-  if (table.getStatementName) {
+  if (table.get) {
     generateSpannerSelect(
       {
-        name: table.getStatementName,
+        name: table.get,
         table: table.name,
         where: {
           op: "AND",
@@ -896,7 +906,7 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
     );
   }
 
-  if (table.updateStatementName) {
+  if (table.update) {
     let primaryKeys = table.primaryKeys.map((key) =>
       typeof key === "string" ? key : key.name,
     );
@@ -914,19 +924,18 @@ export function ${toInitalLowercased(table.insertStatementName)}Statement(
     inputVariables.push(table.storedInColumn);
     tsContentBuilder.importFromSpannerTransaction("Statement");
     tsContentBuilder.push(`
-export function ${toInitalLowercased(table.updateStatementName)}Statement(
+export function ${toInitalLowercased(table.update)}Statement(
   ${table.storedInColumn}: ${messageDefinition.name},
 ): Statement {
-  return ${toInitalLowercased(table.updateStatementName)}InternalStatement(
+  return ${toInitalLowercased(table.update)}InternalStatement(
     ${inputVariables.join(",\n    ")}
   );
 }
 `);
-
     setColumns.push(table.storedInColumn);
     generateSpannerUpdate(
       {
-        name: `${table.updateStatementName}Internal`,
+        name: `${table.update}Internal`,
         table: table.name,
         where: {
           op: "AND",
@@ -942,6 +951,208 @@ export function ${toInitalLowercased(table.updateStatementName)}Statement(
       tsContentBuilder,
     );
   }
+}
+
+export function generateSpannerTaskTable(
+  table: SpannerTaskTableDefinition,
+  databaseTables: Map<string, SpannerTableDefinition>,
+  definitionResolver: DefinitionResolver,
+  tableDdls: Array<string>,
+  tsContentBuilder: TsContentBuilder,
+) {
+  if (!table.name) {
+    throw new Error(`"name" is missing on a Spanner task table.`);
+  }
+  let loggingPrefix = `When coverting task table ${table.name} to Spanner table definition,`;
+  if (!table.columns) {
+    throw new Error(
+      `${loggingPrefix} "columns" is missing on task table ${table.name}.`,
+    );
+  }
+  if (!table.retryCountColumn) {
+    throw new Error(
+      `${loggingPrefix} "retryCountColumn" is missing on task table ${table.name}.`,
+    );
+  }
+  if (!table.executionTimeColumn) {
+    throw new Error(
+      `${loggingPrefix} "executionTimeColumn" is missing on task table ${table.name}.`,
+    );
+  }
+  if (!table.createdTimeColumn) {
+    throw new Error(
+      `${loggingPrefix} "createdTimeColumn" is missing on task table ${table.name}.`,
+    );
+  }
+  let columns = table.columns;
+  columns.push(
+    {
+      name: table.retryCountColumn,
+      type: "float64",
+    },
+    {
+      name: table.executionTimeColumn,
+      type: "timestamp",
+    },
+    {
+      name: table.createdTimeColumn,
+      type: "timestamp",
+    },
+  );
+
+  if (!table.executionTimeIndex) {
+    throw new Error(
+      `${loggingPrefix} "executionTimeIndex" is missing on task table ${table.name}.`,
+    );
+  }
+  let indexes: Array<SpannerIndexDefinition> = [
+    {
+      name: table.executionTimeIndex,
+      columns: [table.executionTimeColumn],
+    },
+  ];
+
+  generateSpannerTable(
+    {
+      kind: "Table",
+      name: table.name,
+      columns: columns,
+      primaryKeys: table.primaryKeys,
+      indexes: indexes,
+    },
+    databaseTables,
+    definitionResolver,
+    tableDdls,
+  );
+
+  if (!table.insert) {
+    throw new Error(
+      `${loggingPrefix} "insert" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerInsert(
+    {
+      name: table.insert,
+      table: table.name,
+      setColumns: columns.map((column) => column.name),
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
+
+  if (!table.delete) {
+    throw new Error(
+      `${loggingPrefix} "delete" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerDelete(
+    {
+      name: table.delete,
+      table: table.name,
+      where: {
+        op: "AND",
+        exps: table.primaryKeys.map((key) => ({
+          leftColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
+
+  if (!table.get) {
+    throw new Error(
+      `${loggingPrefix} "get" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerSelect(
+    {
+      name: table.get,
+      table: table.name,
+      where: {
+        op: "AND",
+        exps: table.primaryKeys.map((key) => ({
+          leftColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+      getColumns: table.columns.map((column) => column.name),
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
+
+  if (!table.listPendingTasks) {
+    throw new Error(
+      `${loggingPrefix} "listPendingTasks" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerSelect(
+    {
+      name: table.listPendingTasks,
+      table: table.name,
+      where: {
+        op: "<=",
+        leftColumn: table.executionTimeColumn,
+      },
+      getColumns: table.primaryKeys.map((key) =>
+        typeof key === "string" ? key : key.name,
+      ),
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
+
+  if (!table.getMetadata) {
+    throw new Error(
+      `${loggingPrefix} "getMetadata" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerSelect(
+    {
+      name: table.getMetadata,
+      table: table.name,
+      where: {
+        op: "AND",
+        exps: table.primaryKeys.map((key) => ({
+          leftColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+      getColumns: [table.retryCountColumn, table.executionTimeColumn],
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
+
+  if (!table.updateMetadata) {
+    throw new Error(
+      `${loggingPrefix} "updateMetadata" is missing on task table ${table.name}.`,
+    );
+  }
+  generateSpannerUpdate(
+    {
+      name: table.updateMetadata,
+      table: table.name,
+      where: {
+        op: "AND",
+        exps: table.primaryKeys.map((key) => ({
+          leftColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+      setColumns: [table.retryCountColumn, table.executionTimeColumn],
+    },
+    databaseTables,
+    definitionResolver,
+    tsContentBuilder,
+  );
 }
 
 function generateSpannerInsert(

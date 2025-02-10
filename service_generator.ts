@@ -1,23 +1,67 @@
 import {
-  NodeRemoteCallDefinition,
-  NodeServiceDefinition,
-  WebRemoteCallDefinition,
-  WebServiceDefinition,
+  RemoteCallDefinition,
+  RemoteCallsGroupDefinition,
+  ServiceDefinition,
 } from "./definition";
 import { DefinitionResolver } from "./definition_resolver";
 import {
   OutputContentBuilder,
   TsContentBuilder,
 } from "./output_content_builder";
-import { toInitalLowercased, toUppercaseSnaked } from "./util";
+import { toInitialUppercased, toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPE_BYTES = "bytes";
 let PRIMITIVE_TYPES = new Set<string>([PRIMITIVE_TYPE_BYTES]);
 
 export function generateService(
   definitionModulePath: string,
-  serviceDefinition: NodeServiceDefinition | WebServiceDefinition,
-  kind: "node" | "web",
+  serviceDefinition: ServiceDefinition,
+  outputContentMap: Map<string, OutputContentBuilder>,
+): void {
+  let contentBuilder = TsContentBuilder.get(
+    outputContentMap,
+    definitionModulePath,
+  );
+  if (!serviceDefinition.name) {
+    throw new Error(`"name" is missing on a service.`);
+  }
+  if (!serviceDefinition.clientType) {
+    throw new Error(
+      `"clientType" is missing on service ${serviceDefinition.name}.`,
+    );
+  }
+  let defaultProtocol = "";
+  let defaultPort = 0;
+  if (serviceDefinition.clientType === "WEB") {
+    defaultProtocol = "https";
+    defaultPort = 443;
+  } else if (serviceDefinition.clientType === "NODE") {
+    defaultProtocol = "http";
+    defaultPort = 80;
+  } else {
+    throw new Error(
+      `Unknown client type ${serviceDefinition.clientType} on service ${serviceDefinition.name}.`,
+    );
+  }
+  let protocol = serviceDefinition.protocol ?? defaultProtocol;
+  let port = serviceDefinition.port ?? defaultPort;
+  contentBuilder.importFromServiceClientType("ClientType");
+  contentBuilder.importFromServiceDescriptor(
+    `${toInitialUppercased(protocol)}ServiceDescriptor`,
+  );
+  contentBuilder.push(`
+export let ${toUppercaseSnaked(serviceDefinition.name)}: ${toInitialUppercased(protocol)}ServiceDescriptor = {
+  name: "${serviceDefinition.name}",
+  clientType: ClientType.${serviceDefinition.clientType},
+  protocol: "${protocol}",
+  port: ${port},
+}
+`);
+}
+
+export function generateRemoteCallsGroup(
+  definitionModulePath: string,
+  remoteCallsGroupDefinition: RemoteCallsGroupDefinition,
   definitionResolver: DefinitionResolver,
   outputContentMap: Map<string, OutputContentBuilder>,
 ): void {
@@ -25,36 +69,59 @@ export function generateService(
     outputContentMap,
     definitionModulePath,
   );
-  if (!serviceDefinition.outputClient) {
+  if (!remoteCallsGroupDefinition.service) {
     throw new Error(
-      `"outputClient" is missing on service ${serviceDefinition.name}.`,
+      `"service" is missing on remote calls group ${remoteCallsGroupDefinition.name}.`,
+    );
+  }
+  let definition = definitionResolver.resolve(
+    `When looking for service definition for remote calls group ${remoteCallsGroupDefinition.name},`,
+    remoteCallsGroupDefinition.service,
+    remoteCallsGroupDefinition.importService,
+  );
+  if (definition.kind !== "Service") {
+    throw new Error(
+      `Service name ${remoteCallsGroupDefinition.service} on remote calls group ${remoteCallsGroupDefinition.name} is not a service.`,
+    );
+  }
+  let serviceName = toUppercaseSnaked(remoteCallsGroupDefinition.service);
+  descriptorContentBuilder.importFromDefinition(
+    remoteCallsGroupDefinition.importService,
+    serviceName,
+  );
+
+  if (!remoteCallsGroupDefinition.outputClient) {
+    throw new Error(
+      `"outputClient" is missing on remote calls group ${remoteCallsGroupDefinition.name}.`,
     );
   }
   let clientContentBuilder = TsContentBuilder.get(
     outputContentMap,
     definitionModulePath,
-    serviceDefinition.outputClient,
+    remoteCallsGroupDefinition.outputClient,
   );
-  if (!serviceDefinition.outputHandler) {
+
+  if (!remoteCallsGroupDefinition.outputHandler) {
     throw new Error(
-      `"outputHandler" is missing on service ${serviceDefinition.name}.`,
+      `"outputHandler" is missing on remote calls group ${remoteCallsGroupDefinition.name}.`,
     );
   }
   let handlerContentBuilder = TsContentBuilder.get(
     outputContentMap,
     definitionModulePath,
-    serviceDefinition.outputHandler,
+    remoteCallsGroupDefinition.outputHandler,
   );
-  if (!serviceDefinition.remoteCalls) {
+
+  if (!remoteCallsGroupDefinition.calls) {
     throw new Error(
-      `"remoteCalls" is either missing or not an array on service ${serviceDefinition.name}.`,
+      `"calls" is either missing or not an array on remote calls group ${remoteCallsGroupDefinition.name}.`,
     );
   }
-  for (let remoteCall of serviceDefinition.remoteCalls) {
+  for (let remoteCall of remoteCallsGroupDefinition.calls) {
     generateRemoteCall(
       definitionModulePath,
       remoteCall,
-      kind,
+      serviceName,
       definitionResolver,
       descriptorContentBuilder,
       clientContentBuilder,
@@ -65,8 +132,8 @@ export function generateService(
 
 export function generateRemoteCall(
   definitionModulePath: string,
-  remoteCallDefinition: NodeRemoteCallDefinition | WebRemoteCallDefinition,
-  kind: "node" | "web",
+  remoteCallDefinition: RemoteCallDefinition,
+  serviceName: string,
   definitionResolver: DefinitionResolver,
   descriptorContentBuilder: TsContentBuilder,
   clientContentBuilder: TsContentBuilder,
@@ -75,8 +142,7 @@ export function generateRemoteCall(
   if (!remoteCallDefinition.name) {
     throw new Error(`"name" is missing on a RemoteCall.`);
   }
-
-  let loggingPrefix = `When generating descriptor for ${kind} remote call ${remoteCallDefinition.name},`;
+  let loggingPrefix = `When generating descriptor for remote call ${remoteCallDefinition.name},`;
   let bodyDescriptor = "";
   if (!remoteCallDefinition.body) {
     throw new Error(`${loggingPrefix} "body" is missing.`);
@@ -147,13 +213,10 @@ export function generateRemoteCall(
   },`;
   }
 
-  let sessionKey = "";
-  if (kind === "web") {
-    let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
-    if (webDefinition.sessionKey) {
-      sessionKey = `
-  sessionKey: "${webDefinition.sessionKey}",`;
-    }
+  let authKey = "";
+  if (remoteCallDefinition.authKey) {
+    authKey = `
+  authKey: "${remoteCallDefinition.authKey}",`;
   }
 
   if (!remoteCallDefinition.response) {
@@ -179,38 +242,34 @@ export function generateRemoteCall(
     messageType: ${responseDescriptorName},
   },`;
 
-  let remoteCallDescriptor =
-    kind === "node" ? "NodeRemoteCallDescriptor" : "WebRemoteCallDescriptor";
-  descriptorContentBuilder.importFromServiceDescriptor(remoteCallDescriptor);
+  descriptorContentBuilder.importFromServiceDescriptor("RemoteCallDescriptor");
   let remoteCallDescriptorName = toUppercaseSnaked(remoteCallDefinition.name);
   descriptorContentBuilder.push(`
-export let ${remoteCallDescriptorName}: ${remoteCallDescriptor} = {
+export let ${remoteCallDescriptorName}: RemoteCallDescriptor = {
   name: "${remoteCallDefinition.name}",
-  path: "${remoteCallDefinition.path}",${bodyDescriptor}${metadataDescriptor}${sessionKey}${responseDescriptor}
+  service: ${serviceName},
+  path: "${remoteCallDefinition.path}",${bodyDescriptor}${metadataDescriptor}${authKey}${responseDescriptor}
 }
 `);
 
   generateClient(
     definitionModulePath,
     remoteCallDefinition,
-    kind,
     clientContentBuilder,
   );
   generateHandler(
     definitionModulePath,
     remoteCallDefinition,
-    kind,
     handlerContentBuilder,
   );
 }
 
 function generateClient(
   definitionModulePath: string,
-  remoteCallDefinition: NodeRemoteCallDefinition,
-  kind: "node" | "web",
+  remoteCallDefinition: RemoteCallDefinition,
   clientContentBuilder: TsContentBuilder,
 ): void {
-  let loggingPrefix = `When generating ${kind} client for ${remoteCallDefinition.name},`;
+  let loggingPrefix = `When generating client for ${remoteCallDefinition.name},`;
   let bodyParam = "";
   if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
     if (remoteCallDefinition.body === PRIMITIVE_TYPE_BYTES) {
@@ -252,37 +311,26 @@ function generateClient(
     definitionModulePath,
     remoteCallDescriptorName,
   );
-  let clientInterface =
-    kind === "node" ? "NodeClientInterface" : "WebClientInterface";
-  let clientOptions =
-    kind === "node" ? "NodeClientOptions" : "WebClientOptions";
-  clientContentBuilder.importFromServiceClientInterface(
-    clientInterface,
-    clientOptions,
+  clientContentBuilder.importFromServiceClientRequestInterface(
+    "ClientRequestInterface",
   );
   clientContentBuilder.push(`
-export function ${toInitalLowercased(remoteCallDefinition.name)}(
-  client: ${clientInterface},${bodyParam}${metadataParam}
-  options?: ${clientOptions},
-): Promise<${remoteCallDefinition.response}> {
-  return client.send(
-    {
-      descriptor: ${remoteCallDescriptorName},
-      body,${metdataVariable}
-    },
-    options,
-  );
+export function new${remoteCallDefinition.name}Request(${bodyParam}${metadataParam}
+): ClientRequestInterface<${remoteCallDefinition.response}> {
+  return {
+    descriptor: ${remoteCallDescriptorName},
+    body,${metdataVariable}
+  };
 }
 `);
 }
 
 function generateHandler(
   definitionModulePath: string,
-  remoteCallDefinition: NodeRemoteCallDefinition,
-  kind: "node" | "web",
+  remoteCallDefinition: RemoteCallDefinition,
   handlerContentBuilder: TsContentBuilder,
 ): void {
-  let loggingPrefix = `When generating ${kind} handler for ${remoteCallDefinition.name},`;
+  let loggingPrefix = `When generating handler for ${remoteCallDefinition.name},`;
   let bodyParam = "";
   if (PRIMITIVE_TYPES.has(remoteCallDefinition.body)) {
     if (remoteCallDefinition.body === PRIMITIVE_TYPE_BYTES) {
@@ -313,17 +361,12 @@ function generateHandler(
     metadata: ${remoteCallDefinition.metadata.type},`;
   }
 
-  let sessionStrParam = "";
-  if (kind === "web") {
-    let webDefinition = remoteCallDefinition as WebRemoteCallDefinition;
-    if (webDefinition.sessionKey) {
-      sessionStrParam = `
-    sessionStr: string,`;
-    }
+  let authStrParam = "";
+  if (remoteCallDefinition.authKey) {
+    authStrParam = `
+    authStr: string,`;
   }
 
-  let handlerInterface =
-    kind === "node" ? "NodeHandlerInterface" : "WebHandlerInterface";
   let remoteCallDescriptorName = toUppercaseSnaked(remoteCallDefinition.name);
   handlerContentBuilder.importFromDefinition(
     definitionModulePath,
@@ -333,12 +376,14 @@ function generateHandler(
     remoteCallDefinition.importResponse,
     remoteCallDefinition.response,
   );
-  handlerContentBuilder.importFromServiceHandlerInterface(handlerInterface);
+  handlerContentBuilder.importFromServiceRemoteCallHandlerInterface(
+    "RemoteCallHandlerInterface",
+  );
   handlerContentBuilder.push(`
-export abstract class ${remoteCallDefinition.name}HandlerInterface implements ${handlerInterface} {
+export abstract class ${remoteCallDefinition.name}HandlerInterface implements RemoteCallHandlerInterface {
   public descriptor = ${remoteCallDescriptorName};
   public abstract handle(
-    loggingPrefix: string,${bodyParam}${metadataParam}${sessionStrParam}
+    loggingPrefix: string,${bodyParam}${metadataParam}${authStrParam}
   ): Promise<${remoteCallDefinition.response}>;
 }
 `);

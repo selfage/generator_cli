@@ -19,7 +19,7 @@ export interface MessageFieldDefinition {
   type: string;
   index: number;
   isArray?: true;
-  // Import relative to CWD. Do not include '.json'.
+  // Import relative to CWD. Do not include '.yaml'.
   import?: string;
   deprecated?: true;
 }
@@ -64,77 +64,60 @@ export interface MessageDefinition {
   // datastore?: DatastoreDefinition;
 }
 
+// Generated code requires package `@selfage/service_descriptor`.
+export interface ServiceDefinition {
+  kind: "Service";
+  // Must be of CamelCase.
+  name: string;
+  clientType: "WEB" | "NODE";
+  // By default, for WEB it uses https at port 443, and for NODE it uses http at port 80.
+  protocol?: "http" | "https";
+  port?: number;
+}
+
 export interface KeyValueParamDefinition {
   // The key of the search param.
   key: string;
-  // Can only be the name of a message.
+  // Can only refer to a message.
   type: string;
-  // Import relative to CWD. Do not include '.json'.
+  // Import relative to CWD. Do not include '.yaml'.
   import?: string;
 }
 
-export interface WebRemoteCallDefinition {
+export interface RemoteCallDefinition {
   // Must be of CamelCase.
   name: string;
   // The pathname of a url. Must start with "/".
   path: string;
   // The body in a HTTP request. Support either 'bytes' or the name of a message.
   body: string;
-  // Import relative to CWD. Do not include '.json'.
+  // Import relative to CWD. Do not include '.yaml'.
   importBody?: string;
-  // The key in the HTTP header to pass a user session string to the backend.
-  sessionKey?: string;
+  // The key in the HTTP header to pass an authorization string to the backend.
+  authKey?: string;
   // Prefer `body` when possible. Often used when body is a stream.
   metadata?: KeyValueParamDefinition;
-  // Support only the name of a message.
+  // Support only referring to a message.
   response: string;
-  // Import relative to CWD. Do not include '.json'.
+  // Import relative to CWD. Do not include '.yaml'.
   importResponse?: string;
 }
 
-// Generated code requires package `@selfage/service_descriptor`.
-export interface WebServiceDefinition {
-  kind: "WebService";
+export interface RemoteCallsGroupDefinition {
+  kind: "RemoteCallsGroup";
   // Must be of CamelCase.
   name: string;
-  remoteCalls: Array<WebRemoteCallDefinition>;
+  // Refers to a service definition.
+  service: string;
+  // Import relative to CWD. Do not include '.yaml'.
+  importService?: string;
+  calls: Array<RemoteCallDefinition>;
   // The path to output the generated web client interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.
   outputClient: string;
   // The path to output the generated handler interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.
   outputHandler: string;
-}
-
-export interface NodeRemoteCallDefinition {
-  // Must be of CamelCase.
-  name: string;
-  // The pathname of a url. Must start with "/".
-  path: string;
-  // The body in a HTTP request. Support either 'bytes' or the name of a message.
-  body?: string;
-  // Import relative to CWD. Do not include '.json'.
-  importBody?: string;
-  // Prefer `body` when possible. Often used when body is a bytes stream.
-  metadata?: KeyValueParamDefinition;
-  // Support only the name of a message.
-  response: string;
-  // Import relative to CWD. Do not include '.json'.
-  importResponse?: string;
-}
-
-// Generated code requires package `@selfage/service_descriptor`.
-export interface NodeServiceDefinition {
-  kind: "NodeService";
-  // Must be of CamelCase.
-  name: string;
-  remoteCalls: Array<NodeRemoteCallDefinition>;
-  // The path to output the generated web client interfaces, relative to CWD.
-  // It should be separated from its metadata definition. Do not include '.ts'.
-  outputClient?: string;
-  // The path to output the generated handler interfaces, relative to CWD.
-  // It should be separated from its metadata definition. Do not include '.ts'.
-  outputHandler?: string;
 }
 
 export interface SpannerTableColumnDefinition {
@@ -152,7 +135,7 @@ export interface SpannerTableColumnDefinition {
   // Supports the name of a message which must be defined first and can be imported, which maps to bytes in Spanner.
   // Supports the name of an enum which must be defined first and can be imported, which maps to float64 in Spanner.
   type: string;
-  // Import relative to CWD. Do not include '.json'.
+  // Import relative to CWD. Do not include '.yaml'.
   import?: string;
   isArray?: true;
   nullable?: true;
@@ -198,7 +181,6 @@ export interface SpannerMessageTableDefintion {
   kind: "MessageTable";
   // Must be of CamelCase. Serves as the name of the table as well as refers to a defined message.
   name: string;
-  // Must of of camelCase.
   storedInColumn: string;
   // Refers to fields defined in the message.
   // `boolean` maps to bool in Spanner.
@@ -209,10 +191,34 @@ export interface SpannerMessageTableDefintion {
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
   indexes?: Array<SpannerIndexDefinition>;
-  insertStatementName?: string;
-  deleteStatementName?: string;
-  getStatementName?: string;
-  updateStatementName?: string;
+  // Specify name of the queries.
+  insert?: string;
+  delete?: string;
+  get?: string;
+  update?: string;
+}
+
+export interface SpannerTaskTableDefinition {
+  kind: "TaskTable";
+  // Must be of CamelCase.
+  name: string;
+  columns: Array<SpannerTableColumnDefinition>;
+  // The type is always float64.
+  retryCountColumn: string;
+  // The type is always timestamp.
+  executionTimeColumn: string;
+  // The type is always timestamp.
+  createdTimeColumn: string;
+  primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
+  // Always indexed by `executionTimeColumn`.
+  executionTimeIndex: string;
+  // Specify name of the queries.
+  insert: string;
+  delete: string;
+  get: string;
+  listPendingTasks: string;
+  getMetadata: string;
+  updateMetadata: string;
 }
 
 export interface SpannerColumnRef {
@@ -297,13 +303,17 @@ export interface SpannerDatabaseDefinition {
   kind: "SpannerDatabase";
   // Must be of CamelCase.
   name: string;
-  tables?: Array<SpannerTableDefinition | SpannerMessageTableDefintion>;
+  tables?: Array<
+    | SpannerTableDefinition
+    | SpannerMessageTableDefintion
+    | SpannerTaskTableDefinition
+  >;
   selects?: Array<SpannerSelectDefinition>;
   inserts?: Array<SpannerInsertDefinition>;
   updates?: Array<SpannerUpdateDefinition>;
   deletes?: Array<SpannerDeleteDefinition>;
   // The path to output the generated DDL JSON file, relative to CWD. Do not
-  // include '.json'.
+  // include '.yaml'.
   outputDdl: string;
   // The path to output the generated SQL functions, relative to CWD. Do not
   // include '.ts'.
@@ -313,6 +323,6 @@ export interface SpannerDatabaseDefinition {
 export type Definition =
   | EnumDefinition
   | MessageDefinition
-  | WebServiceDefinition
-  | NodeServiceDefinition
+  | ServiceDefinition
+  | RemoteCallsGroupDefinition
   | SpannerDatabaseDefinition;

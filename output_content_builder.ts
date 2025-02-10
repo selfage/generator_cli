@@ -115,20 +115,26 @@ export class TsContentBuilder implements OutputContentBuilder {
     this.importFrom("@selfage/service_descriptor", ...namedImports);
   }
 
-  public importFromServiceClientInterface(
+  public importFromServiceClientType(
+    ...namedImports: Array<string>
+  ): void {
+    this.importFrom("@selfage/service_descriptor/client_type", ...namedImports);
+  }
+
+  public importFromServiceClientRequestInterface(
     ...namedImports: Array<string>
   ): void {
     this.importFrom(
-      "@selfage/service_descriptor/client_interface",
+      "@selfage/service_descriptor/client_request_interface",
       ...namedImports,
     );
   }
 
-  public importFromServiceHandlerInterface(
+  public importFromServiceRemoteCallHandlerInterface(
     ...namedImports: Array<string>
   ): void {
     this.importFrom(
-      "@selfage/service_descriptor/handler_interface",
+      "@selfage/service_descriptor/remote_call_handler_interface",
       ...namedImports,
     );
   }
