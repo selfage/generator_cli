@@ -8,7 +8,7 @@ import {
   OutputContentBuilder,
   TsContentBuilder,
 } from "./output_content_builder";
-import { toInitialUppercased, toUppercaseSnaked } from "./util";
+import { toUppercaseSnaked } from "./util";
 
 let PRIMITIVE_TYPE_BYTES = "bytes";
 let PRIMITIVE_TYPES = new Set<string>([PRIMITIVE_TYPE_BYTES]);
@@ -25,36 +25,14 @@ export function generateService(
   if (!serviceDefinition.name) {
     throw new Error(`"name" is missing on a service.`);
   }
-  if (!serviceDefinition.clientType) {
-    throw new Error(
-      `"clientType" is missing on service ${serviceDefinition.name}.`,
-    );
+  if (!serviceDefinition.path) {
+    throw new Error(`"path" is missing on service ${serviceDefinition.name}.`);
   }
-  let defaultProtocol = "";
-  let defaultPort = 0;
-  if (serviceDefinition.clientType === "WEB") {
-    defaultProtocol = "https";
-    defaultPort = 443;
-  } else if (serviceDefinition.clientType === "NODE") {
-    defaultProtocol = "http";
-    defaultPort = 80;
-  } else {
-    throw new Error(
-      `Unknown client type ${serviceDefinition.clientType} on service ${serviceDefinition.name}.`,
-    );
-  }
-  let protocol = serviceDefinition.protocol ?? defaultProtocol;
-  let port = serviceDefinition.port ?? defaultPort;
-  contentBuilder.importFromServiceClientType("ClientType");
-  contentBuilder.importFromServiceDescriptor(
-    `${toInitialUppercased(protocol)}ServiceDescriptor`,
-  );
+  contentBuilder.importFromServiceDescriptor(`ServiceDescriptor`);
   contentBuilder.push(`
-export let ${toUppercaseSnaked(serviceDefinition.name)}: ${toInitialUppercased(protocol)}ServiceDescriptor = {
+export let ${toUppercaseSnaked(serviceDefinition.name)}: ServiceDescriptor = {
   name: "${serviceDefinition.name}",
-  clientType: ClientType.${serviceDefinition.clientType},
-  protocol: "${protocol}",
-  port: ${port},
+  path: "${serviceDefinition.path}",
 }
 `);
 }

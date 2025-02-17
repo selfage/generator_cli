@@ -1,6 +1,5 @@
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
-import { ClientType } from '@selfage/service_descriptor/client_type';
-import { HttpsServiceDescriptor, PrimitveTypeForBody, RemoteCallDescriptor } from '@selfage/service_descriptor';
+import { ServiceDescriptor, PrimitveTypeForBody, RemoteCallDescriptor } from '@selfage/service_descriptor';
 import { UPLOAD_FILE_REQUEST_METADATA, UPLOAD_FILE_RESPONSE } from './sub/upload_file';
 
 export interface UserSession {
@@ -21,11 +20,9 @@ export let USER_SESSION: MessageDescriptor<UserSession> = {
   }],
 };
 
-export let WEB_SERVICE: HttpsServiceDescriptor = {
+export let WEB_SERVICE: ServiceDescriptor = {
   name: "WebService",
-  clientType: ClientType.WEB,
-  protocol: "https",
-  port: 443,
+  path: "/web",
 }
 
 export let UPLOAD_FILE: RemoteCallDescriptor = {

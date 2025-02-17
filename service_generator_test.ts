@@ -25,7 +25,7 @@ TEST_RUNNER.run({
           {
             kind: "Service",
             name: "CommentWebService",
-            clientType: "WEB",
+            path: "/comment",
           },
           outputContentMap,
         );
@@ -33,14 +33,11 @@ TEST_RUNNER.run({
         // Verify
         assertThat(
           outputContentMap.get("./interface/comment_service").build(),
-          eqLongStr(`import { ClientType } from '@selfage/service_descriptor/client_type';
-import { HttpsServiceDescriptor } from '@selfage/service_descriptor';
+          eqLongStr(`import { ServiceDescriptor } from '@selfage/service_descriptor';
 
-export let COMMENT_WEB_SERVICE: HttpsServiceDescriptor = {
+export let COMMENT_WEB_SERVICE: ServiceDescriptor = {
   name: "CommentWebService",
-  clientType: ClientType.WEB,
-  protocol: "https",
-  port: 443,
+  path: "/comment",
 }
 `),
           "output content",
@@ -59,7 +56,7 @@ export let COMMENT_WEB_SERVICE: HttpsServiceDescriptor = {
           {
             kind: "Service",
             name: "CommentNodeService",
-            clientType: "NODE",
+            path: "/comment",
           },
           outputContentMap,
         );
@@ -67,14 +64,11 @@ export let COMMENT_WEB_SERVICE: HttpsServiceDescriptor = {
         // Verify
         assertThat(
           outputContentMap.get("./interface/comment_service").build(),
-          eqLongStr(`import { ClientType } from '@selfage/service_descriptor/client_type';
-import { HttpServiceDescriptor } from '@selfage/service_descriptor';
+          eqLongStr(`import { ServiceDescriptor } from '@selfage/service_descriptor';
 
-export let COMMENT_NODE_SERVICE: HttpServiceDescriptor = {
+export let COMMENT_NODE_SERVICE: ServiceDescriptor = {
   name: "CommentNodeService",
-  clientType: ClientType.NODE,
-  protocol: "http",
-  port: 80,
+  path: "/comment",
 }
 `),
           "output content",
@@ -103,7 +97,7 @@ export let COMMENT_NODE_SERVICE: HttpServiceDescriptor = {
                 return {
                   kind: "Service",
                   name: "CommentWebService",
-                  clientType: "WEB",
+                  path: "/comment",
                 };
               case "GetCommentsRequestBody":
                 assertThat(
@@ -232,7 +226,7 @@ export abstract class GetCommentsHandlerInterface implements RemoteCallHandlerIn
                 return {
                   kind: "Service",
                   name: "HistoryNodeSerivce",
-                  clientType: "NODE",
+                  path: "/history",
                 };
               case "GetHistoryRequestBody":
                 assertThat(
@@ -372,7 +366,7 @@ export abstract class GetHistoryHandlerInterface implements RemoteCallHandlerInt
                 return {
                   kind: "Service",
                   name: "UploadFileService",
-                  clientType: "NODE",
+                  path: "/upload",
                 };
               case "UploadFileMetadata":
                 assertThat(

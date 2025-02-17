@@ -69,10 +69,8 @@ export interface ServiceDefinition {
   kind: "Service";
   // Must be of CamelCase.
   name: string;
-  clientType: "WEB" | "NODE";
-  // By default, for WEB it uses https at port 443, and for NODE it uses http at port 80.
-  protocol?: "http" | "https";
-  port?: number;
+  // Includes "/" at the beginning. Must be unique.
+  path: string;
 }
 
 export interface KeyValueParamDefinition {

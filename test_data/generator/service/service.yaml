@@ -20,7 +20,7 @@
   outputHandler: ./test_data/generator/service/handler
 - kind: Service
   name: WebService
-  clientType: WEB
+  path: "/web"
 - kind: RemoteCallsGroup
   name: WebCalls
   service: WebService

@@ -115,12 +115,6 @@ export class TsContentBuilder implements OutputContentBuilder {
     this.importFrom("@selfage/service_descriptor", ...namedImports);
   }
 
-  public importFromServiceClientType(
-    ...namedImports: Array<string>
-  ): void {
-    this.importFrom("@selfage/service_descriptor/client_type", ...namedImports);
-  }
-
   public importFromServiceClientRequestInterface(
     ...namedImports: Array<string>
   ): void {
