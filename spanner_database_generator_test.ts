@@ -1730,6 +1730,7 @@ export async function getWorkingTask(
 export interface ListPendingWorkingTasksRow {
   workingTaskId1: string,
   workingTaskId2: string,
+  workingTaskPayload: string,
 }
 
 export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingTasksRow> = {
@@ -1742,6 +1743,10 @@ export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingT
     name: 'workingTaskId2',
     index: 2,
     primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'workingTaskPayload',
+    index: 3,
+    primitiveType: PrimitiveType.STRING,
   }],
 };
 
@@ -1750,7 +1755,7 @@ export async function listPendingWorkingTasks(
   workingTaskExecutionTimeLe: number,
 ): Promise<Array<ListPendingWorkingTasksRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT WorkingTask.id1, WorkingTask.id2 FROM WorkingTask WHERE WorkingTask.executionTime <= @workingTaskExecutionTimeLe",
+    sql: "SELECT WorkingTask.id1, WorkingTask.id2, WorkingTask.payload FROM WorkingTask WHERE WorkingTask.executionTime <= @workingTaskExecutionTimeLe",
     params: {
       workingTaskExecutionTimeLe: new Date(workingTaskExecutionTimeLe).toISOString(),
     },
@@ -1763,6 +1768,7 @@ export async function listPendingWorkingTasks(
     resRows.push({
       workingTaskId1: row.at(0).value,
       workingTaskId2: row.at(1).value,
+      workingTaskPayload: row.at(2).value,
     });
   }
   return resRows;

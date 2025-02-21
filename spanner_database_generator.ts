@@ -984,7 +984,7 @@ export function generateSpannerTaskTable(
       `${loggingPrefix} "createdTimeColumn" is missing on task table ${table.name}.`,
     );
   }
-  let columns = table.columns;
+  let columns = [...table.columns];
   columns.push(
     {
       name: table.retryCountColumn,
@@ -1079,7 +1079,7 @@ export function generateSpannerTaskTable(
           op: "=",
         })),
       },
-      getColumns: table.columns.map((column) => column.name),
+      getColumns: columns.map((column) => column.name),
     },
     databaseTables,
     definitionResolver,
@@ -1099,9 +1099,7 @@ export function generateSpannerTaskTable(
         op: "<=",
         leftColumn: table.executionTimeColumn,
       },
-      getColumns: table.primaryKeys.map((key) =>
-        typeof key === "string" ? key : key.name,
-      ),
+      getColumns: table.columns.map((column) => column.name),
     },
     databaseTables,
     definitionResolver,
