@@ -1339,14 +1339,14 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         }
       }
     }
-    if (columnType.nullable) {
-      conversion = `${argsDotVariable} == null ? null : ${conversion}`;
-      tsType = `${tsType} | null | undefined`;
-    }
-
-    this.inputArgs.push(`${argVariable}: ${tsType}`);
     this.inputQueryTypes.push(`${argVariable}: ${queryType}`);
-    this.inputConversions.push(`${argVariable}: ${conversion}`);
+    if (columnType.nullable) {
+      this.inputArgs.push(`${argVariable}?: ${tsType}`);
+      this.inputConversions.push(`${argVariable}: ${argsDotVariable} == null ? null : ${conversion}`);
+    } else {
+      this.inputArgs.push(`${argVariable}: ${tsType}`);
+      this.inputConversions.push(`${argVariable}: ${conversion}`);
+    }
   }
 
   private clearOutput(): void {

@@ -7,7 +7,7 @@ import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 export function insertNewUserStatement(
   args: {
     userId: number,
-    user: User | null | undefined,
+    user?: User,
     createdTimestamp: number,
   }
 ): Statement {
@@ -94,7 +94,7 @@ export async function getUser(
 export function updateUserStatement(
   args: {
     userTableUserIdEq: number,
-    setUser: User | null | undefined,
+    setUser?: User,
     setCreatedTimestamp: number,
   }
 ): Statement {
