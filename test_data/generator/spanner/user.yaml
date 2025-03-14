@@ -20,7 +20,6 @@
           nullable: true
         - name: createdTimestamp
           type: timestamp
-          allowCommitTimestamp: true
       primaryKeys:
         - userId
       indexes:
@@ -29,6 +28,9 @@
             - userId
             - name: createdTimestamp
               desc: true
+      insert: InsertNewUser
+      delete: DeleteUser
+      get: GetUser
     - kind: Table
       name: UserContent
       columns:
@@ -45,55 +47,52 @@
         parentTable: UserTable
   selects:
     - name: GetLastUser
-      table: UserTable
+      from: UserTable
       join:
         - type: INNER
-          table:
-            name: UserContent
-            as: uc
+          with: UserContent
+          as: uc
           on:
             op: =
-            leftColumn:
-              name: userId
-              table: UserTable
-            rightColumn: userId
+            lColumn: userId
+            lTable: UserTable
+            rColumn: userId
       where:
         op: =
-        leftColumn:
-          name: contentId
-          table: uc
+        lColumn: contentId
+        lTable: uc
       orderBy:
         - createdTimestamp
-      limit: 1
-      getColumns:
-        - name: userId
+      withLimit: true
+      get:
+        - column: userId
           table: UserTable
-        - name: content
+        - column: content
           table: uc
   inserts:
-    - name: InsertNewUser
-      table: UserTable
-      setColumns:
+    - name: InsertNewUserContent
+      table: UserContent
+      set:
         - userId
-        - user
-        - createdTimestamp
+        - contentId
+        - content
   updates:
     - name: UpdateUserContent
       table: UserContent
-      setColumns:
-        - content
       where:
         op: =
-        leftColumn: userId
+        lColumn: userId
+      set:
+        - content
   deletes:
     - name: DeleteUserContent
       table: UserContent
       where:
         op: AND
-        exps:
+        exprs:
           - op: =
-            leftColumn: userId
+            lColumn: userId
           - op: =
-            leftColumn: contentId
+            lColumn: contentId
   outputDdl: ./test_data/generator/spanner/ddl
   outputSql: ./test_data/generator/spanner/sql

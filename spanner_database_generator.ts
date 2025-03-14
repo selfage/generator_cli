@@ -1,16 +1,16 @@
 import {
-  SpannerColumnRef,
   SpannerDatabaseDefinition,
   SpannerDeleteDefinition,
   SpannerIndexDefinition,
   SpannerInsertDefinition,
   SpannerJoinOnConcat,
   SpannerJoinOnLeaf,
-  SpannerMessageTableDefintion,
   SpannerSelectDefinition,
   SpannerTableColumnDefinition,
+  SpannerTableColumnType,
   SpannerTableDefinition,
   SpannerTablePrimaryKeyDefinition,
+  SpannerTableSearchColumnDefinition,
   SpannerTaskTableDefinition,
   SpannerUpdateDefinition,
   SpannerWhereConcat,
@@ -32,19 +32,16 @@ import {
 let COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE = new Map<string, string>([
   ["bool", "boolean"],
   ["float64", "number"],
+  ["int53", "number"],
   ["timestamp", "number"],
   ["string", "string"],
 ]);
 let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["bool", "BOOL"],
+  ["int53", "INT64"],
   ["float64", "FLOAT64"],
   ["timestamp", "TIMESTAMP"],
   ["string", "STRING(MAX)"],
-]);
-let TS_PRIMITIVE_TYPES_TO_COLUMN_TYPE = new Map<string, string>([
-  ["boolean", "bool"],
-  ["number", "float64"],
-  ["string", "string"],
 ]);
 let BINARY_OP_NAME = new Map<string, string>([
   [">", "Gt"],
@@ -53,8 +50,9 @@ let BINARY_OP_NAME = new Map<string, string>([
   ["<=", "Le"],
   ["=", "Eq"],
   ["!=", "Ne"],
+  ["SEARCH", "Search"],
+  ["SCORE", "Score"],
 ]);
-let ALL_CONCAT_OP = new Set().add("AND").add("OR");
 let ALL_JOIN_LEAF_OP = new Set()
   .add(">")
   .add("<")
@@ -62,21 +60,13 @@ let ALL_JOIN_LEAF_OP = new Set()
   .add("<=")
   .add("!=")
   .add("=");
-let ALL_WHERE_LEAF_OP = new Set()
-  .add(">")
-  .add("<")
-  .add(">=")
-  .add("<=")
-  .add("!=")
-  .add("=")
-  .add("IS NULL")
-  .add("IS NOT NULL");
 let ALL_JOIN_TYPE = new Set()
   .add("INNER")
   .add("CROSS")
   .add("FULL")
   .add("LEFT")
   .add("RIGHT");
+let SCORE_RESULT_OP = new Set().add(">").add(">=").add("<").add("<=");
 
 function getColumnDefinition(
   loggingPrefix: string,
@@ -93,59 +83,1170 @@ function getColumnDefinition(
   );
 }
 
-function resolveColumnDefinition(
+function getSearchColumnDefinition(
   loggingPrefix: string,
-  columnRef: SpannerColumnRef,
-  tableAliases: Map<string, string>,
-  databaseTables: Map<string, SpannerTableDefinition>,
-): SpannerTableColumnDefinition {
-  let tableName = tableAliases.get(columnRef.table);
-  if (!tableName) {
-    throw new Error(
-      `${loggingPrefix} ${columnRef.table}.${columnRef.name} refers to a table not found in the query.`,
-    );
+  table: SpannerTableDefinition,
+  searchColumnName: string,
+): SpannerTableSearchColumnDefinition {
+  if (table.searchColumns) {
+    for (let column of table.searchColumns) {
+      if (column.name === searchColumnName) {
+        return column;
+      }
+    }
   }
-  // Its presence should have checked elsewhere.
-  let table = databaseTables.get(tableName);
-  let columnDefinition = getColumnDefinition(
-    loggingPrefix,
-    table,
-    columnRef.name,
+  throw new Error(
+    `${loggingPrefix} search column ${searchColumnName} is not found in the table ${table.name}.`,
   );
-  return columnDefinition;
 }
 
-class InputCollector {
-  public args = new Array<string>();
-  public queryTypes = new Array<string>();
-  public conversions = new Array<string>();
+export class SpannerDatabaseGenerator {
+  private databaseTables = new Map<string, SpannerTableDefinition>();
+  private ddlContentBuilder: SimpleContentBuilder;
+  private tableDdls = new Array<string>();
+  private sqlContentBuilder: TsContentBuilder;
+  private inputArgs: Array<string>;
+  private inputQueryTypes: Array<string>;
+  private inputConversions: Array<string>;
+  private currentDefaultTableAlias: string;
+  private currentTableAliases: Map<string, string>;
+  private currentJoinRightTable: SpannerTableDefinition;
+  private currentJoinRightTableAlias: string;
+  private outputFields = new Array<string>();
+  private outputConversions = new Array<string>();
+  private outputFieldDescriptors = new Array<string>();
 
   public constructor(
+    private definitionModulePath: string,
+    private spannerDatabaseDefinition: SpannerDatabaseDefinition,
     private definitionResolver: DefinitionResolver,
-    private tsContentBuilder: TsContentBuilder,
+    private outputContentMap: Map<string, OutputContentBuilder>,
   ) {}
 
-  public collect(
+  public generate(): void {
+    if (!this.spannerDatabaseDefinition.name) {
+      throw new Error(`"name" is missing on a spannerDatabase.`);
+    }
+    if (!this.spannerDatabaseDefinition.outputDdl) {
+      throw new Error(
+        `"outputDdl" is missing on spannerDatabase ${this.spannerDatabaseDefinition.name}.`,
+      );
+    }
+    this.ddlContentBuilder = SimpleContentBuilder.get(
+      this.outputContentMap,
+      ".json",
+      this.spannerDatabaseDefinition.outputDdl,
+    );
+    if (!this.spannerDatabaseDefinition.outputSql) {
+      throw new Error(
+        `"outputSql" is missing on spannerDatabase ${this.spannerDatabaseDefinition.name}.`,
+      );
+    }
+    this.sqlContentBuilder = TsContentBuilder.get(
+      this.outputContentMap,
+      this.definitionModulePath,
+      this.spannerDatabaseDefinition.outputSql,
+    );
+
+    if (!this.spannerDatabaseDefinition.tables) {
+      throw new Error(
+        `"table" is missing on spannerDatabase ${this.spannerDatabaseDefinition.name}.`,
+      );
+    }
+    for (let table of this.spannerDatabaseDefinition.tables) {
+      if (table.kind === "Table") {
+        this.generateSpannerTable(table);
+      } else if (table.kind === "TaskTable") {
+        this.generateSpannerTaskTable(table);
+      }
+    }
+    this.ddlContentBuilder.push(`{
+  "tables": [${this.tableDdls.join(", ")}]
+}`);
+
+    if (this.spannerDatabaseDefinition.inserts) {
+      for (let insertDefinition of this.spannerDatabaseDefinition.inserts) {
+        this.generateSpannerInsert(insertDefinition);
+      }
+    }
+    if (this.spannerDatabaseDefinition.updates) {
+      for (let updateDefinition of this.spannerDatabaseDefinition.updates) {
+        this.generateSpannerUpdate(updateDefinition);
+      }
+    }
+    if (this.spannerDatabaseDefinition.deletes) {
+      for (let deleteDefinition of this.spannerDatabaseDefinition.deletes) {
+        this.generateSpannerDelete(deleteDefinition);
+      }
+    }
+    if (this.spannerDatabaseDefinition.selects) {
+      for (let selectDefinition of this.spannerDatabaseDefinition.selects) {
+        this.generateSpannerSelect(selectDefinition);
+      }
+    }
+  }
+
+  private generateSpannerTable(table: SpannerTableDefinition): void {
+    if (!table.name) {
+      throw new Error(`"name" is missing on a spanner table.`);
+    }
+
+    let loggingPrefix = `When generating DDL for table ${table.name},`;
+    let addColumnDdls = new Array<string>();
+    let createColumnPartialDdls = new Array<string>();
+    if (!table.columns) {
+      throw new Error(`${loggingPrefix} "columns" is missing.`);
+    }
+    for (let column of table.columns) {
+      if (!column.name) {
+        throw new Error(`${loggingPrefix} "name" is mssing on a column.`);
+      }
+      if (!column.type) {
+        throw new Error(
+          `${loggingPrefix} "type" is missing on column ${column.name}.`,
+        );
+      }
+      let type = COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE.get(column.type);
+      if (!type) {
+        let definition = this.definitionResolver.resolve(
+          loggingPrefix,
+          column.type,
+          column.import,
+        );
+        if (definition.kind === "Enum") {
+          type = "FLOAT64";
+        } else if (definition.kind === "Message") {
+          type = "BYTES(MAX)";
+        }
+      }
+      let partialDdl = `${column.name} ${column.isArray ? "Array<" + type + ">" : type}${column.nullable ? "" : " NOT NULL"}`;
+      createColumnPartialDdls.push(partialDdl);
+      addColumnDdls.push(`{
+      "name": "${column.name}",
+      "addColumnDdl": "ALTER TABLE ${table.name} ADD COLUMN ${partialDdl}"
+    }`);
+    }
+
+    if (table.searchColumns) {
+      for (let searchColumn of table.searchColumns) {
+        if (!searchColumn.name) {
+          throw new Error(
+            `${loggingPrefix} "name" is missing in one element of "searchColumns" field.`,
+          );
+        }
+        if (!searchColumn.columnRefs) {
+          throw new Error(
+            `${loggingPrefix} "columnRefs" is missing in search column ${searchColumn.name}.`,
+          );
+        }
+        let columnsConcats = new Array<string>();
+        for (let columnRef of searchColumn.columnRefs) {
+          let columnDef = getColumnDefinition(
+            loggingPrefix + " and when generating search column ref,",
+            table,
+            columnRef,
+          );
+          // Only string type for now.
+          if (columnDef.type !== "string") {
+            throw new Error(
+              `${loggingPrefix} column ${columnRef} is not a string and cannot be used in a search column.`,
+            );
+          }
+          if (columnDef.isArray) {
+            throw new Error(
+              `${loggingPrefix} column ${columnRef} is an array and cannot be used in a search column.`,
+            );
+          }
+          columnsConcats.push(columnRef);
+        }
+        let partialDdl = `${searchColumn.name} TOKENLIST AS (TOKENIZE_FULLTEXT(${columnsConcats.join(" || ' ' || ")})) HIDDEN`;
+        createColumnPartialDdls.push(partialDdl);
+        addColumnDdls.push(`{
+      "name": "${searchColumn.name}",
+      "addColumnDdl": "ALTER TABLE ${table.name} ADD COLUMN ${partialDdl}"
+    }`);
+      }
+    }
+
+    let primaryKeys = new Array<string>();
+    if (!table.primaryKeys) {
+      throw new Error(`${loggingPrefix} "primaryKeys" is missing.`);
+    }
+    for (let i = 0; i < table.primaryKeys.length; i++) {
+      let key = table.primaryKeys[i];
+      if (typeof key === "string") {
+        key = {
+          name: key,
+          desc: false,
+        };
+      }
+      if (key.desc == null) {
+        throw new Error(
+          `${loggingPrefix} "desc" is missing in primary key ${key.name}.`,
+        );
+      }
+      table.primaryKeys[i] = key;
+      if (!key.name) {
+        throw new Error(
+          `${loggingPrefix} "name" is missing in "primaryKeys" field.`,
+        );
+      }
+      let columnDefinition = getColumnDefinition(
+        loggingPrefix + " and when generating primary keys,",
+        table,
+        key.name,
+      );
+      if (columnDefinition.isArray) {
+        throw new Error(
+          `${loggingPrefix} column ${key} is an array and cannot be used as a primary key.`,
+        );
+      }
+      primaryKeys.push(`${key.name} ${key.desc ? "DESC" : "ASC"}`);
+    }
+
+    let interleaveOption = "";
+    if (table.interleave) {
+      if (!table.interleave.parentTable) {
+        throw new Error(
+          `${loggingPrefix} "parentTable" is missing in "interleave" field.`,
+        );
+      }
+      let parentTable = this.databaseTables.get(table.interleave.parentTable);
+      if (!parentTable) {
+        throw new Error(
+          `${loggingPrefix} the parent table ${table.interleave.parentTable} is not found in the database.`,
+        );
+      }
+      if (parentTable.primaryKeys.length >= table.primaryKeys.length) {
+        throw new Error(
+          `${loggingPrefix} pimary keys of the child table should be more than the parent table ${table.interleave.parentTable}.`,
+        );
+      }
+      for (let i = 0; i < parentTable.primaryKeys.length; i++) {
+        let parentKey = parentTable.primaryKeys[
+          i
+        ] as SpannerTablePrimaryKeyDefinition;
+        let childKey = table.primaryKeys[i] as SpannerTablePrimaryKeyDefinition;
+        if (parentKey.name !== childKey.name) {
+          throw new Error(
+            `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" doesn't match the key "${parentKey.name}" of the parent table.`,
+          );
+        }
+        if (parentKey.desc !== childKey.desc) {
+          throw new Error(
+            `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" is ${childKey.desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
+          );
+        }
+        let parentColumnDefinition = getColumnDefinition(
+          loggingPrefix + "and when validating interleaving,",
+          parentTable,
+          parentKey.name,
+        );
+        let childColumnDefinition = getColumnDefinition(
+          loggingPrefix + "and when validating interleaving,",
+          table,
+          childKey.name,
+        );
+        if (parentColumnDefinition.type !== childColumnDefinition.type) {
+          throw new Error(
+            `${loggingPrefix} at position ${i}, primary key ${childColumnDefinition.name}'s type "${childColumnDefinition.type}" doesn't match the type "${parentColumnDefinition.type}" of the parent table. `,
+          );
+        }
+      }
+      interleaveOption = `, INTERLEAVE IN PARENT ${table.interleave.parentTable}${table.interleave.cascadeOnDelete ? " ON DELETE CASCADE" : ""}`;
+    }
+
+    let indexDdls = new Array<string>();
+    if (table.indexes) {
+      for (let index of table.indexes) {
+        if (!index.name) {
+          throw new Error(
+            `${loggingPrefix} "name" is missing in one element of "indexes" field.`,
+          );
+        }
+        if (!index.columns) {
+          throw new Error(
+            `${loggingPrefix} "columns" is missing in index ${index.name}.`,
+          );
+        }
+        let indexColumns = new Array<string>();
+        for (let column of index.columns) {
+          if (typeof column === "string") {
+            column = {
+              name: column,
+              desc: false,
+            };
+          }
+          if (column.desc == null) {
+            throw new Error(
+              `${loggingPrefix} "desc" is missing in index column ${column.name}.`,
+            );
+          }
+          getColumnDefinition(
+            loggingPrefix + " and when generating indexes,",
+            table,
+            column.name,
+          );
+          indexColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
+        }
+
+        indexDdls.push(`{
+      "name": "${index.name}",
+      "createIndexDdl": "CREATE ${index.unique ? "UNIQUE " : ""}${index.nullFiltered ? "NULL_FILTERED " : ""}INDEX ${index.name} ON ${table.name}(${indexColumns.join(", ")})"
+    }`);
+      }
+    }
+
+    if (table.searchIndexes) {
+      for (let searchIndex of table.searchIndexes) {
+        if (!searchIndex.name) {
+          throw new Error(
+            `${loggingPrefix} "name" is missing in one element of "searchIndexes" field.`,
+          );
+        }
+        if (!searchIndex.columns) {
+          throw new Error(
+            `${loggingPrefix} "columns" is missing in search index ${searchIndex.name}.`,
+          );
+        }
+        for (let column of searchIndex.columns) {
+          getSearchColumnDefinition(
+            loggingPrefix + " and when generating search indexes,",
+            table,
+            column,
+          );
+        }
+        let paritiionByClause = "";
+        if (searchIndex.partitionByColumns) {
+          for (let column of searchIndex.partitionByColumns) {
+            getColumnDefinition(
+              loggingPrefix +
+                " and when generating search indexes with partition by clauses,",
+              table,
+              column,
+            );
+          }
+          paritiionByClause = ` PARTITION BY ${searchIndex.partitionByColumns.join(", ")}`;
+        }
+        let orderByClause = "";
+        if (searchIndex.orderByColumns) {
+          let orderByColumns = new Array<string>();
+          for (let column of searchIndex.orderByColumns) {
+            if (typeof column === "string") {
+              column = {
+                name: column,
+                desc: false,
+              };
+            }
+            let columnDef = getColumnDefinition(
+              loggingPrefix +
+                " and when generating search indexes with order by clauses,",
+              table,
+              column.name,
+            );
+            if (columnDef.type !== "int53") {
+              throw new Error(
+                `${loggingPrefix} search index ${searchIndex.name}'s order by column ${column.name} is not an int53. Search index can only be ordered by ints.`,
+              );
+            }
+            orderByColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
+          }
+          orderByClause = ` ORDER BY ${orderByColumns.join(", ")}`;
+        }
+
+        indexDdls.push(`{
+      "name": "${searchIndex.name}",
+      "createIndexDdl": "CREATE SEARCH INDEX ${searchIndex.name} ON ${table.name}(${searchIndex.columns.join(", ")})${paritiionByClause}${orderByClause}"
+    }`);
+      }
+    }
+
+    this.databaseTables.set(table.name, table);
+    this.tableDdls.push(`{
+    "name": "${table.name}",
+    "columns": [${addColumnDdls.join(", ")}],
+    "createTableDdl": "CREATE TABLE ${table.name} (${createColumnPartialDdls.join(", ")}) PRIMARY KEY (${primaryKeys.join(", ")})${interleaveOption}",
+    "indexes": [${indexDdls.join(", ")}]
+  }`);
+
+    if (table.insert) {
+      this.generateSpannerInsert({
+        name: `${table.insert}`,
+        table: table.name,
+        set: table.columns.map((column) => column.name),
+      });
+    }
+
+    if (table.delete) {
+      this.generateSpannerDelete({
+        name: table.delete,
+        table: table.name,
+        where: {
+          op: "AND",
+          exprs: table.primaryKeys.map((key) => ({
+            lColumn: typeof key === "string" ? key : key.name,
+            op: "=",
+          })),
+        },
+      });
+    }
+
+    if (table.get) {
+      this.generateSpannerSelect({
+        name: table.get,
+        from: table.name,
+        where: {
+          op: "AND",
+          exprs: table.primaryKeys.map((key) => ({
+            lColumn: typeof key === "string" ? key : key.name,
+            op: "=",
+          })),
+        },
+        get: table.columns.map((column) => column.name),
+      });
+    }
+  }
+
+  private generateSpannerTaskTable(table: SpannerTaskTableDefinition): void {
+    if (!table.name) {
+      throw new Error(`"name" is missing on a Spanner task table.`);
+    }
+    let loggingPrefix = `When coverting task table ${table.name} to Spanner table definition,`;
+    if (!table.columns) {
+      throw new Error(
+        `${loggingPrefix} "columns" is missing on task table ${table.name}.`,
+      );
+    }
+    if (!table.retryCountColumn) {
+      throw new Error(
+        `${loggingPrefix} "retryCountColumn" is missing on task table ${table.name}.`,
+      );
+    }
+    if (!table.executionTimeColumn) {
+      throw new Error(
+        `${loggingPrefix} "executionTimeColumn" is missing on task table ${table.name}.`,
+      );
+    }
+    if (!table.createdTimeColumn) {
+      throw new Error(
+        `${loggingPrefix} "createdTimeColumn" is missing on task table ${table.name}.`,
+      );
+    }
+    let columns = [...table.columns];
+    columns.push(
+      {
+        name: table.retryCountColumn,
+        type: "float64",
+      },
+      {
+        name: table.executionTimeColumn,
+        type: "timestamp",
+      },
+      {
+        name: table.createdTimeColumn,
+        type: "timestamp",
+      },
+    );
+
+    if (!table.executionTimeIndex) {
+      throw new Error(
+        `${loggingPrefix} "executionTimeIndex" is missing on task table ${table.name}.`,
+      );
+    }
+    let indexes: Array<SpannerIndexDefinition> = [
+      {
+        name: table.executionTimeIndex,
+        columns: [table.executionTimeColumn],
+      },
+    ];
+
+    if (!table.insert) {
+      throw new Error(
+        `${loggingPrefix} "insert" is missing on task table ${table.name}.`,
+      );
+    }
+    if (!table.delete) {
+      throw new Error(
+        `${loggingPrefix} "delete" is missing on task table ${table.name}.`,
+      );
+    }
+    if (!table.get) {
+      throw new Error(
+        `${loggingPrefix} "get" is missing on task table ${table.name}.`,
+      );
+    }
+    this.generateSpannerTable({
+      kind: "Table",
+      name: table.name,
+      columns: columns,
+      primaryKeys: table.primaryKeys,
+      indexes: indexes,
+      insert: table.insert,
+      delete: table.delete,
+      get: table.get,
+    });
+
+    if (!table.listPendingTasks) {
+      throw new Error(
+        `${loggingPrefix} "listPendingTasks" is missing on task table ${table.name}.`,
+      );
+    }
+    this.generateSpannerSelect({
+      name: table.listPendingTasks,
+      from: table.name,
+      where: {
+        op: "<=",
+        lColumn: table.executionTimeColumn,
+      },
+      get: table.columns.map((column) => column.name),
+    });
+
+    if (!table.getMetadata) {
+      throw new Error(
+        `${loggingPrefix} "getMetadata" is missing on task table ${table.name}.`,
+      );
+    }
+    this.generateSpannerSelect({
+      name: table.getMetadata,
+      from: table.name,
+      where: {
+        op: "AND",
+        exprs: table.primaryKeys.map((key) => ({
+          lColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+      get: [table.retryCountColumn, table.executionTimeColumn],
+    });
+
+    if (!table.updateMetadata) {
+      throw new Error(
+        `${loggingPrefix} "updateMetadata" is missing on task table ${table.name}.`,
+      );
+    }
+    this.generateSpannerUpdate({
+      name: table.updateMetadata,
+      table: table.name,
+      where: {
+        op: "AND",
+        exprs: table.primaryKeys.map((key) => ({
+          lColumn: typeof key === "string" ? key : key.name,
+          op: "=",
+        })),
+      },
+      set: [table.retryCountColumn, table.executionTimeColumn],
+    });
+  }
+
+  private resolveColumnDefinition(
+    loggingPrefix: string,
+    column: string,
+    tableAlias: string,
+  ): SpannerTableColumnDefinition {
+    let tableName = this.currentTableAliases.get(tableAlias);
+    if (!tableName) {
+      throw new Error(
+        `${loggingPrefix} ${tableAlias}.${column} refers to a table not found in the query.`,
+      );
+    }
+    // Its presence should have checked elsewhere.
+    let table = this.databaseTables.get(tableName);
+    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+    return columnDefinition;
+  }
+
+  private resolveSearchColumnDefinition(
+    loggingPrefix: string,
+    column: string,
+    tableAlias: string,
+  ): SpannerTableSearchColumnDefinition {
+    let tableName = this.currentTableAliases.get(tableAlias);
+    if (!tableName) {
+      throw new Error(
+        `${loggingPrefix} ${tableAlias}.${column} refers to a table not found in the query.`,
+      );
+    }
+    // Its presence should have checked elsewhere.
+    let table = this.databaseTables.get(tableName);
+    let columnDefinition = getSearchColumnDefinition(
+      loggingPrefix,
+      table,
+      column,
+    );
+    return columnDefinition;
+  }
+
+  private generateSpannerInsert(
+    insertDefinition: SpannerInsertDefinition,
+  ): void {
+    if (!insertDefinition.name) {
+      throw new Error(`"name" is missing on a spanner insert definition.`);
+    }
+    let loggingPrefix = `When generating insert statement ${insertDefinition.name},`;
+    if (!insertDefinition.table) {
+      throw new Error(`${loggingPrefix} "table" is missing.`);
+    }
+    let table = this.databaseTables.get(insertDefinition.table);
+    if (!table) {
+      throw new Error(
+        `${loggingPrefix} table ${insertDefinition.table} is not found in the database's definition.`,
+      );
+    }
+
+    this.clearInput();
+    let columns = new Array<string>();
+    let values = new Array<string>();
+    if (!insertDefinition.set) {
+      throw new Error(`${loggingPrefix} "set" is missing.`);
+    }
+    for (let column of insertDefinition.set) {
+      let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+      columns.push(column);
+      let argVariable = column;
+      this.collectInput(loggingPrefix, argVariable, columnDefinition);
+      values.push(`@${argVariable}`);
+    }
+
+    this.sqlContentBuilder.importFromSpannerTransaction("Statement");
+    this.sqlContentBuilder.push(`
+export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
+    params: {${joinArray(this.inputConversions, "\n      ", ",")}
+    },
+    types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
+  }
+
+  private generateSpannerUpdate(
+    updateDefinition: SpannerUpdateDefinition,
+  ): void {
+    if (!updateDefinition.name) {
+      throw new Error(`"name" is missing on a spanner update definition.`);
+    }
+    let loggingPrefix = `When generating update statement ${updateDefinition.name},`;
+    if (!updateDefinition.table) {
+      throw new Error(`${loggingPrefix} "table" is missing.`);
+    }
+    let table = this.databaseTables.get(updateDefinition.table);
+    if (!table) {
+      throw new Error(
+        `${loggingPrefix} table ${updateDefinition.table} is not found in the database's definition.`,
+      );
+    }
+
+    this.clearInput();
+    if (!updateDefinition.table) {
+      throw new Error(`${loggingPrefix} "table" is missing.`);
+    }
+    this.currentDefaultTableAlias = updateDefinition.table;
+    this.currentTableAliases = new Map<string, string>().set(
+      updateDefinition.table,
+      updateDefinition.table,
+    );
+    if (!updateDefinition.where) {
+      throw new Error(`${loggingPrefix} "where" is missing.`);
+    }
+    let whereClause = this.generateWhere(
+      loggingPrefix + " and when generating where clause,",
+      updateDefinition.where,
+    );
+
+    let setItems = new Array<string>();
+    if (!updateDefinition.set) {
+      throw new Error(`${loggingPrefix} "set" is missing.`);
+    }
+    for (let column of updateDefinition.set) {
+      let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+      let argVariable = `set${toInitialUppercased(column)}`;
+      this.collectInput(
+        loggingPrefix + " and when generating set columns,",
+        argVariable,
+        columnDefinition,
+      );
+      setItems.push(`${column} = @${argVariable}`);
+    }
+
+    this.sqlContentBuilder.importFromSpannerTransaction("Statement");
+    this.sqlContentBuilder.push(`
+export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
+    params: {${joinArray(this.inputConversions, "\n      ", ",")}
+    },
+    types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
+  }
+
+  private generateSpannerDelete(
+    deleteDefinition: SpannerDeleteDefinition,
+  ): void {
+    if (!deleteDefinition.name) {
+      throw new Error(`"name" is missing on a spanner delete definition.`);
+    }
+    let loggingPrefix = `When generating delete statement ${deleteDefinition.name},`;
+    let table = this.databaseTables.get(deleteDefinition.table);
+    if (!table) {
+      throw new Error(
+        `${loggingPrefix} table ${deleteDefinition.table} is not found in the database's definition.`,
+      );
+    }
+
+    this.clearInput();
+    if (!deleteDefinition.table) {
+      throw new Error(`${loggingPrefix} "table" is missing.`);
+    }
+    this.currentDefaultTableAlias = deleteDefinition.table;
+    this.currentTableAliases = new Map<string, string>().set(
+      deleteDefinition.table,
+      deleteDefinition.table,
+    );
+    if (!deleteDefinition.where) {
+      throw new Error(`${loggingPrefix} "where" is missing.`);
+    }
+    let whereClause = this.generateWhere(loggingPrefix, deleteDefinition.where);
+
+    this.sqlContentBuilder.importFromSpannerTransaction("Statement");
+    this.sqlContentBuilder.push(`
+export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+): Statement {
+  return {
+    sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
+    params: {${joinArray(this.inputConversions, "\n      ", ",")}
+    },
+    types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}
+    }
+  };
+}
+`);
+  }
+
+  private generateSpannerSelect(selectDefinition: SpannerSelectDefinition) {
+    if (!selectDefinition.name) {
+      throw new Error(`"name" is missing on a spanner select definition.`);
+    }
+    let loggingPrefix = `When generating select statement ${selectDefinition.name},`;
+    if (!selectDefinition.from) {
+      throw new Error(`${loggingPrefix} "from" is missing.`);
+    }
+    if (!selectDefinition.as) {
+      selectDefinition.as = selectDefinition.from;
+    }
+    if (!this.databaseTables.has(selectDefinition.from)) {
+      throw new Error(
+        `${loggingPrefix} table ${selectDefinition.from} is not found in the database.`,
+      );
+    }
+
+    this.currentDefaultTableAlias = selectDefinition.as;
+    this.currentTableAliases = new Map<string, string>().set(
+      selectDefinition.as,
+      selectDefinition.from,
+    );
+    let fromTables = new Array<string>();
+    fromTables.push(
+      `${selectDefinition.from}${selectDefinition.as !== selectDefinition.from ? " AS " + selectDefinition.as : ""}`,
+    );
+    if (selectDefinition.join) {
+      for (let joinTable of selectDefinition.join) {
+        if (!joinTable.with) {
+          throw new Error(
+            `${loggingPrefix} "with" is missing in "join" field.`,
+          );
+        }
+        if (!joinTable.as) {
+          joinTable.as = joinTable.with;
+        }
+        if (!ALL_JOIN_TYPE.has(joinTable.type)) {
+          throw new Error(
+            `${loggingPrefix} and when joining ${joinTable.with}, "type" is either missing or not one of valid types "${Array.from(ALL_JOIN_TYPE).join(",")}"`,
+          );
+        }
+        this.currentTableAliases.set(joinTable.as, joinTable.with);
+        this.currentJoinRightTableAlias = joinTable.as;
+        this.currentJoinRightTable = this.databaseTables.get(joinTable.with);
+        if (!this.currentJoinRightTable) {
+          throw new Error(
+            `${loggingPrefix} table ${joinTable.with} is not found in the database.`,
+          );
+        }
+        let joinOnClause = "";
+        if (joinTable.on) {
+          joinOnClause = this.generateJoinOn(
+            loggingPrefix + ` and when joining ${joinTable.with},`,
+            joinTable.on,
+          );
+          joinOnClause = ` ON ${joinOnClause}`;
+        }
+        fromTables.push(
+          `${joinTable.type} JOIN ${joinTable.with}${joinTable.as !== joinTable.with ? " AS " + joinTable.as : ""}${joinOnClause}`,
+        );
+      }
+    }
+
+    this.clearInput();
+    let whereClause = "";
+    if (selectDefinition.where) {
+      whereClause = this.generateWhere(
+        loggingPrefix + " and when generating where clause,",
+        selectDefinition.where,
+      );
+      whereClause = ` WHERE ${whereClause}`;
+    }
+
+    let orderByClause = "";
+    if (selectDefinition.orderBy) {
+      let orderByExprs = new Array<string>();
+      for (let i = 0; i < selectDefinition.orderBy.length; i++) {
+        let expr = selectDefinition.orderBy[i];
+        if (typeof expr === "string") {
+          expr = {
+            column: expr,
+            table: this.currentDefaultTableAlias,
+          };
+        }
+        if (!expr.table) {
+          expr.table = this.currentDefaultTableAlias;
+        }
+        if (expr.func) {
+          let { lExpr } = this.generateFunction(
+            loggingPrefix + ` and when generating order by clause,`,
+            expr.func,
+            expr.column,
+            expr.table,
+            "OrderBy",
+          );
+          orderByExprs.push(`${lExpr}${expr.desc ? " DESC" : ""}`);
+        } else {
+          this.resolveColumnDefinition(
+            loggingPrefix + ` and when generating order by clause,`,
+            expr.column,
+            expr.table,
+          );
+          orderByExprs.push(
+            `${expr.table}.${expr.column}${expr.desc ? " DESC" : ""}`,
+          );
+        }
+      }
+      orderByClause = ` ORDER BY ${orderByExprs.join(", ")}`;
+    }
+
+    let limitClause = "";
+    if (selectDefinition.withLimit) {
+      this.collectInput(loggingPrefix, "limit", {
+        type: "int53",
+      });
+      limitClause = ` LIMIT @limit`;
+    }
+
+    this.clearOutput();
+    let selectColumns = new Array<string>();
+    if (selectDefinition.getAllColumnsFrom) {
+      for (let tableAlias of selectDefinition.getAllColumnsFrom) {
+        let tableName = this.currentTableAliases.get(tableAlias);
+        if (!tableName) {
+          throw new Error(
+            `${loggingPrefix} ${tableAlias} refers to a table not found in the query.`,
+          );
+        }
+        let allColumns = this.databaseTables.get(tableName).columns;
+        for (let column of allColumns) {
+          let fieldName = `${toInitalLowercased(tableAlias)}${toInitialUppercased(column.name)}`;
+          this.collectOuptut(loggingPrefix, fieldName, column);
+          selectColumns.push(`${tableAlias}.${column.name}`);
+        }
+      }
+    }
+    if (selectDefinition.get) {
+      for (let column of selectDefinition.get) {
+        if (typeof column === "string") {
+          column = {
+            column: column,
+            table: this.currentDefaultTableAlias,
+          };
+        }
+        if (!column.table) {
+          column.table = this.currentDefaultTableAlias;
+        }
+        let columnDefinition = this.resolveColumnDefinition(
+          loggingPrefix + ` and when generating select columns,`,
+          column.column,
+          column.table,
+        );
+        let fieldName = `${toInitalLowercased(column.table)}${toInitialUppercased(column.column)}`;
+        this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
+        selectColumns.push(`${column.table}.${column.column}`);
+      }
+    }
+
+    this.sqlContentBuilder.importFromSpanner("Database", "Transaction");
+    this.sqlContentBuilder.importFromMessageDescriptor("MessageDescriptor");
+    this.sqlContentBuilder.push(`
+export interface ${selectDefinition.name}Row {${joinArray(this.outputFields, "\n  ", ",")}
+}
+
+export let ${toUppercaseSnaked(selectDefinition.name)}_ROW: MessageDescriptor<${selectDefinition.name}Row> = {
+  name: '${selectDefinition.name}Row',
+  fields: [${this.outputFieldDescriptors.join(", ")}],
+};
+
+export async function ${toInitalLowercased(selectDefinition.name)}(
+  runner: Database | Transaction,${joinArray(this.inputArgs, "\n  ", ",")}
+): Promise<Array<${selectDefinition.name}Row>> {
+  let [rows] = await runner.run({
+    sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}",
+    params: {${joinArray(this.inputConversions, "\n      ", ",")}
+    },
+    types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}
+    }
+  });
+  let resRows = new Array<${selectDefinition.name}Row>();
+  for (let row of rows) {
+    resRows.push({${joinArray(this.outputConversions, "\n      ", ",")}
+    });
+  }
+  return resRows;
+}
+`);
+  }
+
+  public generateWhere(
+    loggingPrefix: string,
+    where: SpannerWhereConcat | SpannerWhereLeaf,
+  ): string {
+    if (where.op === "AND" || where.op === "OR") {
+      return this.generateWhereConcat(loggingPrefix, where);
+    } else {
+      return this.generateWhereLeaf(loggingPrefix, where as SpannerWhereLeaf);
+    }
+  }
+
+  private generateWhereConcat(
+    loggingPrefix: string,
+    concat: SpannerWhereConcat,
+  ): string {
+    if (!concat.exprs || !Array.isArray(concat.exprs)) {
+      throw new Error(
+        `${loggingPrefix} "exprs" is either missing or not an array.`,
+      );
+    }
+    let clauses = concat.exprs.map((expr) =>
+      this.generateWhere(loggingPrefix, expr),
+    );
+    return "(" + clauses.join(` ${concat.op} `) + ")";
+  }
+
+  private generateWhereLeaf(
+    loggingPrefix: string,
+    leaf: SpannerWhereLeaf,
+  ): string {
+    if (!leaf.lColumn) {
+      throw new Error(`${loggingPrefix} "lColumn" is missing.`);
+    }
+    if (!leaf.lTable) {
+      leaf.lTable = this.currentDefaultTableAlias;
+    }
+    if (leaf.func) {
+      let { lExpr, returnType } = this.generateFunction(
+        loggingPrefix,
+        leaf.func,
+        leaf.lColumn,
+        leaf.lTable,
+        "Where",
+      );
+      let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
+      this.collectInput(loggingPrefix, argVariable, {
+        type: returnType,
+      });
+      switch (leaf.func) {
+        case "SCORE":
+          if (!SCORE_RESULT_OP.has(leaf.op)) {
+            throw new Error(
+              `${loggingPrefix} "op" is either missing or not one of valid types "${Array.from(SCORE_RESULT_OP).join(",")}" to handle SCORE results.`,
+            );
+          }
+          return `${lExpr} ${leaf.op} @${argVariable}`;
+        default:
+          throw new Error(
+            `${loggingPrefix} function ${leaf.func} is not handled properly.`,
+          );
+      }
+    } else {
+      if (leaf.op === "SEARCH") {
+        this.resolveSearchColumnDefinition(
+          loggingPrefix,
+          leaf.lColumn,
+          leaf.lTable,
+        );
+        // Search column only supports string type for now.
+        let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+        this.collectInput(loggingPrefix, argVariable, {
+          type: "string",
+        });
+        return `${leaf.op}(${leaf.lTable}.${leaf.lColumn}, @${argVariable})`;
+      } else {
+        let columnDefinition = this.resolveColumnDefinition(
+          loggingPrefix,
+          leaf.lColumn,
+          leaf.lTable,
+        );
+        switch (leaf.op) {
+          case "IS NULL":
+          case "IS NOT NULL":
+            if (!columnDefinition.nullable) {
+              throw new Error(
+                `${loggingPrefix} column ${leaf.lTable}.${leaf.lColumn} is not nullable and doesn't need to check NULL in the query.`,
+              );
+            }
+            return `${leaf.lTable}.${leaf.lColumn} ${leaf.op}`;
+          case ">":
+          case "<":
+          case ">=":
+          case "<=":
+          case "!=":
+          case "=":
+            let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            this.collectInput(loggingPrefix, argVariable, columnDefinition);
+            return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${argVariable}`;
+          default:
+            throw new Error(
+              `${loggingPrefix} "op" is either missing or not valid.`,
+            );
+        }
+      }
+    }
+  }
+
+  private generateJoinOn(
+    loggingPrefix: string,
+    joinOn: SpannerJoinOnConcat | SpannerJoinOnLeaf,
+  ): string {
+    if (joinOn.op === "AND" || joinOn.op === "OR") {
+      return this.generateJoinOnConcat(loggingPrefix, joinOn);
+    } else {
+      return this.generateJoinOnLeaf(
+        loggingPrefix,
+        joinOn as SpannerJoinOnLeaf,
+      );
+    }
+  }
+
+  private generateJoinOnConcat(
+    loggingPrefix: string,
+    concat: SpannerJoinOnConcat,
+  ): string {
+    if (!concat.exprs || !Array.isArray(concat.exprs)) {
+      throw new Error(
+        `${loggingPrefix} "exprs" is either missing or not an array.`,
+      );
+    }
+    let clauses = concat.exprs.map((expr) =>
+      this.generateJoinOn(loggingPrefix, expr),
+    );
+    return "(" + clauses.join(` ${concat.op} `) + ")";
+  }
+
+  public generateJoinOnLeaf(
+    loggingPrefix: string,
+    leaf: SpannerJoinOnLeaf,
+  ): string {
+    if (!leaf.lColumn) {
+      throw new Error(`${loggingPrefix} "lColumn" is missing.`);
+    }
+    if (!leaf.lTable) {
+      throw new Error(`${loggingPrefix} "lTable" is missing.`);
+    }
+    let leftColumnDefinition = this.resolveColumnDefinition(
+      loggingPrefix,
+      leaf.lColumn,
+      leaf.lTable,
+    );
+    if (!leaf.rColumn) {
+      throw new Error(`${loggingPrefix} "rColumn" is missing.`);
+    }
+    let rightColumnDefinition = getColumnDefinition(
+      loggingPrefix,
+      this.currentJoinRightTable,
+      leaf.rColumn,
+    );
+    if (leftColumnDefinition.type !== rightColumnDefinition.type) {
+      throw new Error(
+        `${loggingPrefix} the left column ${leaf.lTable}.${leaf.lColumn} whose type is ${leftColumnDefinition.type} doesn't match the right column ${this.currentJoinRightTableAlias}.${leaf.rColumn} whose type is ${rightColumnDefinition.type}.`,
+      );
+    }
+    if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
+      throw new Error(
+        `${loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
+      );
+    }
+    return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} ${this.currentJoinRightTableAlias}.${leaf.rColumn}`;
+  }
+
+  private generateFunction(
+    loggingPrefix: string,
+    func: "SCORE",
+    lColumn: string,
+    lTable: string,
+    context: string,
+  ): {
+    lExpr: string;
+    returnType: string;
+  } {
+    let argVariable = `${toInitalLowercased(lTable)}${toInitialUppercased(lColumn)}${BINARY_OP_NAME.get(func)}${context}`;
+    switch (func) {
+      case "SCORE":
+        this.resolveSearchColumnDefinition(loggingPrefix, lColumn, lTable);
+        // Search column only supports string type for now.
+        this.collectInput(loggingPrefix, argVariable, {
+          type: "string",
+        });
+        // The function returns a number.
+        return {
+          lExpr: `${func}(${lTable}.${lColumn}, @${argVariable})`,
+          returnType: "float64",
+        };
+      default:
+        throw new Error(
+          `${loggingPrefix} function ${func} is either missing or not valid.`,
+        );
+    }
+  }
+
+  private clearInput(): void {
+    this.inputArgs = new Array<string>();
+    this.inputQueryTypes = new Array<string>();
+    this.inputConversions = new Array<string>();
+  }
+
+  private collectInput(
     loggingPrefix: string,
     argVariable: string,
-    columnDefinition: SpannerTableColumnDefinition,
+    columnType: SpannerTableColumnType,
   ): void {
-    let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnDefinition.type);
+    let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnType.type);
     let queryType: string;
     let conversion: string;
     if (!tsType) {
       let typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
-        columnDefinition.type,
-        columnDefinition.import,
+        columnType.type,
+        columnType.import,
       );
-      this.tsContentBuilder.importFromDefinition(
-        columnDefinition.import,
-        columnDefinition.type,
+      this.sqlContentBuilder.importFromDefinition(
+        columnType.import,
+        columnType.type,
       );
       if (typeDefinition.kind === "Enum") {
-        this.tsContentBuilder.importFromSpanner("Spanner");
-        if (!columnDefinition.isArray) {
+        this.sqlContentBuilder.importFromSpanner("Spanner");
+        if (!columnType.isArray) {
           tsType = typeDefinition.name;
           queryType = `{ type: "float64" }`;
           conversion = `Spanner.float(${argVariable})`;
@@ -155,13 +1256,13 @@ class InputCollector {
           conversion = `${argVariable}.map((e) => Spanner.float(e))`;
         }
       } else if (typeDefinition.kind === "Message") {
-        this.tsContentBuilder.importFromMessageSerializer("serializeMessage");
+        this.sqlContentBuilder.importFromMessageSerializer("serializeMessage");
         let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
-        this.tsContentBuilder.importFromDefinition(
-          columnDefinition.import,
+        this.sqlContentBuilder.importFromDefinition(
+          columnType.import,
           tsTypeDescriptor,
         );
-        if (!columnDefinition.isArray) {
+        if (!columnType.isArray) {
           tsType = typeDefinition.name;
           queryType = `{ type: "bytes" }`;
           conversion = `Buffer.from(serializeMessage(${argVariable}, ${tsTypeDescriptor}).buffer)`;
@@ -172,14 +1273,14 @@ class InputCollector {
         }
       }
     } else {
-      if (!columnDefinition.isArray) {
-        queryType = `{ type: "${columnDefinition.type}" }`;
-        switch (columnDefinition.type) {
-          case "int64":
+      if (!columnType.isArray) {
+        queryType = `{ type: "${columnType.type}" }`;
+        switch (columnType.type) {
+          case "int53":
             conversion = `${argVariable}.toString()`;
             break;
           case "float64":
-            this.tsContentBuilder.importFromSpanner("Spanner");
+            this.sqlContentBuilder.importFromSpanner("Spanner");
             conversion = `Spanner.float(${argVariable})`;
             break;
           case "timestamp":
@@ -190,14 +1291,14 @@ class InputCollector {
             conversion = `${argVariable}`;
         }
       } else {
-        queryType = `{ type: "array", child: { type: "${columnDefinition.type}" } }`;
+        queryType = `{ type: "array", child: { type: "${columnType.type}" } }`;
         tsType = `Array<${tsType}>`;
-        switch (columnDefinition.type) {
-          case "int64":
+        switch (columnType.type) {
+          case "int53":
             conversion = `${argVariable}.map((e) => e.toString())`;
             break;
           case "float64":
-            this.tsContentBuilder.importFromSpanner("Spanner");
+            this.sqlContentBuilder.importFromSpanner("Spanner");
             conversion = `${argVariable}.map((e) => Spanner.float(e))`;
             break;
           case "timestamp":
@@ -209,66 +1310,61 @@ class InputCollector {
         }
       }
     }
-    if (columnDefinition.nullable) {
+    if (columnType.nullable) {
       conversion = `${argVariable} == null ? null : ${conversion}`;
       tsType = `${tsType} | null | undefined`;
     }
 
-    this.collectExplictly(argVariable, tsType, queryType, conversion);
+    this.collectInputExplictly(argVariable, tsType, queryType, conversion);
   }
 
-  public collectExplictly(
+  private collectInputExplictly(
     argVariable: string,
     tsType: string,
     queryType: string,
     conversion: string,
   ): void {
-    this.args.push(`${argVariable}: ${tsType}`);
-    this.queryTypes.push(`${argVariable}: ${queryType}`);
-    this.conversions.push(`${argVariable}: ${conversion}`);
+    this.inputArgs.push(`${argVariable}: ${tsType}`);
+    this.inputQueryTypes.push(`${argVariable}: ${queryType}`);
+    this.inputConversions.push(`${argVariable}: ${conversion}`);
   }
-}
 
-export class OuputCollector {
-  public fields = new Array<string>();
-  public conversions = new Array<string>();
-  public fieldDescriptors = new Array<string>();
+  private clearOutput(): void {
+    this.outputFields = new Array<string>();
+    this.outputConversions = new Array<string>();
+    this.outputFieldDescriptors = new Array<string>();
+  }
 
-  public constructor(
-    private definitionResolver: DefinitionResolver,
-    private tsContentBuilder: TsContentBuilder,
-  ) {}
-
-  public collect(
+  private collectOuptut(
     loggingPrefix: string,
     fieldName: string,
-    columnIndex: number,
-    columnDefinition: SpannerTableColumnDefinition,
+    columnType: SpannerTableColumnType,
   ): void {
+    let columnIndex = this.outputFields.length;
     let columnVariable = `row.at(${columnIndex})`;
-    let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnDefinition.type);
+    let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnType.type);
     let conversion: string;
     let typeDescriptorLine: string;
     let isArrayLine: string;
     if (!tsType) {
       let typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
-        columnDefinition.type,
-        columnDefinition.import,
+        columnType.type,
+        columnType.import,
       );
-      this.tsContentBuilder.importFromDefinition(
-        columnDefinition.import,
-        columnDefinition.type,
+      this.sqlContentBuilder.importFromDefinition(
+        columnType.import,
+        columnType.type,
       );
       if (typeDefinition.kind === "Enum") {
-        this.tsContentBuilder.importFromMessageSerializer("toEnumFromNumber");
+        this.sqlContentBuilder.importFromMessageSerializer("toEnumFromNumber");
         let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
-        this.tsContentBuilder.importFromDefinition(
-          columnDefinition.import,
+        this.sqlContentBuilder.importFromDefinition(
+          columnType.import,
           tsTypeDescriptor,
         );
         typeDescriptorLine = `enumType: ${tsTypeDescriptor}`;
-        if (!columnDefinition.isArray) {
+        if (!columnType.isArray) {
           tsType = typeDefinition.name;
           conversion = `toEnumFromNumber(${columnVariable}.value.value, ${tsTypeDescriptor})`;
         } else {
@@ -277,14 +1373,16 @@ export class OuputCollector {
           conversion = `${columnVariable}.value.map((e) => toEnumFromNumber(e.value, ${tsTypeDescriptor}))`;
         }
       } else if (typeDefinition.kind === "Message") {
-        this.tsContentBuilder.importFromMessageSerializer("deserializeMessage");
+        this.sqlContentBuilder.importFromMessageSerializer(
+          "deserializeMessage",
+        );
         let tsTypeDescriptor = toUppercaseSnaked(typeDefinition.name);
-        this.tsContentBuilder.importFromDefinition(
-          columnDefinition.import,
+        this.sqlContentBuilder.importFromDefinition(
+          columnType.import,
           tsTypeDescriptor,
         );
         typeDescriptorLine = `messageType: ${tsTypeDescriptor}`;
-        if (!columnDefinition.isArray) {
+        if (!columnType.isArray) {
           tsType = typeDefinition.name;
           conversion = `deserializeMessage(${columnVariable}.value, ${tsTypeDescriptor})`;
         } else {
@@ -294,13 +1392,14 @@ export class OuputCollector {
         }
       }
     } else {
-      this.tsContentBuilder.importFromMessageDescriptor("PrimitiveType");
+      this.sqlContentBuilder.importFromMessageDescriptor("PrimitiveType");
       typeDescriptorLine = `primitiveType: PrimitiveType.${tsType.toUpperCase()}`;
-      if (!columnDefinition.isArray) {
-        switch (columnDefinition.type) {
+      if (!columnType.isArray) {
+        switch (columnType.type) {
           case "float64":
             conversion = `${columnVariable}.value.value`;
             break;
+          case "int53":
           case "timestamp":
             conversion = `${columnVariable}.value.valueOf()`;
             break;
@@ -312,10 +1411,11 @@ export class OuputCollector {
       } else {
         tsType = `Array<${tsType}>`;
         isArrayLine = `isArray: true`;
-        switch (columnDefinition.type) {
+        switch (columnType.type) {
           case "float64":
             conversion = `${columnVariable}.value.map((e) => e.value)`;
             break;
+          case "int53":
           case "timestamp":
             conversion = `${columnVariable}.value.map((e) => e.valueOf())`;
             break;
@@ -326,1186 +1426,12 @@ export class OuputCollector {
         }
       }
     }
-    if (columnDefinition.nullable) {
-      conversion = `${columnVariable}.value == null ? undefined : ${conversion}`;
-      tsType = `${tsType} | undefined`;
-    }
-
-    this.fields.push(`${fieldName}: ${tsType}`);
-    this.conversions.push(`${fieldName}: ${conversion}`);
-    this.fieldDescriptors.push(`{
+    this.outputFields.push(`${fieldName}?: ${tsType}`);
+    this.outputConversions.push(`${fieldName}: ${columnVariable}.value == null ? undefined : ${conversion}`);
+    this.outputFieldDescriptors.push(`{
     name: '${fieldName}',
     index: ${columnIndex + 1},
     ${typeDescriptorLine},${isArrayLine ? "\n    " + isArrayLine + "," : ""}
   }`);
   }
-}
-
-class WhereClauseGenerator {
-  public constructor(
-    private loggingPrefix: string,
-    private defaultTableAlias: string,
-    private tableAliases: Map<string, string>,
-    private databaseTables: Map<string, SpannerTableDefinition>,
-    private inputCollector: InputCollector,
-  ) {}
-
-  public generate(where: SpannerWhereConcat | SpannerWhereLeaf): string {
-    if (ALL_CONCAT_OP.has(where.op)) {
-      return this.generateConcat(where as SpannerWhereConcat);
-    } else {
-      return this.generateLeaf(where as SpannerWhereLeaf);
-    }
-  }
-
-  private generateLeaf(leaf: SpannerWhereLeaf): string {
-    if (!leaf.leftColumn) {
-      throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
-    }
-    if (typeof leaf.leftColumn === "string") {
-      leaf.leftColumn = {
-        name: leaf.leftColumn,
-        table: this.defaultTableAlias,
-      };
-    }
-    if (!leaf.leftColumn.table) {
-      throw new Error(`${this.loggingPrefix} "table" is missing.`);
-    }
-    let columnDefinition = resolveColumnDefinition(
-      this.loggingPrefix,
-      leaf.leftColumn,
-      this.tableAliases,
-      this.databaseTables,
-    );
-    if (!ALL_WHERE_LEAF_OP.has(leaf.op)) {
-      throw new Error(
-        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_WHERE_LEAF_OP).join(",")}"`,
-      );
-    }
-    if (leaf.op === "IS NULL" || leaf.op === "IS NOT NULL") {
-      if (!columnDefinition.nullable) {
-        throw new Error(
-          `${this.loggingPrefix} column ${leaf.leftColumn.table}.${leaf.leftColumn.name} is not nullable and doesn't need to check NULL in the query.`,
-        );
-      }
-      return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op}`;
-    } else {
-      let argVariable = `${toInitalLowercased(leaf.leftColumn.table)}${toInitialUppercased(leaf.leftColumn.name)}${BINARY_OP_NAME.get(leaf.op)}`;
-      this.inputCollector.collect(
-        this.loggingPrefix,
-        argVariable,
-        columnDefinition,
-      );
-      return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op} @${argVariable}`;
-    }
-  }
-
-  private generateConcat(concat: SpannerWhereConcat): string {
-    if (!concat.exps) {
-      throw new Error(
-        `${this.loggingPrefix} "exps" is either missing or not an array.`,
-      );
-    }
-    let clauses = concat.exps.map((exp) => this.generate(exp));
-    return "(" + clauses.join(` ${concat.op} `) + ")";
-  }
-}
-
-class JoinOnClauseGenerator {
-  public constructor(
-    private loggingPrefix: string,
-    private rightTable: SpannerTableDefinition,
-    private rightTableAlias: string,
-    private tableAliases: Map<string, string>,
-    private databaseTables: Map<string, SpannerTableDefinition>,
-  ) {}
-
-  public generate(joinOn: SpannerJoinOnConcat | SpannerJoinOnLeaf): string {
-    if (ALL_CONCAT_OP.has(joinOn.op)) {
-      return this.generateConcat(joinOn as SpannerJoinOnConcat);
-    } else {
-      return this.generateLeaf(joinOn as SpannerJoinOnLeaf);
-    }
-  }
-
-  public generateLeaf(leaf: SpannerJoinOnLeaf): string {
-    if (!leaf.leftColumn) {
-      throw new Error(`${this.loggingPrefix} "leftColumn" is missing.`);
-    }
-    let leftColumnDefinition = resolveColumnDefinition(
-      this.loggingPrefix,
-      leaf.leftColumn,
-      this.tableAliases,
-      this.databaseTables,
-    );
-    if (!leaf.rightColumn) {
-      throw new Error(`${this.loggingPrefix} "rightColumn" is missing.`);
-    }
-    let rightColumnDefinition = getColumnDefinition(
-      this.loggingPrefix,
-      this.rightTable,
-      leaf.rightColumn,
-    );
-    if (leftColumnDefinition.type !== rightColumnDefinition.type) {
-      throw new Error(
-        `${this.loggingPrefix} the left column ${leaf.leftColumn.table}.${leaf.leftColumn.name} whose type is ${leftColumnDefinition.type} doesn't match the right column ${this.rightTableAlias}.${leaf.rightColumn} whose type is ${rightColumnDefinition.type}.`,
-      );
-    }
-    if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
-      throw new Error(
-        `${this.loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
-      );
-    }
-    return `${leaf.leftColumn.table}.${leaf.leftColumn.name} ${leaf.op} ${this.rightTableAlias}.${leaf.rightColumn}`;
-  }
-
-  public generateConcat(concat: SpannerJoinOnConcat): string {
-    if (!concat.exps) {
-      throw new Error(
-        `${this.loggingPrefix} "exps" is either missing or not an array.`,
-      );
-    }
-    let clauses = concat.exps.map((exp) => this.generate(exp));
-    return "(" + clauses.join(` ${concat.op} `) + ")";
-  }
-}
-
-export function generateSpannerDatabase(
-  definitionModulePath: string,
-  spannerDatabaseDefinition: SpannerDatabaseDefinition,
-  definitionResolver: DefinitionResolver,
-  outputContentMap: Map<string, OutputContentBuilder>,
-) {
-  if (!spannerDatabaseDefinition.name) {
-    throw new Error(`"name" is missing on a spannerDatabase.`);
-  }
-  if (!spannerDatabaseDefinition.outputDdl) {
-    throw new Error(
-      `"outputDdl" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
-    );
-  }
-  let outputDdlContentBuilder = SimpleContentBuilder.get(
-    outputContentMap,
-    ".json",
-    spannerDatabaseDefinition.outputDdl,
-  );
-  if (!spannerDatabaseDefinition.outputSql) {
-    throw new Error(
-      `"outputSql" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
-    );
-  }
-  let tsContentBuilder = TsContentBuilder.get(
-    outputContentMap,
-    definitionModulePath,
-    spannerDatabaseDefinition.outputSql,
-  );
-
-  let databaseTables = new Map<string, SpannerTableDefinition>();
-  if (!spannerDatabaseDefinition.tables) {
-    throw new Error(
-      `"table" is missing on spannerDatabase ${spannerDatabaseDefinition.name}.`,
-    );
-  }
-  let tableDdls = new Array<string>();
-  for (let table of spannerDatabaseDefinition.tables) {
-    if (table.kind === "Table") {
-      generateSpannerTable(
-        table,
-        databaseTables,
-        definitionResolver,
-        tableDdls,
-      );
-    } else if (table.kind === "MessageTable") {
-      generateSpannerMessageTable(
-        table,
-        databaseTables,
-        definitionResolver,
-        tableDdls,
-        tsContentBuilder,
-      );
-    } else if (table.kind === "TaskTable") {
-      generateSpannerTaskTable(
-        table,
-        databaseTables,
-        definitionResolver,
-        tableDdls,
-        tsContentBuilder,
-      );
-    }
-  }
-  outputDdlContentBuilder.push(`{
-  "tables": [${tableDdls.join(", ")}]
-}`);
-
-  if (spannerDatabaseDefinition.inserts) {
-    for (let insertDefinition of spannerDatabaseDefinition.inserts) {
-      generateSpannerInsert(
-        insertDefinition,
-        databaseTables,
-        definitionResolver,
-        tsContentBuilder,
-      );
-    }
-  }
-  if (spannerDatabaseDefinition.updates) {
-    for (let updateDefinition of spannerDatabaseDefinition.updates) {
-      generateSpannerUpdate(
-        updateDefinition,
-        databaseTables,
-        definitionResolver,
-        tsContentBuilder,
-      );
-    }
-  }
-  if (spannerDatabaseDefinition.deletes) {
-    for (let deleteDefinition of spannerDatabaseDefinition.deletes) {
-      generateSpannerDelete(
-        deleteDefinition,
-        databaseTables,
-        definitionResolver,
-        tsContentBuilder,
-      );
-    }
-  }
-  if (spannerDatabaseDefinition.selects) {
-    for (let selectDefinition of spannerDatabaseDefinition.selects) {
-      generateSpannerSelect(
-        selectDefinition,
-        databaseTables,
-        definitionResolver,
-        tsContentBuilder,
-      );
-    }
-  }
-}
-
-function generateSpannerTable(
-  table: SpannerTableDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tableDdls: Array<string>,
-) {
-  if (!table.name) {
-    throw new Error(`"name" is missing on a spanner table.`);
-  }
-
-  let loggingPrefix = `When generating DDL for table ${table.name},`;
-  let addColumnDdls = new Array<string>();
-  let createColumnPartialDdls = new Array<string>();
-  if (!table.columns) {
-    throw new Error(`${loggingPrefix} "columns" is missing.`);
-  }
-  for (let i = 0; i < table.columns.length; i++) {
-    let column = table.columns[i];
-    if (!column.name) {
-      throw new Error(`${loggingPrefix} "name" is mssing on a column.`);
-    }
-    if (!column.type) {
-      throw new Error(
-        `${loggingPrefix} "type" is missing on column ${column.name}.`,
-      );
-    }
-    let type = COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE.get(column.type);
-    if (column.allowCommitTimestamp) {
-      if (column.type !== "timestamp") {
-        throw new Error(
-          `${loggingPrefix} column ${column.type} is not timestamp and cannot set allowCommitTimestamp to true.`,
-        );
-      }
-      if (column.isArray) {
-        throw new Error(
-          `${loggingPrefix} column ${column.type} is an array and cannot set allowCommitTimestamp to true.`,
-        );
-      }
-    }
-
-    if (!type) {
-      let definition = definitionResolver.resolve(
-        loggingPrefix,
-        column.type,
-        column.import,
-      );
-      if (definition.kind === "Enum") {
-        type = "FLOAT64";
-      } else if (definition.kind === "Message") {
-        type = "BYTES(MAX)";
-      }
-    }
-    let partialDdl = `${column.name} ${column.isArray ? "Array<" + type + ">" : type}${column.nullable ? "" : " NOT NULL"}${column.allowCommitTimestamp ? " OPTIONS (allow_commit_timestamp = true)" : ""}`;
-    createColumnPartialDdls.push(partialDdl);
-    addColumnDdls.push(`{
-      "name": "${column.name}",
-      "addColumnDdl": "ALTER TABLE ${table.name} ADD COLUMN ${partialDdl}"
-    }`);
-  }
-
-  let primaryKeys = new Array<string>();
-  if (!table.primaryKeys) {
-    throw new Error(`${loggingPrefix} "primaryKeys" is missing.`);
-  }
-  for (let i = 0; i < table.primaryKeys.length; i++) {
-    let key = table.primaryKeys[i];
-    if (typeof key === "string") {
-      key = {
-        name: key,
-        desc: false,
-      };
-    }
-    if (key.desc == null) {
-      throw new Error(
-        `${loggingPrefix} "desc" is missing in primary key ${key.name}.`,
-      );
-    }
-    table.primaryKeys[i] = key;
-    if (!key.name) {
-      throw new Error(
-        `${loggingPrefix} "name" is missing in "primaryKeys" field.`,
-      );
-    }
-    let columnDefinition = getColumnDefinition(
-      loggingPrefix + " and when generating primary keys,",
-      table,
-      key.name,
-    );
-    if (columnDefinition.isArray) {
-      throw new Error(
-        `${loggingPrefix} column ${key} is an array and cannot be used as a primary key.`,
-      );
-    }
-    primaryKeys.push(`${key.name} ${key.desc ? "DESC" : "ASC"}`);
-  }
-
-  let interleaveOption = "";
-  if (table.interleave) {
-    if (!table.interleave.parentTable) {
-      throw new Error(
-        `${loggingPrefix} "parentTable" is missing in "interleave" field.`,
-      );
-    }
-    let parentTable = databaseTables.get(table.interleave.parentTable);
-    if (!parentTable) {
-      throw new Error(
-        `${loggingPrefix} the parent table ${table.interleave.parentTable} is not found in the database.`,
-      );
-    }
-    if (parentTable.primaryKeys.length >= table.primaryKeys.length) {
-      throw new Error(
-        `${loggingPrefix} pimary keys of the child table should be more than the parent table ${table.interleave.parentTable}.`,
-      );
-    }
-    for (let i = 0; i < parentTable.primaryKeys.length; i++) {
-      let parentKey = parentTable.primaryKeys[
-        i
-      ] as SpannerTablePrimaryKeyDefinition;
-      let childKey = table.primaryKeys[i] as SpannerTablePrimaryKeyDefinition;
-      if (parentKey.name !== childKey.name) {
-        throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" doesn't match the key "${parentKey.name}" of the parent table.`,
-        );
-      }
-      if (parentKey.desc !== childKey.desc) {
-        throw new Error(
-          `${loggingPrefix} at position ${i}, pimary key "${childKey.name}" is ${childKey.desc ? "DESC" : "ASC"} which doesn't match the key of the parent table.`,
-        );
-      }
-      let parentColumnDefinition = getColumnDefinition(
-        loggingPrefix + "and when validating interleaving,",
-        parentTable,
-        parentKey.name,
-      );
-      let childColumnDefinition = getColumnDefinition(
-        loggingPrefix + "and when validating interleaving,",
-        table,
-        childKey.name,
-      );
-      if (parentColumnDefinition.type !== childColumnDefinition.type) {
-        throw new Error(
-          `${loggingPrefix} at position ${i}, primary key ${childColumnDefinition.name}'s type "${childColumnDefinition.type}" doesn't match the type "${parentColumnDefinition.type}" of the parent table. `,
-        );
-      }
-    }
-    interleaveOption = `, INTERLEAVE IN PARENT ${table.interleave.parentTable}${table.interleave.cascadeOnDelete ? " ON DELETE CASCADE" : ""}`;
-  }
-
-  let indexDdls = new Array<string>();
-  if (table.indexes) {
-    for (let index of table.indexes) {
-      if (!index.name) {
-        throw new Error(
-          `${loggingPrefix} "name" is missing in one element of "indexes" field.`,
-        );
-      }
-      let indexColumns = new Array<string>();
-      if (!index.columns) {
-        throw new Error(
-          `${loggingPrefix} "columns" is missing in index ${index.name}.`,
-        );
-      }
-      for (let column of index.columns) {
-        if (typeof column === "string") {
-          column = {
-            name: column,
-            desc: false,
-          };
-        }
-        if (column.desc == null) {
-          throw new Error(
-            `${loggingPrefix} "desc" is missing in index column ${column.name}.`,
-          );
-        }
-        getColumnDefinition(
-          loggingPrefix + " and when generating indexes,",
-          table,
-          column.name,
-        );
-        indexColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
-      }
-
-      indexDdls.push(`{
-      "name": "${index.name}",
-      "createIndexDdl": "CREATE ${index.unique ? "UNIQUE " : ""}${index.nullFiltered ? "NULL_FILTERED " : ""}INDEX ${index.name} ON ${table.name}(${indexColumns.join(", ")})"
-    }`);
-    }
-  }
-
-  databaseTables.set(table.name, table);
-  tableDdls.push(`{
-    "name": "${table.name}",
-    "columns": [${addColumnDdls.join(", ")}],
-    "createTableDdl": "CREATE TABLE ${table.name} (${createColumnPartialDdls.join(", ")}) PRIMARY KEY (${primaryKeys.join(", ")})${interleaveOption}",
-    "indexes": [${indexDdls.join(", ")}]
-  }`);
-}
-
-function generateSpannerMessageTable(
-  table: SpannerMessageTableDefintion,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tableDdls: Array<string>,
-  tsContentBuilder: TsContentBuilder,
-) {
-  if (!table.name) {
-    throw new Error(`"name" is missing on a Spanner message table.`);
-  }
-  let loggingPrefix = `When coverting message table ${table.name} to Spanner table definition,`;
-  let messageDefinition = definitionResolver.resolve(loggingPrefix, table.name);
-  if (messageDefinition.kind !== "Message") {
-    throw new Error(`${loggingPrefix} message ${table.name} is not found.`);
-  }
-
-  if (!table.storedInColumn) {
-    throw new Error(
-      `${loggingPrefix} "storedInColumn" is missing on message table ${table.name}.`,
-    );
-  }
-  if (!table.columns) {
-    throw new Error(
-      `${loggingPrefix} "columns" is missing on message table ${table.name}.`,
-    );
-  }
-  let columns = new Array<SpannerTableColumnDefinition>();
-  for (let column of table.columns) {
-    let field = messageDefinition.fields.find(
-      (fieldDefinition) => fieldDefinition.name === column,
-    );
-    if (!field) {
-      throw new Error(
-        `${loggingPrefix} field ${column} is not found in message ${messageDefinition.name}.`,
-      );
-    }
-    let type = TS_PRIMITIVE_TYPES_TO_COLUMN_TYPE.get(field.type) ?? field.type;
-    columns.push({
-      name: column,
-      type: type,
-      import: field.import,
-      isArray: field.isArray,
-    });
-  }
-  columns.push({
-    name: table.storedInColumn,
-    type: messageDefinition.name,
-  });
-  generateSpannerTable(
-    {
-      kind: "Table",
-      name: table.name,
-      columns: columns,
-      primaryKeys: table.primaryKeys,
-      interleave: table.interleave,
-      indexes: table.indexes,
-    },
-    databaseTables,
-    definitionResolver,
-    tableDdls,
-  );
-
-  if (table.insert) {
-    let inputVariables = new Array<string>();
-    for (let column of table.columns) {
-      inputVariables.push(`${table.storedInColumn}.${column}`);
-    }
-    inputVariables.push(table.storedInColumn);
-    tsContentBuilder.importFromSpannerTransaction("Statement");
-    tsContentBuilder.push(`
-export function ${toInitalLowercased(table.insert)}Statement(
-  ${table.storedInColumn}: ${messageDefinition.name},
-): Statement {
-  return ${toInitalLowercased(table.insert)}InternalStatement(
-    ${inputVariables.join(",\n    ")}
-  );
-}
-`);
-    generateSpannerInsert(
-      {
-        name: `${table.insert}Internal`,
-        table: table.name,
-        setColumns: columns.map((column) => column.name),
-      },
-      databaseTables,
-      definitionResolver,
-      tsContentBuilder,
-    );
-  }
-
-  if (table.delete) {
-    generateSpannerDelete(
-      {
-        name: table.delete,
-        table: table.name,
-        where: {
-          op: "AND",
-          exps: table.primaryKeys.map((key) => ({
-            leftColumn: typeof key === "string" ? key : key.name,
-            op: "=",
-          })),
-        },
-      },
-      databaseTables,
-      definitionResolver,
-      tsContentBuilder,
-    );
-  }
-
-  if (table.get) {
-    generateSpannerSelect(
-      {
-        name: table.get,
-        table: table.name,
-        where: {
-          op: "AND",
-          exps: table.primaryKeys.map((key) => ({
-            leftColumn: typeof key === "string" ? key : key.name,
-            op: "=",
-          })),
-        },
-        getColumns: [table.storedInColumn],
-      },
-      databaseTables,
-      definitionResolver,
-      tsContentBuilder,
-    );
-  }
-
-  if (table.update) {
-    let primaryKeys = table.primaryKeys.map((key) =>
-      typeof key === "string" ? key : key.name,
-    );
-    let setColumns = table.columns.filter(
-      (column) => !primaryKeys.includes(column),
-    );
-
-    let inputVariables = new Array<string>();
-    for (let column of primaryKeys) {
-      inputVariables.push(`${table.storedInColumn}.${column}`);
-    }
-    for (let column of setColumns) {
-      inputVariables.push(`${table.storedInColumn}.${column}`);
-    }
-    inputVariables.push(table.storedInColumn);
-    tsContentBuilder.importFromSpannerTransaction("Statement");
-    tsContentBuilder.push(`
-export function ${toInitalLowercased(table.update)}Statement(
-  ${table.storedInColumn}: ${messageDefinition.name},
-): Statement {
-  return ${toInitalLowercased(table.update)}InternalStatement(
-    ${inputVariables.join(",\n    ")}
-  );
-}
-`);
-    setColumns.push(table.storedInColumn);
-    generateSpannerUpdate(
-      {
-        name: `${table.update}Internal`,
-        table: table.name,
-        where: {
-          op: "AND",
-          exps: primaryKeys.map((key) => ({
-            leftColumn: key,
-            op: "=",
-          })),
-        },
-        setColumns,
-      },
-      databaseTables,
-      definitionResolver,
-      tsContentBuilder,
-    );
-  }
-}
-
-export function generateSpannerTaskTable(
-  table: SpannerTaskTableDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tableDdls: Array<string>,
-  tsContentBuilder: TsContentBuilder,
-) {
-  if (!table.name) {
-    throw new Error(`"name" is missing on a Spanner task table.`);
-  }
-  let loggingPrefix = `When coverting task table ${table.name} to Spanner table definition,`;
-  if (!table.columns) {
-    throw new Error(
-      `${loggingPrefix} "columns" is missing on task table ${table.name}.`,
-    );
-  }
-  if (!table.retryCountColumn) {
-    throw new Error(
-      `${loggingPrefix} "retryCountColumn" is missing on task table ${table.name}.`,
-    );
-  }
-  if (!table.executionTimeColumn) {
-    throw new Error(
-      `${loggingPrefix} "executionTimeColumn" is missing on task table ${table.name}.`,
-    );
-  }
-  if (!table.createdTimeColumn) {
-    throw new Error(
-      `${loggingPrefix} "createdTimeColumn" is missing on task table ${table.name}.`,
-    );
-  }
-  let columns = [...table.columns];
-  columns.push(
-    {
-      name: table.retryCountColumn,
-      type: "float64",
-    },
-    {
-      name: table.executionTimeColumn,
-      type: "timestamp",
-    },
-    {
-      name: table.createdTimeColumn,
-      type: "timestamp",
-    },
-  );
-
-  if (!table.executionTimeIndex) {
-    throw new Error(
-      `${loggingPrefix} "executionTimeIndex" is missing on task table ${table.name}.`,
-    );
-  }
-  let indexes: Array<SpannerIndexDefinition> = [
-    {
-      name: table.executionTimeIndex,
-      columns: [table.executionTimeColumn],
-    },
-  ];
-
-  generateSpannerTable(
-    {
-      kind: "Table",
-      name: table.name,
-      columns: columns,
-      primaryKeys: table.primaryKeys,
-      indexes: indexes,
-    },
-    databaseTables,
-    definitionResolver,
-    tableDdls,
-  );
-
-  if (!table.insert) {
-    throw new Error(
-      `${loggingPrefix} "insert" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerInsert(
-    {
-      name: table.insert,
-      table: table.name,
-      setColumns: columns.map((column) => column.name),
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-
-  if (!table.delete) {
-    throw new Error(
-      `${loggingPrefix} "delete" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerDelete(
-    {
-      name: table.delete,
-      table: table.name,
-      where: {
-        op: "AND",
-        exps: table.primaryKeys.map((key) => ({
-          leftColumn: typeof key === "string" ? key : key.name,
-          op: "=",
-        })),
-      },
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-
-  if (!table.get) {
-    throw new Error(
-      `${loggingPrefix} "get" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerSelect(
-    {
-      name: table.get,
-      table: table.name,
-      where: {
-        op: "AND",
-        exps: table.primaryKeys.map((key) => ({
-          leftColumn: typeof key === "string" ? key : key.name,
-          op: "=",
-        })),
-      },
-      getColumns: columns.map((column) => column.name),
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-
-  if (!table.listPendingTasks) {
-    throw new Error(
-      `${loggingPrefix} "listPendingTasks" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerSelect(
-    {
-      name: table.listPendingTasks,
-      table: table.name,
-      where: {
-        op: "<=",
-        leftColumn: table.executionTimeColumn,
-      },
-      getColumns: table.columns.map((column) => column.name),
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-
-  if (!table.getMetadata) {
-    throw new Error(
-      `${loggingPrefix} "getMetadata" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerSelect(
-    {
-      name: table.getMetadata,
-      table: table.name,
-      where: {
-        op: "AND",
-        exps: table.primaryKeys.map((key) => ({
-          leftColumn: typeof key === "string" ? key : key.name,
-          op: "=",
-        })),
-      },
-      getColumns: [table.retryCountColumn, table.executionTimeColumn],
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-
-  if (!table.updateMetadata) {
-    throw new Error(
-      `${loggingPrefix} "updateMetadata" is missing on task table ${table.name}.`,
-    );
-  }
-  generateSpannerUpdate(
-    {
-      name: table.updateMetadata,
-      table: table.name,
-      where: {
-        op: "AND",
-        exps: table.primaryKeys.map((key) => ({
-          leftColumn: typeof key === "string" ? key : key.name,
-          op: "=",
-        })),
-      },
-      setColumns: [table.retryCountColumn, table.executionTimeColumn],
-    },
-    databaseTables,
-    definitionResolver,
-    tsContentBuilder,
-  );
-}
-
-function generateSpannerInsert(
-  insertDefinition: SpannerInsertDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tsContentBuilder: TsContentBuilder,
-) {
-  if (!insertDefinition.name) {
-    throw new Error(`"name" is missing on a spanner insert definition.`);
-  }
-  let loggingPrefix = `When generating insert statement ${insertDefinition.name},`;
-  if (!insertDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let table = databaseTables.get(insertDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} table ${insertDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let columns = new Array<string>();
-  let values = new Array<string>();
-  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
-  if (!insertDefinition.setColumns) {
-    throw new Error(`${loggingPrefix} "setColumns" is missing.`);
-  }
-  for (let column of insertDefinition.setColumns) {
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    columns.push(column);
-    let argVariable = column;
-    if (columnDefinition.allowCommitTimestamp) {
-      values.push(`PENDING_COMMIT_TIMESTAMP()`);
-    } else {
-      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
-      values.push(`@${argVariable}`);
-    }
-  }
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
-}
-`);
-}
-
-function generateSpannerUpdate(
-  updateDefinition: SpannerUpdateDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tsContentBuilder: TsContentBuilder,
-): void {
-  if (!updateDefinition.name) {
-    throw new Error(`"name" is missing on a spanner update definition.`);
-  }
-  let loggingPrefix = `When generating update statement ${updateDefinition.name},`;
-  if (!updateDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let table = databaseTables.get(updateDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} table ${updateDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
-  let setItems = new Array<string>();
-  if (!updateDefinition.table) {
-    throw new Error(`${loggingPrefix} "table" is missing.`);
-  }
-  let whereClause = new WhereClauseGenerator(
-    loggingPrefix + " and when generating where clause,",
-    updateDefinition.table,
-    new Map<string, string>().set(
-      updateDefinition.table,
-      updateDefinition.table,
-    ),
-    databaseTables,
-    inputCollector,
-  ).generate(updateDefinition.where);
-
-  for (let column of updateDefinition.setColumns) {
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    let argVariable = `set${toInitialUppercased(column)}`;
-    if (columnDefinition.allowCommitTimestamp) {
-      setItems.push(`${column} = PENDING_COMMIT_TIMESTAMP()`);
-    } else {
-      inputCollector.collect(loggingPrefix, argVariable, columnDefinition);
-      setItems.push(`${column} = @${argVariable}`);
-    }
-  }
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
-}
-`);
-}
-
-function generateSpannerDelete(
-  deleteDefinition: SpannerDeleteDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tsContentBuilder: TsContentBuilder,
-): void {
-  if (!deleteDefinition.name) {
-    throw new Error(`"name" is missing on a spanner delete definition.`);
-  }
-  let loggingPrefix = `When generating delete statement ${deleteDefinition.name},`;
-  let table = databaseTables.get(deleteDefinition.table);
-  if (!table) {
-    throw new Error(
-      `${loggingPrefix} ${deleteDefinition.table} is not found in the database's definition.`,
-    );
-  }
-
-  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
-  let whereClause = new WhereClauseGenerator(
-    loggingPrefix + " and when generating where clause,",
-    deleteDefinition.table,
-    new Map<string, string>().set(
-      deleteDefinition.table,
-      deleteDefinition.table,
-    ),
-    databaseTables,
-    inputCollector,
-  ).generate(deleteDefinition.where);
-
-  tsContentBuilder.importFromSpannerTransaction("Statement");
-  tsContentBuilder.push(`
-export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(inputCollector.args, "\n  ", ",")}
-): Statement {
-  return {
-    sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  };
-}
-`);
-}
-
-function generateSpannerSelect(
-  selectDefinition: SpannerSelectDefinition,
-  databaseTables: Map<string, SpannerTableDefinition>,
-  definitionResolver: DefinitionResolver,
-  tsContentBuilder: TsContentBuilder,
-) {
-  if (!selectDefinition.name) {
-    throw new Error(`"name" is missing on a spanner select definition.`);
-  }
-  let loggingPrefix = `When generating select statement ${selectDefinition.name},`;
-  let tableAliases = new Map<string, string>();
-  if (typeof selectDefinition.table === "string") {
-    selectDefinition.table = {
-      name: selectDefinition.table,
-      as: selectDefinition.table,
-    };
-  }
-  if (!selectDefinition.table.as) {
-    throw new Error(`${loggingPrefix} "as" is missing in "table" field.`);
-  }
-  if (!databaseTables.has(selectDefinition.table.name)) {
-    throw new Error(
-      `${loggingPrefix} table ${selectDefinition.table.name} is not found in the database.`,
-    );
-  }
-
-  let defaultTableAlias = selectDefinition.table.as;
-  let fromTables = new Array<string>();
-  tableAliases.set(selectDefinition.table.as, selectDefinition.table.name);
-  fromTables.push(
-    `${selectDefinition.table.name}${selectDefinition.table.as !== selectDefinition.table.name ? " AS " + selectDefinition.table.as : ""}`,
-  );
-  if (selectDefinition.join) {
-    for (let joinTable of selectDefinition.join) {
-      if (!joinTable.table) {
-        throw new Error(`${loggingPrefix} "table" is missing in "join" field.`);
-      }
-      if (typeof joinTable.table === "string") {
-        joinTable.table = {
-          name: joinTable.table,
-          as: joinTable.table,
-        };
-      }
-      if (!joinTable.table.as) {
-        throw new Error(
-          `${loggingPrefix} "as" is missing in join table ${joinTable.table.name}.`,
-        );
-      }
-      tableAliases.set(joinTable.table.as, joinTable.table.name);
-      let rightTable = databaseTables.get(joinTable.table.name);
-      if (!rightTable) {
-        throw new Error(
-          `${loggingPrefix} table ${joinTable.table.name} is not found in the database.`,
-        );
-      }
-      let joinOnClause = "";
-      if (joinTable.on) {
-        joinOnClause = new JoinOnClauseGenerator(
-          loggingPrefix + ` and when joining ${rightTable.name},`,
-          rightTable,
-          joinTable.table.as ?? joinTable.table.name,
-          tableAliases,
-          databaseTables,
-        ).generate(joinTable.on);
-        joinOnClause = ` ON ${joinOnClause}`;
-      }
-      if (!ALL_JOIN_TYPE.has(joinTable.type)) {
-        throw new Error(
-          `${loggingPrefix} and when joining ${rightTable.name}, "type" is either missing or not one of valid types "${Array.from(ALL_JOIN_TYPE).join(",")}"`,
-        );
-      }
-      fromTables.push(
-        `${joinTable.type} JOIN ${joinTable.table.name}${joinTable.table.as !== joinTable.table.name ? " AS " + joinTable.table.as : ""}${joinOnClause}`,
-      );
-    }
-  }
-
-  let whereClause = "";
-  let inputCollector = new InputCollector(definitionResolver, tsContentBuilder);
-  if (selectDefinition.where) {
-    whereClause = new WhereClauseGenerator(
-      loggingPrefix + " and when generating where clause,",
-      defaultTableAlias,
-      tableAliases,
-      databaseTables,
-      inputCollector,
-    ).generate(selectDefinition.where);
-    whereClause = ` WHERE ${whereClause}`;
-  }
-
-  let orderByClause = "";
-  if (selectDefinition.orderBy) {
-    let orderByColumns = new Array<string>();
-    for (let i = 0; i < selectDefinition.orderBy.length; i++) {
-      let column = selectDefinition.orderBy[i];
-      if (typeof column === "string") {
-        column = {
-          column: {
-            name: column,
-            table: defaultTableAlias,
-          },
-        };
-      }
-      if (typeof column.column === "string") {
-        column.column = {
-          name: column.column,
-          table: defaultTableAlias,
-        };
-      }
-      if (!column.column.table) {
-        throw new Error(
-          `${loggingPrefix} "table" is missing in order by column ${column.column.name}.`,
-        );
-      }
-      resolveColumnDefinition(
-        loggingPrefix + " and when generating order by clause,",
-        column.column as SpannerColumnRef,
-        tableAliases,
-        databaseTables,
-      );
-      orderByColumns.push(
-        `${(column.column as SpannerColumnRef).table}.${(column.column as SpannerColumnRef).name}${column.desc ? " DESC" : ""}`,
-      );
-    }
-    orderByClause = ` ORDER BY ${orderByColumns.join(", ")}`;
-  }
-
-  let limitClause = "";
-  if (selectDefinition.withLimit) {
-    inputCollector.collectExplictly(
-      "limit",
-      "number",
-      `{ type: "int64" }`,
-      "limit.toString()",
-    );
-    limitClause = ` LIMIT @limit`;
-  }
-
-  let selectColumns = new Array<string>();
-  let outputCollector = new OuputCollector(
-    definitionResolver,
-    tsContentBuilder,
-  );
-  for (let i = 0; i < selectDefinition.getColumns.length; i++) {
-    let column = selectDefinition.getColumns[i];
-    if (typeof column === "string") {
-      column = {
-        name: column,
-        table: defaultTableAlias,
-      };
-    }
-    if (!column.table) {
-      throw new Error(
-        `${loggingPrefix} "table" is missing in get column ${column.name}.`,
-      );
-    }
-    let columnDefinition = resolveColumnDefinition(
-      loggingPrefix + " and when generating select columns,",
-      column,
-      tableAliases,
-      databaseTables,
-    );
-    let fieldName = `${toInitalLowercased(column.table)}${toInitialUppercased(column.name)}`;
-    outputCollector.collect(loggingPrefix, fieldName, i, columnDefinition);
-    selectColumns.push(`${column.table}.${column.name}`);
-  }
-
-  tsContentBuilder.importFromSpanner("Database", "Transaction");
-  tsContentBuilder.importFromMessageDescriptor("MessageDescriptor");
-  tsContentBuilder.push(`
-export interface ${selectDefinition.name}Row {${joinArray(outputCollector.fields, "\n  ", ",")}
-}
-
-export let ${toUppercaseSnaked(selectDefinition.name)}_ROW: MessageDescriptor<${selectDefinition.name}Row> = {
-  name: '${selectDefinition.name}Row',
-  fields: [${outputCollector.fieldDescriptors.join(", ")}],
-};
-
-export async function ${toInitalLowercased(selectDefinition.name)}(
-  runner: Database | Transaction,${joinArray(inputCollector.args, "\n  ", ",")}
-): Promise<Array<${selectDefinition.name}Row>> {
-  let [rows] = await runner.run({
-    sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}",
-    params: {${joinArray(inputCollector.conversions, "\n      ", ",")}
-    },
-    types: {${joinArray(inputCollector.queryTypes, "\n      ", ",")}
-    }
-  });
-  let resRows = new Array<${selectDefinition.name}Row>();
-  for (let row of rows) {
-    resRows.push({${joinArray(outputCollector.conversions, "\n      ", ",")}
-    });
-  }
-  return resRows;
-}
-`);
 }

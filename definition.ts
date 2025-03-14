@@ -118,12 +118,10 @@ export interface RemoteCallsGroupDefinition {
   outputHandler: string;
 }
 
-export interface SpannerTableColumnDefinition {
-  // Must be of camelCase.
-  name: string;
-  // Supports the following primitive types: bool, int64, float64, timestamp, string, and bytes.
+export interface SpannerTableColumnType {
+  // Supports the following primitive types: bool, int53, float64, timestamp, and string.
   // `bool` is the same in Spanner and JS/TS.
-  // `int64` is NOT supported because it's ineffecient to handle in JS/TS.
+  // `int53` maps to int64 in Spanner and number in JS/TS. Note that it's inefficiently handled by Spanner client in JS/TS.
   // `float64` maps to float64 in Spanner and number in JS/TS.
   // `timestamp` maps to timestamp in Spanner and number in milliseconds in JS/TS.
   // `string` maps to string with MAX length in Spanner and string in JS/TS.
@@ -137,22 +135,23 @@ export interface SpannerTableColumnDefinition {
   import?: string;
   isArray?: true;
   nullable?: true;
-  // Only applicable to `timestamp` type and must not be an array.
-  allowCommitTimestamp?: true;
+}
+
+export interface SpannerTableColumnDefinition extends SpannerTableColumnType {
+  // Must be of camelCase.
+  name: string;
+}
+
+export interface SpannerTableSearchColumnDefinition {
+  // Must be of camelCase.
+  name: string;
+  // Columns to be tokenized. Can only be string type. Multiple columns will be concatenated with a space in between.
+  columnRefs: Array<string>;
 }
 
 export interface SpannerIndexColumnDefinition {
   name: string;
   desc: boolean;
-}
-
-export interface SpannerIndexDefinition {
-  // Must be of CamelCase.
-  name: string;
-  // Columns on the table that includes this definition.
-  columns: Array<string | SpannerIndexColumnDefinition>;
-  unique?: true;
-  nullFiltered?: true;
 }
 
 export interface SpannerTablePrimaryKeyDefinition {
@@ -165,35 +164,43 @@ export interface SpannerTableInterleaveDefinition {
   cascadeOnDelete?: true;
 }
 
+export interface SpannerIndexDefinition {
+  // Must be of CamelCase.
+  name: string;
+  // Columns on the table that includes this definition.
+  columns: Array<string | SpannerIndexColumnDefinition>;
+  unique?: true;
+  nullFiltered?: true;
+}
+
+export interface SpannerSearchIndexOrderByDefinition {
+  name: string;
+  desc: boolean;
+}
+
+export interface SpannerSearchIndexDefinition {
+  // Must be of CamelCase.
+  name: string;
+  // Tokenized columns only.
+  columns: Array<string>;
+  partitionByColumns?: Array<string>;
+  orderByColumns?: Array<string | SpannerSearchIndexOrderByDefinition>;
+}
+
 export interface SpannerTableDefinition {
   kind: "Table";
   // Must be of CamelCase.
   name: string;
   columns: Array<SpannerTableColumnDefinition>;
+  searchColumns?: Array<SpannerTableSearchColumnDefinition>;
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
   indexes?: Array<SpannerIndexDefinition>;
-}
-
-export interface SpannerMessageTableDefintion {
-  kind: "MessageTable";
-  // Must be of CamelCase. Serves as the name of the table as well as refers to a defined message.
-  name: string;
-  storedInColumn: string;
-  // Refers to fields defined in the message.
-  // `boolean` maps to bool in Spanner.
-  // `number` maps to float64 in Spanner.
-  // `string` maps to string with MAX length in Spanner.
-  // Referneced enum maps to float64 in Spanner.
-  columns: Array<string>;
-  primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
-  interleave?: SpannerTableInterleaveDefinition;
-  indexes?: Array<SpannerIndexDefinition>;
+  searchIndexes?: Array<SpannerSearchIndexDefinition>;
   // Specify name of the queries.
   insert?: string;
   delete?: string;
   get?: string;
-  update?: string;
 }
 
 export interface SpannerTaskTableDefinition {
@@ -219,73 +226,87 @@ export interface SpannerTaskTableDefinition {
   updateMetadata: string;
 }
 
-export interface SpannerColumnRef {
-  name: string;
-  table: string;
-}
-
-export interface SpannerTableRef {
-  name: string;
-  as: string;
-}
-
 export interface SpannerJoinOnLeaf {
-  leftColumn: SpannerColumnRef;
+  lColumn: string;
+  lTable: string;
   op: ">" | "<" | ">=" | "<=" | "!=" | "=";
   // Must refer to the table to be joined.
-  rightColumn: string;
+  rColumn: string;
 }
 
 export interface SpannerJoinOnConcat {
   op: "AND" | "OR";
-  exps: Array<SpannerJoinOnConcat | SpannerJoinOnLeaf>;
+  exprs: Array<SpannerJoinOnConcat | SpannerJoinOnLeaf>;
 }
 
 export interface SpannerJoin {
   type: "INNER" | "CROSS" | "FULL" | "LEFT" | "RIGHT";
-  table: string | SpannerTableRef;
+  with: string;
+  as?: string;
   on?: SpannerJoinOnConcat | SpannerJoinOnLeaf;
 }
 
 export interface SpannerWhereLeaf {
-  leftColumn: string | SpannerColumnRef;
-  op: ">" | "<" | ">=" | "<=" | "!=" | "=" | "IS NULL" | "IS NOT NULL";
-  // right value will be an input, except for NULL check.
+  lColumn: string;
+  lTable?: string;
+  // Functions might introduce input values.
+  func?: "SCORE";
+  // Binary operations introduces an input value.
+  op:
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "!="
+    | "="
+    | "IS NULL"
+    | "IS NOT NULL"
+    | "SEARCH";
 }
 
 export interface SpannerWhereConcat {
   op: "AND" | "OR";
-  exps: Array<SpannerWhereConcat | SpannerWhereLeaf>;
+  exprs: Array<SpannerWhereConcat | SpannerWhereLeaf>;
 }
 
-export interface SpannerOrderByColumnRef {
-  column: string | SpannerColumnRef;
+export interface SpannerOrderByExpr {
+  column: string;
+  table?: string;
+  // Function might introduce input values.
+  func?: "SCORE";
   desc?: true;
+}
+
+export interface SpannerColumnRef {
+  column: string;
+  table: string;
 }
 
 export interface SpannerSelectDefinition {
   // Must be of CamelCase.
   name: string;
-  table: string | SpannerTableRef;
+  from: string;
+  as?: string;
   join?: Array<SpannerJoin>;
   where?: SpannerWhereConcat | SpannerWhereLeaf;
-  orderBy?: Array<string | SpannerOrderByColumnRef>;
+  orderBy?: Array<string | SpannerOrderByExpr>;
   withLimit?: boolean;
-  getColumns: Array<string | SpannerColumnRef>;
+  getAllColumnsFrom?: Array<string>; // List of tables in the query.
+  get?: Array<string | SpannerColumnRef>;
 }
 
 export interface SpannerInsertDefinition {
   // Must be of CamelCase.
   name: string;
   table: string;
-  setColumns: Array<string>;
+  set: Array<string>;
 }
 
 export interface SpannerUpdateDefinition {
   // Must be of CamelCase.
   name: string;
   table: string;
-  setColumns: Array<string>;
+  set: Array<string>;
   where: SpannerWhereConcat | SpannerWhereLeaf;
 }
 
@@ -301,11 +322,7 @@ export interface SpannerDatabaseDefinition {
   kind: "SpannerDatabase";
   // Must be of CamelCase.
   name: string;
-  tables?: Array<
-    | SpannerTableDefinition
-    | SpannerMessageTableDefintion
-    | SpannerTaskTableDefinition
-  >;
+  tables?: Array<SpannerTableDefinition | SpannerTaskTableDefinition>;
   selects?: Array<SpannerSelectDefinition>;
   inserts?: Array<SpannerInsertDefinition>;
   updates?: Array<SpannerUpdateDefinition>;

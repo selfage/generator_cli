@@ -9,9 +9,9 @@
       "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN user BYTES(MAX)"
     }, {
       "name": "createdTimestamp",
-      "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN createdTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)"
+      "addColumnDdl": "ALTER TABLE UserTable ADD COLUMN createdTimestamp TIMESTAMP NOT NULL"
     }],
-    "createTableDdl": "CREATE TABLE UserTable (userId FLOAT64 NOT NULL, user BYTES(MAX), createdTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)) PRIMARY KEY (userId ASC)",
+    "createTableDdl": "CREATE TABLE UserTable (userId FLOAT64 NOT NULL, user BYTES(MAX), createdTimestamp TIMESTAMP NOT NULL) PRIMARY KEY (userId ASC)",
     "indexes": [{
       "name": "ByTimestamp",
       "createIndexDdl": "CREATE INDEX ByTimestamp ON UserTable(userId, createdTimestamp DESC)"

@@ -6,7 +6,7 @@ import { stripFileExtension } from "./io_helper";
 import { generateMessage } from "./message_generator";
 import { OutputContentBuilder } from "./output_content_builder";
 import { generateRemoteCallsGroup, generateService } from "./service_generator";
-import { generateSpannerDatabase } from "./spanner_database_generator";
+import { SpannerDatabaseGenerator } from "./spanner_database_generator";
 import { normalizeRelativePathForNode } from "./util";
 import { parse } from "yaml";
 
@@ -38,12 +38,12 @@ export function generate(inputFile: string, dryRun?: boolean): void {
         outputContentMap,
       );
     } else if (definition.kind === "SpannerDatabase") {
-      generateSpannerDatabase(
+      new SpannerDatabaseGenerator(
         modulePath,
         definition,
         definitionResolver,
         outputContentMap,
-      );
+      ).generate();
     }
   }
 

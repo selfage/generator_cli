@@ -1,7 +1,7 @@
 import { Definition } from "./definition";
 import { MockDefinitionResolver } from "./definition_resolver_mock";
 import { OutputContentBuilder } from "./output_content_builder";
-import { generateSpannerDatabase } from "./spanner_database_generator";
+import { SpannerDatabaseGenerator } from "./spanner_database_generator";
 import {
   assertThat,
   assertThrow,
@@ -48,7 +48,7 @@ TEST_RUNNER.run({
         })();
 
         // Execute
-        generateSpannerDatabase(
+        new SpannerDatabaseGenerator(
           "./database/user",
           {
             kind: "SpannerDatabase",
@@ -71,6 +71,10 @@ TEST_RUNNER.run({
                     type: "bool",
                   },
                   {
+                    name: "int53Value",
+                    type: "int53",
+                  },
+                  {
                     name: "float64Value",
                     type: "float64",
                     nullable: true,
@@ -78,7 +82,6 @@ TEST_RUNNER.run({
                   {
                     name: "timestampValue",
                     type: "timestamp",
-                    allowCommitTimestamp: true,
                   },
                   {
                     name: "stringArrayValue",
@@ -88,6 +91,11 @@ TEST_RUNNER.run({
                   {
                     name: "boolArrayValue",
                     type: "bool",
+                    isArray: true,
+                  },
+                  {
+                    name: "int53ArrayValue",
+                    type: "int53",
                     isArray: true,
                   },
                   {
@@ -146,60 +154,49 @@ TEST_RUNNER.run({
                     unique: true,
                   },
                 ],
+                insert: "InsertTypesTable",
+                delete: "DeleteTypesTable",
+                get: "GetTypesTable",
               },
             ],
             inserts: [
               {
-                name: "InsertNewRow",
+                name: "InsertPartialRow",
                 table: "TypesTable",
-                setColumns: [
-                  "id",
-                  "stringValue",
-                  "boolValue",
-                  "float64Value",
-                  "timestampValue",
-                  "stringArrayValue",
-                  "boolArrayValue",
-                  "float64ArrayValue",
-                  "timestampArrayValue",
-                  "user",
-                  "userType",
-                  "userArray",
-                  "userTypeArray",
-                ],
+                set: ["id", "stringValue", "timestampValue"],
               },
             ],
             updates: [
               {
                 name: "UpdateARow",
                 table: "TypesTable",
-                setColumns: ["stringValue", "timestampValue"],
+                set: ["stringValue", "timestampValue"],
                 where: {
                   op: "AND",
-                  exps: [
+                  exprs: [
                     {
                       op: "=",
-                      leftColumn: "stringValue",
+                      lColumn: "stringValue",
                     },
                     {
                       op: "OR",
-                      exps: [
+                      exprs: [
                         {
                           op: "AND",
-                          exps: [
+                          exprs: [
                             {
                               op: ">=",
-                              leftColumn: "float64Value",
+                              lColumn: "float64Value",
                             },
                             {
                               op: "!=",
-                              leftColumn: "boolValue",
+                              lColumn: "boolValue",
                             },
                           ],
                         },
                         {
                           op: ">",
-                          leftColumn: "timestampValue",
+                          lColumn: "timestampValue",
                         },
                       ],
                     },
@@ -213,14 +210,14 @@ TEST_RUNNER.run({
                 table: "TypesTable",
                 where: {
                   op: "AND",
-                  exps: [
+                  exprs: [
                     {
                       op: "=",
-                      leftColumn: "id",
+                      lColumn: "id",
                     },
                     {
                       op: "IS NULL",
-                      leftColumn: "float64Value",
+                      lColumn: "float64Value",
                     },
                   ],
                 },
@@ -228,23 +225,14 @@ TEST_RUNNER.run({
             ],
             selects: [
               {
-                name: "SelectARow",
-                table: "TypesTable",
-                getColumns: [
-                  "id",
-                  "stringValue",
-                  "boolValue",
-                  "float64Value",
-                  "timestampValue",
-                  "stringArrayValue",
-                  "boolArrayValue",
-                  "float64ArrayValue",
-                  "timestampArrayValue",
-                  "user",
-                  "userType",
-                  "userArray",
-                  "userTypeArray",
-                ],
+                name: "GetARow",
+                from: "TypesTable",
+                getAllColumnsFrom: ["TypesTable"],
+              },
+              {
+                name: "GetPartialRow",
+                from: "TypesTable",
+                get: ["id", "stringValue", "userTypeArray"],
               },
             ],
             outputDdl: "./database/schema_ddl",
@@ -252,7 +240,7 @@ TEST_RUNNER.run({
           },
           mockDefinitionResolver,
           outputContentMap,
-        );
+        ).generate();
 
         // Verify
         assertThat(
@@ -270,17 +258,23 @@ TEST_RUNNER.run({
       "name": "boolValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN boolValue BOOL NOT NULL"
     }, {
+      "name": "int53Value",
+      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN int53Value INT64 NOT NULL"
+    }, {
       "name": "float64Value",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64Value FLOAT64"
     }, {
       "name": "timestampValue",
-      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true)"
+      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN timestampValue TIMESTAMP NOT NULL"
     }, {
       "name": "stringArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN stringArrayValue Array<STRING(MAX)> NOT NULL"
     }, {
       "name": "boolArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN boolArrayValue Array<BOOL> NOT NULL"
+    }, {
+      "name": "int53ArrayValue",
+      "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN int53ArrayValue Array<INT64> NOT NULL"
     }, {
       "name": "float64ArrayValue",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN float64ArrayValue Array<FLOAT64>"
@@ -300,7 +294,7 @@ TEST_RUNNER.run({
       "name": "userTypeArray",
       "addColumnDdl": "ALTER TABLE TypesTable ADD COLUMN userTypeArray Array<FLOAT64> NOT NULL"
     }],
-    "createTableDdl": "CREATE TABLE TypesTable (id STRING(MAX) NOT NULL, stringValue STRING(MAX) NOT NULL, boolValue BOOL NOT NULL, float64Value FLOAT64, timestampValue TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp = true), stringArrayValue Array<STRING(MAX)> NOT NULL, boolArrayValue Array<BOOL> NOT NULL, float64ArrayValue Array<FLOAT64>, timestampArrayValue Array<TIMESTAMP> NOT NULL, user BYTES(MAX) NOT NULL, userType FLOAT64, userArray Array<BYTES(MAX)>, userTypeArray Array<FLOAT64> NOT NULL) PRIMARY KEY (id DESC, stringValue ASC)",
+    "createTableDdl": "CREATE TABLE TypesTable (id STRING(MAX) NOT NULL, stringValue STRING(MAX) NOT NULL, boolValue BOOL NOT NULL, int53Value INT64 NOT NULL, float64Value FLOAT64, timestampValue TIMESTAMP NOT NULL, stringArrayValue Array<STRING(MAX)> NOT NULL, boolArrayValue Array<BOOL> NOT NULL, int53ArrayValue Array<INT64> NOT NULL, float64ArrayValue Array<FLOAT64>, timestampArrayValue Array<TIMESTAMP> NOT NULL, user BYTES(MAX) NOT NULL, userType FLOAT64, userArray Array<BYTES(MAX)>, userTypeArray Array<FLOAT64> NOT NULL) PRIMARY KEY (id DESC, stringValue ASC)",
     "indexes": [{
       "name": "Sort",
       "createIndexDdl": "CREATE INDEX Sort ON TypesTable(stringValue, float64Value)"
@@ -320,13 +314,16 @@ import { serializeMessage, deserializeMessage, toEnumFromNumber } from '@selfage
 import { Statement } from '@google-cloud/spanner/build/src/transaction';
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
-export function insertNewRowStatement(
+export function insertTypesTableStatement(
   id: string,
   stringValue: string,
   boolValue: boolean,
+  int53Value: number,
   float64Value: number | null | undefined,
+  timestampValue: number,
   stringArrayValue: Array<string>,
   boolArrayValue: Array<boolean>,
+  int53ArrayValue: Array<number>,
   float64ArrayValue: Array<number> | null | undefined,
   timestampArrayValue: Array<number>,
   user: User,
@@ -335,14 +332,17 @@ export function insertNewRowStatement(
   userTypeArray: Array<UserType>,
 ): Statement {
   return {
-    sql: "INSERT TypesTable (id, stringValue, boolValue, float64Value, timestampValue, stringArrayValue, boolArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @float64Value, PENDING_COMMIT_TIMESTAMP(), @stringArrayValue, @boolArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
+    sql: "INSERT TypesTable (id, stringValue, boolValue, int53Value, float64Value, timestampValue, stringArrayValue, boolArrayValue, int53ArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int53Value, @float64Value, @timestampValue, @stringArrayValue, @boolArrayValue, @int53ArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
       id: id,
       stringValue: stringValue,
       boolValue: boolValue,
+      int53Value: int53Value.toString(),
       float64Value: float64Value == null ? null : Spanner.float(float64Value),
+      timestampValue: new Date(timestampValue).toISOString(),
       stringArrayValue: stringArrayValue,
       boolArrayValue: boolArrayValue,
+      int53ArrayValue: int53ArrayValue.map((e) => e.toString()),
       float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
       timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
       user: Buffer.from(serializeMessage(user, USER).buffer),
@@ -354,9 +354,12 @@ export function insertNewRowStatement(
       id: { type: "string" },
       stringValue: { type: "string" },
       boolValue: { type: "bool" },
+      int53Value: { type: "int53" },
       float64Value: { type: "float64" },
+      timestampValue: { type: "timestamp" },
       stringArrayValue: { type: "array", child: { type: "string" } },
       boolArrayValue: { type: "array", child: { type: "bool" } },
+      int53ArrayValue: { type: "array", child: { type: "int53" } },
       float64ArrayValue: { type: "array", child: { type: "float64" } },
       timestampArrayValue: { type: "array", child: { type: "timestamp" } },
       user: { type: "bytes" },
@@ -367,21 +370,189 @@ export function insertNewRowStatement(
   };
 }
 
+export function deleteTypesTableStatement(
+  typesTableIdEq: string,
+  typesTableStringValueEq: string,
+): Statement {
+  return {
+    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
+    params: {
+      typesTableIdEq: typesTableIdEq,
+      typesTableStringValueEq: typesTableStringValueEq,
+    },
+    types: {
+      typesTableIdEq: { type: "string" },
+      typesTableStringValueEq: { type: "string" },
+    }
+  };
+}
+
+export interface GetTypesTableRow {
+  typesTableId?: string,
+  typesTableStringValue?: string,
+  typesTableBoolValue?: boolean,
+  typesTableInt53Value?: number,
+  typesTableFloat64Value?: number,
+  typesTableTimestampValue?: number,
+  typesTableStringArrayValue?: Array<string>,
+  typesTableBoolArrayValue?: Array<boolean>,
+  typesTableInt53ArrayValue?: Array<number>,
+  typesTableFloat64ArrayValue?: Array<number>,
+  typesTableTimestampArrayValue?: Array<number>,
+  typesTableUser?: User,
+  typesTableUserType?: UserType,
+  typesTableUserArray?: Array<User>,
+  typesTableUserTypeArray?: Array<UserType>,
+}
+
+export let GET_TYPES_TABLE_ROW: MessageDescriptor<GetTypesTableRow> = {
+  name: 'GetTypesTableRow',
+  fields: [{
+    name: 'typesTableId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableStringValue',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableBoolValue',
+    index: 3,
+    primitiveType: PrimitiveType.BOOLEAN,
+  }, {
+    name: 'typesTableInt53Value',
+    index: 4,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableFloat64Value',
+    index: 5,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableTimestampValue',
+    index: 6,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableStringArrayValue',
+    index: 7,
+    primitiveType: PrimitiveType.STRING,
+    isArray: true,
+  }, {
+    name: 'typesTableBoolArrayValue',
+    index: 8,
+    primitiveType: PrimitiveType.BOOLEAN,
+    isArray: true,
+  }, {
+    name: 'typesTableInt53ArrayValue',
+    index: 9,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableFloat64ArrayValue',
+    index: 10,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableTimestampArrayValue',
+    index: 11,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableUser',
+    index: 12,
+    messageType: USER,
+  }, {
+    name: 'typesTableUserType',
+    index: 13,
+    enumType: USER_TYPE,
+  }, {
+    name: 'typesTableUserArray',
+    index: 14,
+    messageType: USER,
+    isArray: true,
+  }, {
+    name: 'typesTableUserTypeArray',
+    index: 15,
+    enumType: USER_TYPE,
+    isArray: true,
+  }],
+};
+
+export async function getTypesTable(
+  runner: Database | Transaction,
+  typesTableIdEq: string,
+  typesTableStringValueEq: string,
+): Promise<Array<GetTypesTableRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int53Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int53ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
+    params: {
+      typesTableIdEq: typesTableIdEq,
+      typesTableStringValueEq: typesTableStringValueEq,
+    },
+    types: {
+      typesTableIdEq: { type: "string" },
+      typesTableStringValueEq: { type: "string" },
+    }
+  });
+  let resRows = new Array<GetTypesTableRow>();
+  for (let row of rows) {
+    resRows.push({
+      typesTableId: row.at(0).value == null ? undefined : row.at(0).value,
+      typesTableStringValue: row.at(1).value == null ? undefined : row.at(1).value,
+      typesTableBoolValue: row.at(2).value == null ? undefined : row.at(2).value,
+      typesTableInt53Value: row.at(3).value == null ? undefined : row.at(3).value.valueOf(),
+      typesTableFloat64Value: row.at(4).value == null ? undefined : row.at(4).value.value,
+      typesTableTimestampValue: row.at(5).value == null ? undefined : row.at(5).value.valueOf(),
+      typesTableStringArrayValue: row.at(6).value == null ? undefined : row.at(6).value,
+      typesTableBoolArrayValue: row.at(7).value == null ? undefined : row.at(7).value,
+      typesTableInt53ArrayValue: row.at(8).value == null ? undefined : row.at(8).value.map((e) => e.valueOf()),
+      typesTableFloat64ArrayValue: row.at(9).value == null ? undefined : row.at(9).value.map((e) => e.value),
+      typesTableTimestampArrayValue: row.at(10).value == null ? undefined : row.at(10).value.map((e) => e.valueOf()),
+      typesTableUser: row.at(11).value == null ? undefined : deserializeMessage(row.at(11).value, USER),
+      typesTableUserType: row.at(12).value == null ? undefined : toEnumFromNumber(row.at(12).value.value, USER_TYPE),
+      typesTableUserArray: row.at(13).value == null ? undefined : row.at(13).value.map((e) => deserializeMessage(e, USER)),
+      typesTableUserTypeArray: row.at(14).value == null ? undefined : row.at(14).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+    });
+  }
+  return resRows;
+}
+
+export function insertPartialRowStatement(
+  id: string,
+  stringValue: string,
+  timestampValue: number,
+): Statement {
+  return {
+    sql: "INSERT TypesTable (id, stringValue, timestampValue) VALUES (@id, @stringValue, @timestampValue)",
+    params: {
+      id: id,
+      stringValue: stringValue,
+      timestampValue: new Date(timestampValue).toISOString(),
+    },
+    types: {
+      id: { type: "string" },
+      stringValue: { type: "string" },
+      timestampValue: { type: "timestamp" },
+    }
+  };
+}
+
 export function updateARowStatement(
   typesTableStringValueEq: string,
   typesTableFloat64ValueGe: number | null | undefined,
   typesTableBoolValueNe: boolean,
   typesTableTimestampValueGt: number,
   setStringValue: string,
+  setTimestampValue: number,
 ): Statement {
   return {
-    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = PENDING_COMMIT_TIMESTAMP() WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
+    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = @setTimestampValue WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
       typesTableStringValueEq: typesTableStringValueEq,
       typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
       typesTableBoolValueNe: typesTableBoolValueNe,
       typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
       setStringValue: setStringValue,
+      setTimestampValue: new Date(setTimestampValue).toISOString(),
     },
     types: {
       typesTableStringValueEq: { type: "string" },
@@ -389,6 +560,7 @@ export function updateARowStatement(
       typesTableBoolValueNe: { type: "bool" },
       typesTableTimestampValueGt: { type: "timestamp" },
       setStringValue: { type: "string" },
+      setTimestampValue: { type: "timestamp" },
     }
   };
 }
@@ -407,24 +579,26 @@ export function deleteARowStatement(
   };
 }
 
-export interface SelectARowRow {
-  typesTableId: string,
-  typesTableStringValue: string,
-  typesTableBoolValue: boolean,
-  typesTableFloat64Value: number | undefined,
-  typesTableTimestampValue: number,
-  typesTableStringArrayValue: Array<string>,
-  typesTableBoolArrayValue: Array<boolean>,
-  typesTableFloat64ArrayValue: Array<number> | undefined,
-  typesTableTimestampArrayValue: Array<number>,
-  typesTableUser: User,
-  typesTableUserType: UserType | undefined,
-  typesTableUserArray: Array<User> | undefined,
-  typesTableUserTypeArray: Array<UserType>,
+export interface GetARowRow {
+  typesTableId?: string,
+  typesTableStringValue?: string,
+  typesTableBoolValue?: boolean,
+  typesTableInt53Value?: number,
+  typesTableFloat64Value?: number,
+  typesTableTimestampValue?: number,
+  typesTableStringArrayValue?: Array<string>,
+  typesTableBoolArrayValue?: Array<boolean>,
+  typesTableInt53ArrayValue?: Array<number>,
+  typesTableFloat64ArrayValue?: Array<number>,
+  typesTableTimestampArrayValue?: Array<number>,
+  typesTableUser?: User,
+  typesTableUserType?: UserType,
+  typesTableUserArray?: Array<User>,
+  typesTableUserTypeArray?: Array<UserType>,
 }
 
-export let SELECT_A_ROW_ROW: MessageDescriptor<SelectARowRow> = {
-  name: 'SelectARowRow',
+export let GET_A_ROW_ROW: MessageDescriptor<GetARowRow> = {
+  name: 'GetARowRow',
   fields: [{
     name: 'typesTableId',
     index: 1,
@@ -438,193 +612,142 @@ export let SELECT_A_ROW_ROW: MessageDescriptor<SelectARowRow> = {
     index: 3,
     primitiveType: PrimitiveType.BOOLEAN,
   }, {
-    name: 'typesTableFloat64Value',
+    name: 'typesTableInt53Value',
     index: 4,
     primitiveType: PrimitiveType.NUMBER,
   }, {
-    name: 'typesTableTimestampValue',
+    name: 'typesTableFloat64Value',
     index: 5,
     primitiveType: PrimitiveType.NUMBER,
   }, {
-    name: 'typesTableStringArrayValue',
+    name: 'typesTableTimestampValue',
     index: 6,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'typesTableStringArrayValue',
+    index: 7,
     primitiveType: PrimitiveType.STRING,
     isArray: true,
   }, {
     name: 'typesTableBoolArrayValue',
-    index: 7,
+    index: 8,
     primitiveType: PrimitiveType.BOOLEAN,
     isArray: true,
   }, {
-    name: 'typesTableFloat64ArrayValue',
-    index: 8,
-    primitiveType: PrimitiveType.NUMBER,
-    isArray: true,
-  }, {
-    name: 'typesTableTimestampArrayValue',
+    name: 'typesTableInt53ArrayValue',
     index: 9,
     primitiveType: PrimitiveType.NUMBER,
     isArray: true,
   }, {
-    name: 'typesTableUser',
+    name: 'typesTableFloat64ArrayValue',
     index: 10,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableTimestampArrayValue',
+    index: 11,
+    primitiveType: PrimitiveType.NUMBER,
+    isArray: true,
+  }, {
+    name: 'typesTableUser',
+    index: 12,
     messageType: USER,
   }, {
     name: 'typesTableUserType',
-    index: 11,
+    index: 13,
     enumType: USER_TYPE,
   }, {
     name: 'typesTableUserArray',
-    index: 12,
+    index: 14,
     messageType: USER,
     isArray: true,
   }, {
     name: 'typesTableUserTypeArray',
-    index: 13,
+    index: 15,
     enumType: USER_TYPE,
     isArray: true,
   }],
 };
 
-export async function selectARow(
+export async function getARow(
   runner: Database | Transaction,
-): Promise<Array<SelectARowRow>> {
+): Promise<Array<GetARowRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
+    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int53Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int53ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
     params: {
     },
     types: {
     }
   });
-  let resRows = new Array<SelectARowRow>();
+  let resRows = new Array<GetARowRow>();
   for (let row of rows) {
     resRows.push({
-      typesTableId: row.at(0).value,
-      typesTableStringValue: row.at(1).value,
-      typesTableBoolValue: row.at(2).value,
-      typesTableFloat64Value: row.at(3).value == null ? undefined : row.at(3).value.value,
-      typesTableTimestampValue: row.at(4).value.valueOf(),
-      typesTableStringArrayValue: row.at(5).value,
-      typesTableBoolArrayValue: row.at(6).value,
-      typesTableFloat64ArrayValue: row.at(7).value == null ? undefined : row.at(7).value.map((e) => e.value),
-      typesTableTimestampArrayValue: row.at(8).value.map((e) => e.valueOf()),
-      typesTableUser: deserializeMessage(row.at(9).value, USER),
-      typesTableUserType: row.at(10).value == null ? undefined : toEnumFromNumber(row.at(10).value.value, USER_TYPE),
-      typesTableUserArray: row.at(11).value == null ? undefined : row.at(11).value.map((e) => deserializeMessage(e, USER)),
-      typesTableUserTypeArray: row.at(12).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+      typesTableId: row.at(0).value == null ? undefined : row.at(0).value,
+      typesTableStringValue: row.at(1).value == null ? undefined : row.at(1).value,
+      typesTableBoolValue: row.at(2).value == null ? undefined : row.at(2).value,
+      typesTableInt53Value: row.at(3).value == null ? undefined : row.at(3).value.valueOf(),
+      typesTableFloat64Value: row.at(4).value == null ? undefined : row.at(4).value.value,
+      typesTableTimestampValue: row.at(5).value == null ? undefined : row.at(5).value.valueOf(),
+      typesTableStringArrayValue: row.at(6).value == null ? undefined : row.at(6).value,
+      typesTableBoolArrayValue: row.at(7).value == null ? undefined : row.at(7).value,
+      typesTableInt53ArrayValue: row.at(8).value == null ? undefined : row.at(8).value.map((e) => e.valueOf()),
+      typesTableFloat64ArrayValue: row.at(9).value == null ? undefined : row.at(9).value.map((e) => e.value),
+      typesTableTimestampArrayValue: row.at(10).value == null ? undefined : row.at(10).value.map((e) => e.valueOf()),
+      typesTableUser: row.at(11).value == null ? undefined : deserializeMessage(row.at(11).value, USER),
+      typesTableUserType: row.at(12).value == null ? undefined : toEnumFromNumber(row.at(12).value.value, USER_TYPE),
+      typesTableUserArray: row.at(13).value == null ? undefined : row.at(13).value.map((e) => deserializeMessage(e, USER)),
+      typesTableUserTypeArray: row.at(14).value == null ? undefined : row.at(14).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+    });
+  }
+  return resRows;
+}
+
+export interface GetPartialRowRow {
+  typesTableId?: string,
+  typesTableStringValue?: string,
+  typesTableUserTypeArray?: Array<UserType>,
+}
+
+export let GET_PARTIAL_ROW_ROW: MessageDescriptor<GetPartialRowRow> = {
+  name: 'GetPartialRowRow',
+  fields: [{
+    name: 'typesTableId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableStringValue',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'typesTableUserTypeArray',
+    index: 3,
+    enumType: USER_TYPE,
+    isArray: true,
+  }],
+};
+
+export async function getPartialRow(
+  runner: Database | Transaction,
+): Promise<Array<GetPartialRowRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.userTypeArray FROM TypesTable",
+    params: {
+    },
+    types: {
+    }
+  });
+  let resRows = new Array<GetPartialRowRow>();
+  for (let row of rows) {
+    resRows.push({
+      typesTableId: row.at(0).value == null ? undefined : row.at(0).value,
+      typesTableStringValue: row.at(1).value == null ? undefined : row.at(1).value,
+      typesTableUserTypeArray: row.at(2).value == null ? undefined : row.at(2).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
     });
   }
   return resRows;
 }
 `),
           "sql",
-        );
-      },
-    },
-    {
-      name: "StringWithAllowCommitTimestamp",
-      execute: () => {
-        // Prepare
-        let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockDefinitionResolver =
-          new (class extends MockDefinitionResolver {})();
-
-        // Execute
-        let error = assertThrow(() =>
-          generateSpannerDatabase(
-            "./database/user",
-            {
-              kind: "SpannerDatabase",
-              name: "UserDatabase",
-              tables: [
-                {
-                  kind: "Table",
-                  name: "TypesTable",
-                  columns: [
-                    {
-                      name: "id",
-                      type: "string",
-                    },
-                    {
-                      name: "stringValue",
-                      type: "string",
-                      allowCommitTimestamp: true,
-                    },
-                  ],
-                  primaryKeys: ["id"],
-                },
-              ],
-              outputDdl: "./database/schema_ddl",
-              outputSql: "./database/queries",
-            },
-            mockDefinitionResolver,
-            outputContentMap,
-          ),
-        );
-
-        // Verify
-        assertThat(
-          error,
-          eqError(
-            new Error(
-              "is not timestamp and cannot set allowCommitTimestamp to true",
-            ),
-          ),
-          "error",
-        );
-      },
-    },
-    {
-      name: "ArrayWithAllowCommitTimestamp",
-      execute: () => {
-        // Prepare
-        let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockDefinitionResolver =
-          new (class extends MockDefinitionResolver {})();
-
-        // Execute
-        let error = assertThrow(() =>
-          generateSpannerDatabase(
-            "./database/user",
-            {
-              kind: "SpannerDatabase",
-              name: "UserDatabase",
-              tables: [
-                {
-                  kind: "Table",
-                  name: "TypesTable",
-                  columns: [
-                    {
-                      name: "id",
-                      type: "string",
-                    },
-                    {
-                      name: "timestampValue",
-                      type: "timestamp",
-                      isArray: true,
-                      allowCommitTimestamp: true,
-                    },
-                  ],
-                  primaryKeys: ["id"],
-                },
-              ],
-              outputDdl: "./database/schema_ddl",
-              outputSql: "./database/queries",
-            },
-            mockDefinitionResolver,
-            outputContentMap,
-          ),
-        );
-
-        // Verify
-        assertThat(
-          error,
-          eqError(
-            new Error(
-              "is an array and cannot set allowCommitTimestamp to true",
-            ),
-          ),
-          "error",
         );
       },
     },
@@ -638,7 +761,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -666,7 +789,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -687,7 +810,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -710,7 +833,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -731,7 +854,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -765,7 +888,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -785,7 +908,7 @@ export async function selectARow(
           new (class extends MockDefinitionResolver {})();
 
         // Execute
-        generateSpannerDatabase(
+        new SpannerDatabaseGenerator(
           "./database/user",
           {
             kind: "SpannerDatabase",
@@ -827,7 +950,7 @@ export async function selectARow(
           },
           mockDefinitionResolver,
           outputContentMap,
-        );
+        ).generate();
 
         // Verify
         assertThat(
@@ -868,7 +991,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -910,7 +1033,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -935,7 +1058,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -977,7 +1100,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -1000,7 +1123,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -1042,7 +1165,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -1067,7 +1190,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -1115,7 +1238,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -1136,7 +1259,7 @@ export async function selectARow(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -1178,7 +1301,7 @@ export async function selectARow(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -1194,328 +1317,6 @@ export async function selectARow(
       },
     },
     {
-      name: "MessageTable",
-      execute: () => {
-        // Prepare
-        let outputContentMap = new Map<string, OutputContentBuilder>();
-        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
-          public resolve(
-            loggingPrefix: string,
-            typeName: string,
-            importPath?: string,
-          ): Definition {
-            this.called += 1;
-            switch (typeName) {
-              case "SomeData":
-                assertThat(importPath, eq(undefined), "import path");
-                return {
-                  kind: "Message",
-                  name: "SomeData",
-                  fields: [
-                    {
-                      name: "id1",
-                      type: "string",
-                      index: 1,
-                    },
-                    {
-                      name: "id2",
-                      type: "number",
-                      index: 2,
-                    },
-                    {
-                      name: "stringValue",
-                      type: "string",
-                      index: 3,
-                    },
-                    {
-                      name: "boolValue",
-                      type: "boolean",
-                      index: 4,
-                    },
-                    {
-                      name: "numberValue",
-                      type: "number",
-                      index: 5,
-                    },
-                  ],
-                };
-              default:
-                throw new Error(`Unexpeced type ${typeName}`);
-            }
-          }
-        })();
-
-        // Execute
-        generateSpannerDatabase(
-          "./database/user",
-          {
-            kind: "SpannerDatabase",
-            name: "UserDatabase",
-            tables: [
-              {
-                kind: "MessageTable",
-                name: "SomeData",
-                storedInColumn: "someData",
-                columns: ["id2", "boolValue", "id1", "numberValue"],
-                primaryKeys: [
-                  "id1",
-                  {
-                    name: "id2",
-                    desc: true,
-                  },
-                ],
-                indexes: [
-                  {
-                    name: "Sort",
-                    columns: ["numberValue"],
-                  },
-                  {
-                    name: "Filter",
-                    columns: ["boolValue", "numberValue"],
-                  },
-                ],
-                insert: "InsertNewSomeData",
-                delete: "DeleteSomeData",
-                get: "GetSomeData",
-                update: "UpdateSomeData",
-              },
-            ],
-            selects: [
-              {
-                name: "ListData",
-                table: "SomeData",
-                where: {
-                  op: "AND",
-                  exps: [
-                    {
-                      op: "<",
-                      leftColumn: "numberValue",
-                    },
-                  ],
-                },
-                getColumns: ["someData"],
-              },
-            ],
-            outputDdl: "./database/schema_ddl",
-            outputSql: "./database/queries",
-          },
-          mockDefinitionResolver,
-          outputContentMap,
-        );
-
-        // Verify
-        assertThat(
-          outputContentMap.get("./database/schema_ddl").build(),
-          eqLongStr(`{
-  "tables": [{
-    "name": "SomeData",
-    "columns": [{
-      "name": "id2",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id2 FLOAT64 NOT NULL"
-    }, {
-      "name": "boolValue",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN boolValue BOOL NOT NULL"
-    }, {
-      "name": "id1",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN id1 STRING(MAX) NOT NULL"
-    }, {
-      "name": "numberValue",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN numberValue FLOAT64 NOT NULL"
-    }, {
-      "name": "someData",
-      "addColumnDdl": "ALTER TABLE SomeData ADD COLUMN someData BYTES(MAX) NOT NULL"
-    }],
-    "createTableDdl": "CREATE TABLE SomeData (id2 FLOAT64 NOT NULL, boolValue BOOL NOT NULL, id1 STRING(MAX) NOT NULL, numberValue FLOAT64 NOT NULL, someData BYTES(MAX) NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
-    "indexes": [{
-      "name": "Sort",
-      "createIndexDdl": "CREATE INDEX Sort ON SomeData(numberValue)"
-    }, {
-      "name": "Filter",
-      "createIndexDdl": "CREATE INDEX Filter ON SomeData(boolValue, numberValue)"
-    }]
-  }]
-}`),
-          "ddl",
-        );
-        assertThat(
-          outputContentMap.get("./database/queries").build(),
-          eqLongStr(`import { Statement } from '@google-cloud/spanner/build/src/transaction';
-import { Spanner, Database, Transaction } from '@google-cloud/spanner';
-import { SomeData, SOME_DATA } from './user';
-import { serializeMessage, deserializeMessage } from '@selfage/message/serializer';
-import { MessageDescriptor } from '@selfage/message/descriptor';
-
-export function insertNewSomeDataStatement(
-  someData: SomeData,
-): Statement {
-  return insertNewSomeDataInternalStatement(
-    someData.id2,
-    someData.boolValue,
-    someData.id1,
-    someData.numberValue,
-    someData
-  );
-}
-
-export function insertNewSomeDataInternalStatement(
-  id2: number,
-  boolValue: boolean,
-  id1: string,
-  numberValue: number,
-  someData: SomeData,
-): Statement {
-  return {
-    sql: "INSERT SomeData (id2, boolValue, id1, numberValue, someData) VALUES (@id2, @boolValue, @id1, @numberValue, @someData)",
-    params: {
-      id2: Spanner.float(id2),
-      boolValue: boolValue,
-      id1: id1,
-      numberValue: Spanner.float(numberValue),
-      someData: Buffer.from(serializeMessage(someData, SOME_DATA).buffer),
-    },
-    types: {
-      id2: { type: "float64" },
-      boolValue: { type: "bool" },
-      id1: { type: "string" },
-      numberValue: { type: "float64" },
-      someData: { type: "bytes" },
-    }
-  };
-}
-
-export function deleteSomeDataStatement(
-  someDataId1Eq: string,
-  someDataId2Eq: number,
-): Statement {
-  return {
-    sql: "DELETE SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
-    params: {
-      someDataId1Eq: someDataId1Eq,
-      someDataId2Eq: Spanner.float(someDataId2Eq),
-    },
-    types: {
-      someDataId1Eq: { type: "string" },
-      someDataId2Eq: { type: "float64" },
-    }
-  };
-}
-
-export interface GetSomeDataRow {
-  someDataSomeData: SomeData,
-}
-
-export let GET_SOME_DATA_ROW: MessageDescriptor<GetSomeDataRow> = {
-  name: 'GetSomeDataRow',
-  fields: [{
-    name: 'someDataSomeData',
-    index: 1,
-    messageType: SOME_DATA,
-  }],
-};
-
-export async function getSomeData(
-  runner: Database | Transaction,
-  someDataId1Eq: string,
-  someDataId2Eq: number,
-): Promise<Array<GetSomeDataRow>> {
-  let [rows] = await runner.run({
-    sql: "SELECT SomeData.someData FROM SomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
-    params: {
-      someDataId1Eq: someDataId1Eq,
-      someDataId2Eq: Spanner.float(someDataId2Eq),
-    },
-    types: {
-      someDataId1Eq: { type: "string" },
-      someDataId2Eq: { type: "float64" },
-    }
-  });
-  let resRows = new Array<GetSomeDataRow>();
-  for (let row of rows) {
-    resRows.push({
-      someDataSomeData: deserializeMessage(row.at(0).value, SOME_DATA),
-    });
-  }
-  return resRows;
-}
-
-export function updateSomeDataStatement(
-  someData: SomeData,
-): Statement {
-  return updateSomeDataInternalStatement(
-    someData.id1,
-    someData.id2,
-    someData.boolValue,
-    someData.numberValue,
-    someData
-  );
-}
-
-export function updateSomeDataInternalStatement(
-  someDataId1Eq: string,
-  someDataId2Eq: number,
-  setBoolValue: boolean,
-  setNumberValue: number,
-  setSomeData: SomeData,
-): Statement {
-  return {
-    sql: "UPDATE SomeData SET boolValue = @setBoolValue, numberValue = @setNumberValue, someData = @setSomeData WHERE (SomeData.id1 = @someDataId1Eq AND SomeData.id2 = @someDataId2Eq)",
-    params: {
-      someDataId1Eq: someDataId1Eq,
-      someDataId2Eq: Spanner.float(someDataId2Eq),
-      setBoolValue: setBoolValue,
-      setNumberValue: Spanner.float(setNumberValue),
-      setSomeData: Buffer.from(serializeMessage(setSomeData, SOME_DATA).buffer),
-    },
-    types: {
-      someDataId1Eq: { type: "string" },
-      someDataId2Eq: { type: "float64" },
-      setBoolValue: { type: "bool" },
-      setNumberValue: { type: "float64" },
-      setSomeData: { type: "bytes" },
-    }
-  };
-}
-
-export interface ListDataRow {
-  someDataSomeData: SomeData,
-}
-
-export let LIST_DATA_ROW: MessageDescriptor<ListDataRow> = {
-  name: 'ListDataRow',
-  fields: [{
-    name: 'someDataSomeData',
-    index: 1,
-    messageType: SOME_DATA,
-  }],
-};
-
-export async function listData(
-  runner: Database | Transaction,
-  someDataNumberValueLt: number,
-): Promise<Array<ListDataRow>> {
-  let [rows] = await runner.run({
-    sql: "SELECT SomeData.someData FROM SomeData WHERE (SomeData.numberValue < @someDataNumberValueLt)",
-    params: {
-      someDataNumberValueLt: Spanner.float(someDataNumberValueLt),
-    },
-    types: {
-      someDataNumberValueLt: { type: "float64" },
-    }
-  });
-  let resRows = new Array<ListDataRow>();
-  for (let row of rows) {
-    resRows.push({
-      someDataSomeData: deserializeMessage(row.at(0).value, SOME_DATA),
-    });
-  }
-  return resRows;
-}
-`),
-          "sql",
-        );
-      },
-    },
-    {
       name: "TaskTable",
       execute: () => {
         // Prepare
@@ -1524,7 +1325,7 @@ export async function listData(
           new (class extends MockDefinitionResolver {})();
 
         // Execute
-        generateSpannerDatabase(
+        new SpannerDatabaseGenerator(
           "./database/task",
           {
             kind: "SpannerDatabase",
@@ -1571,7 +1372,7 @@ export async function listData(
           },
           mockDefinitionResolver,
           outputContentMap,
-        );
+        ).generate();
 
         // Verify
         assertThat(
@@ -1660,12 +1461,12 @@ export function deleteWorkingTaskStatement(
 }
 
 export interface GetWorkingTaskRow {
-  workingTaskId1: string,
-  workingTaskId2: string,
-  workingTaskPayload: string,
-  workingTaskRetryCount: number,
-  workingTaskExecutionTime: number,
-  workingTaskCreatedTime: number,
+  workingTaskId1?: string,
+  workingTaskId2?: string,
+  workingTaskPayload?: string,
+  workingTaskRetryCount?: number,
+  workingTaskExecutionTime?: number,
+  workingTaskCreatedTime?: number,
 }
 
 export let GET_WORKING_TASK_ROW: MessageDescriptor<GetWorkingTaskRow> = {
@@ -1716,21 +1517,21 @@ export async function getWorkingTask(
   let resRows = new Array<GetWorkingTaskRow>();
   for (let row of rows) {
     resRows.push({
-      workingTaskId1: row.at(0).value,
-      workingTaskId2: row.at(1).value,
-      workingTaskPayload: row.at(2).value,
-      workingTaskRetryCount: row.at(3).value.value,
-      workingTaskExecutionTime: row.at(4).value.valueOf(),
-      workingTaskCreatedTime: row.at(5).value.valueOf(),
+      workingTaskId1: row.at(0).value == null ? undefined : row.at(0).value,
+      workingTaskId2: row.at(1).value == null ? undefined : row.at(1).value,
+      workingTaskPayload: row.at(2).value == null ? undefined : row.at(2).value,
+      workingTaskRetryCount: row.at(3).value == null ? undefined : row.at(3).value.value,
+      workingTaskExecutionTime: row.at(4).value == null ? undefined : row.at(4).value.valueOf(),
+      workingTaskCreatedTime: row.at(5).value == null ? undefined : row.at(5).value.valueOf(),
     });
   }
   return resRows;
 }
 
 export interface ListPendingWorkingTasksRow {
-  workingTaskId1: string,
-  workingTaskId2: string,
-  workingTaskPayload: string,
+  workingTaskId1?: string,
+  workingTaskId2?: string,
+  workingTaskPayload?: string,
 }
 
 export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingTasksRow> = {
@@ -1766,17 +1567,17 @@ export async function listPendingWorkingTasks(
   let resRows = new Array<ListPendingWorkingTasksRow>();
   for (let row of rows) {
     resRows.push({
-      workingTaskId1: row.at(0).value,
-      workingTaskId2: row.at(1).value,
-      workingTaskPayload: row.at(2).value,
+      workingTaskId1: row.at(0).value == null ? undefined : row.at(0).value,
+      workingTaskId2: row.at(1).value == null ? undefined : row.at(1).value,
+      workingTaskPayload: row.at(2).value == null ? undefined : row.at(2).value,
     });
   }
   return resRows;
 }
 
 export interface GetWorkingTaskMetadataRow {
-  workingTaskRetryCount: number,
-  workingTaskExecutionTime: number,
+  workingTaskRetryCount?: number,
+  workingTaskExecutionTime?: number,
 }
 
 export let GET_WORKING_TASK_METADATA_ROW: MessageDescriptor<GetWorkingTaskMetadataRow> = {
@@ -1811,8 +1612,8 @@ export async function getWorkingTaskMetadata(
   let resRows = new Array<GetWorkingTaskMetadataRow>();
   for (let row of rows) {
     resRows.push({
-      workingTaskRetryCount: row.at(0).value.value,
-      workingTaskExecutionTime: row.at(1).value.valueOf(),
+      workingTaskRetryCount: row.at(0).value == null ? undefined : row.at(0).value.value,
+      workingTaskExecutionTime: row.at(1).value == null ? undefined : row.at(1).value.valueOf(),
     });
   }
   return resRows;
@@ -1854,7 +1655,7 @@ export function updateWorkingTaskMetadataStatement(
           new (class extends MockDefinitionResolver {})();
 
         // Execute
-        generateSpannerDatabase(
+        new SpannerDatabaseGenerator(
           "./database/user",
           {
             kind: "SpannerDatabase",
@@ -1909,59 +1710,57 @@ export function updateWorkingTaskMetadataStatement(
             selects: [
               {
                 name: "S1",
-                table: {
-                  name: "T1Table",
-                  as: "t1",
-                },
+                from: "T1Table",
+                as: "t1",
                 join: [
                   {
                     type: "INNER",
-                    table: "T2Table",
+                    with: "T2Table",
                     on: {
-                      leftColumn: {
-                        name: "f1",
-                        table: "t1",
-                      },
+                      lColumn: "f1",
+                      lTable: "t1",
                       op: "=",
-                      rightColumn: "f1",
+                      rColumn: "f1",
                     },
                   },
                   {
                     type: "CROSS",
-                    table: {
-                      name: "T3Table",
-                      as: "t3",
-                    },
+                    with: "T3Table",
+                    as: "t3",
                     on: {
                       op: "AND",
-                      exps: [
+                      exprs: [
                         {
                           op: "OR",
-                          exps: [
+                          exprs: [
                             {
                               op: "=",
-                              leftColumn: { name: "f1", table: "T2Table" },
-                              rightColumn: "f1",
+                              lColumn: "f1",
+                              lTable: "T2Table",
+                              rColumn: "f1",
                             },
                             {
                               op: "!=",
-                              leftColumn: { name: "f1", table: "t1" },
-                              rightColumn: "f1",
+                              lColumn: "f1",
+                              lTable: "t1",
+                              rColumn: "f1",
                             },
                           ],
                         },
                         {
                           op: "OR",
-                          exps: [
+                          exprs: [
                             {
                               op: "=",
-                              leftColumn: { name: "f2", table: "T2Table" },
-                              rightColumn: "f2",
+                              lColumn: "f2",
+                              lTable: "T2Table",
+                              rColumn: "f2",
                             },
                             {
                               op: "!=",
-                              leftColumn: { name: "f2", table: "t1" },
-                              rightColumn: "f2",
+                              lColumn: "f2",
+                              lTable: "t1",
+                              rColumn: "f2",
                             },
                           ],
                         },
@@ -1971,24 +1770,20 @@ export function updateWorkingTaskMetadataStatement(
                 ],
                 where: {
                   op: "AND",
-                  exps: [
+                  exprs: [
                     {
                       op: "=",
-                      leftColumn: "f2",
+                      lColumn: "f2",
                     },
                     {
                       op: "=",
-                      leftColumn: {
-                        name: "f1",
-                        table: "t3",
-                      },
+                      lColumn: "f1",
+                      lTable: "t3",
                     },
                     {
                       op: "!=",
-                      leftColumn: {
-                        name: "f2",
-                        table: "T2Table",
-                      },
+                      lColumn: "f2",
+                      lTable: "T2Table",
                     },
                   ],
                 },
@@ -1998,32 +1793,28 @@ export function updateWorkingTaskMetadataStatement(
                     column: "f1",
                   },
                   {
-                    column: {
-                      name: "f2",
-                      table: "T2Table",
-                    },
+                    column: "f2",
+                    table: "T2Table",
                     desc: true,
                   },
                   {
-                    column: {
-                      name: "f1",
-                      table: "t3",
-                    },
+                    column: "f1",
+                    table: "t3",
                   },
                 ],
                 withLimit: true,
-                getColumns: [
+                get: [
                   "f1",
                   {
-                    name: "f2",
+                    column: "f2",
                     table: "t1",
                   },
                   {
-                    name: "f2",
+                    column: "f2",
                     table: "T2Table",
                   },
                   {
-                    name: "f2",
+                    column: "f2",
                     table: "t3",
                   },
                 ],
@@ -2034,7 +1825,7 @@ export function updateWorkingTaskMetadataStatement(
           },
           mockDefinitionResolver,
           outputContentMap,
-        );
+        ).generate();
 
         // Verify
         assertThat(
@@ -2043,10 +1834,10 @@ export function updateWorkingTaskMetadataStatement(
 import { Database, Transaction } from '@google-cloud/spanner';
 
 export interface S1Row {
-  t1F1: string,
-  t1F2: string,
-  t2TableF2: string,
-  t3F2: string,
+  t1F1?: string,
+  t1F2?: string,
+  t2TableF2?: string,
+  t3F2?: string,
 }
 
 export let S1_ROW: MessageDescriptor<S1Row> = {
@@ -2089,16 +1880,16 @@ export async function s1(
       t1F2Eq: { type: "string" },
       t3F1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
-      limit: { type: "int64" },
+      limit: { type: "int53" },
     }
   });
   let resRows = new Array<S1Row>();
   for (let row of rows) {
     resRows.push({
-      t1F1: row.at(0).value,
-      t1F2: row.at(1).value,
-      t2TableF2: row.at(2).value,
-      t3F2: row.at(3).value,
+      t1F1: row.at(0).value == null ? undefined : row.at(0).value,
+      t1F2: row.at(1).value == null ? undefined : row.at(1).value,
+      t2TableF2: row.at(2).value == null ? undefined : row.at(2).value,
+      t3F2: row.at(3).value == null ? undefined : row.at(3).value,
     });
   }
   return resRows;
@@ -2118,7 +1909,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2143,11 +1934,9 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T2Table",
-                    as: "T1Table",
-                  },
-                  getColumns: [],
+                  from: "T2Table",
+                  as: "T1Table",
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2155,7 +1944,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2176,7 +1965,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2201,17 +1990,15 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: "T1Table",
+                  from: "T1Table",
                   join: [
                     {
                       type: "CROSS",
-                      table: {
-                        name: "T2Table",
-                        as: "t2",
-                      },
+                      with: "T2Table",
+                      as: "t2",
                     },
                   ],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2219,7 +2006,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2240,7 +2027,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2280,25 +2067,21 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: "T1Table",
+                  from: "T1Table",
                   join: [
                     {
                       type: "CROSS",
-                      table: {
-                        name: "T2Table",
-                        as: "t2",
-                      },
+                      with: "T2Table",
+                      as: "t2",
                       on: {
                         op: "=",
-                        leftColumn: {
-                          name: "f3",
-                          table: "T1Table",
-                        },
-                        rightColumn: "f1",
+                        lColumn: "f3",
+                        lTable: "T1Table",
+                        rColumn: "f1",
                       },
                     },
                   ],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2306,7 +2089,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2331,7 +2114,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2371,25 +2154,21 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: "T1Table",
+                  from: "T1Table",
                   join: [
                     {
                       type: "CROSS",
-                      table: {
-                        name: "T2Table",
-                        as: "t2",
-                      },
+                      with: "T2Table",
+                      as: "t2",
                       on: {
                         op: "=",
-                        leftColumn: {
-                          name: "f1",
-                          table: "T1Table",
-                        },
-                        rightColumn: "f3",
+                        lColumn: "f1",
+                        lTable: "T1Table",
+                        rColumn: "f3",
                       },
                     },
                   ],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2397,7 +2176,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2422,7 +2201,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2462,25 +2241,21 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: "T1Table",
+                  from: "T1Table",
                   join: [
                     {
                       type: "CROSS",
-                      table: {
-                        name: "T2Table",
-                        as: "t2",
-                      },
+                      with: "T2Table",
+                      as: "t2",
                       on: {
                         op: "=",
-                        leftColumn: {
-                          name: "f2",
-                          table: "T1Table",
-                        },
-                        rightColumn: "f2",
+                        lColumn: "f2",
+                        lTable: "T1Table",
+                        rColumn: "f2",
                       },
                     },
                   ],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2488,7 +2263,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2513,7 +2288,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2538,18 +2313,14 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   where: {
                     op: "=",
-                    leftColumn: {
-                      name: "f1",
-                      table: "t2",
-                    },
+                    lColumn: "f1",
+                    lTable: "t2",
                   },
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2557,7 +2328,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2582,7 +2353,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2607,18 +2378,14 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   where: {
                     op: "=",
-                    leftColumn: {
-                      name: "f3",
-                      table: "t1",
-                    },
+                    lColumn: "f3",
+                    lTable: "t1",
                   },
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2626,7 +2393,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2651,7 +2418,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2676,18 +2443,14 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   where: {
                     op: "IS NULL",
-                    leftColumn: {
-                      name: "f1",
-                      table: "t1",
-                    },
+                    lColumn: "f1",
+                    lTable: "t1",
                   },
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2695,7 +2458,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2720,7 +2483,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2745,18 +2508,14 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   where: {
                     op: "IS NOT NULL",
-                    leftColumn: {
-                      name: "f1",
-                      table: "t1",
-                    },
+                    lColumn: "f1",
+                    lTable: "t1",
                   },
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2764,7 +2523,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2789,7 +2548,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2814,19 +2573,15 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   orderBy: [
                     {
-                      column: {
-                        name: "f1",
-                        table: "t2",
-                      },
+                      column: "f1",
+                      table: "t2",
                     },
                   ],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2834,7 +2589,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2859,7 +2614,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2884,12 +2639,10 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
+                  from: "T1Table",
+                  as: "t1",
                   orderBy: ["f3"],
-                  getColumns: [],
+                  get: [],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2897,7 +2650,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2922,7 +2675,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -2947,11 +2700,9 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
-                  getColumns: ["f3"],
+                  from: "T1Table",
+                  as: "t1",
+                  get: ["f3"],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -2959,7 +2710,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -2984,7 +2735,7 @@ export async function s1(
 
         // Execute
         let error = assertThrow(() =>
-          generateSpannerDatabase(
+          new SpannerDatabaseGenerator(
             "./database/user",
             {
               kind: "SpannerDatabase",
@@ -3009,13 +2760,11 @@ export async function s1(
               selects: [
                 {
                   name: "S1",
-                  table: {
-                    name: "T1Table",
-                    as: "t1",
-                  },
-                  getColumns: [
+                  from: "T1Table",
+                  as: "t1",
+                  get: [
                     {
-                      name: "f3",
+                      column: "f3",
                       table: "t2",
                     },
                   ],
@@ -3026,7 +2775,7 @@ export async function s1(
             },
             mockDefinitionResolver,
             outputContentMap,
-          ),
+          ).generate(),
         );
 
         // Verify
@@ -3037,6 +2786,782 @@ export async function s1(
               "when generating select columns, t2.f3 refers to a table not found",
             ),
           ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "Search",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        new SpannerDatabaseGenerator(
+          "./database/user",
+          {
+            kind: "SpannerDatabase",
+            name: "UserDatabase",
+            tables: [
+              {
+                kind: "Table",
+                name: "TextTable",
+                columns: [
+                  {
+                    name: "id",
+                    type: "string",
+                  },
+                  {
+                    name: "uploaderId",
+                    type: "string",
+                  },
+                  {
+                    name: "title",
+                    type: "string",
+                  },
+                  {
+                    name: "content",
+                    type: "string",
+                  },
+                  {
+                    name: "updatedTimeMs",
+                    type: "int53",
+                  },
+                  {
+                    name: "index",
+                    type: "int53",
+                  },
+                ],
+                primaryKeys: ["id"],
+                searchColumns: [
+                  {
+                    name: "textTokens",
+                    columnRefs: ["title", "content"],
+                  },
+                  {
+                    name: "titleTokens",
+                    columnRefs: ["title"],
+                  },
+                  {
+                    name: "contentTokens",
+                    columnRefs: ["content"],
+                  },
+                ],
+                searchIndexes: [
+                  {
+                    name: "ByText",
+                    columns: ["textTokens"],
+                  },
+                  {
+                    name: "ByTitleAndContent",
+                    columns: ["titleTokens", "contentTokens"],
+                    partitionByColumns: ["uploaderId"],
+                    orderByColumns: [
+                      "updatedTimeMs",
+                      {
+                        name: "index",
+                        desc: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+            selects: [
+              {
+                name: "SearchText",
+                from: "TextTable",
+                where: {
+                  op: "AND",
+                  exprs: [
+                    {
+                      op: "SEARCH",
+                      lColumn: "textTokens",
+                    },
+                    {
+                      op: "<",
+                      func: "SCORE",
+                      lColumn: "textTokens",
+                    },
+                  ],
+                },
+                orderBy: [
+                  {
+                    func: "SCORE",
+                    column: "textTokens",
+                    desc: true,
+                  },
+                ],
+                withLimit: true,
+                getAllColumnsFrom: ["TextTable"],
+              },
+              {
+                name: "SearchTitleAndContent",
+                from: "TextTable",
+                where: {
+                  op: "AND",
+                  exprs: [
+                    {
+                      op: "=",
+                      lColumn: "uploaderId",
+                    },
+                    {
+                      op: "OR",
+                      exprs: [
+                        {
+                          op: "SEARCH",
+                          lColumn: "titleTokens",
+                        },
+                        {
+                          op: "SEARCH",
+                          lColumn: "contentTokens",
+                        },
+                      ],
+                    },
+                  ],
+                },
+                orderBy: [
+                  "updatedTimeMs",
+                  {
+                    column: "index",
+                    desc: true,
+                  },
+                ],
+                get: ["id"],
+              },
+            ],
+            outputDdl: "./database/schema_ddl",
+            outputSql: "./database/queries",
+          },
+          mockDefinitionResolver,
+          outputContentMap,
+        ).generate();
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./database/schema_ddl").build(),
+          eqLongStr(`{
+  "tables": [{
+    "name": "TextTable",
+    "columns": [{
+      "name": "id",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN id STRING(MAX) NOT NULL"
+    }, {
+      "name": "uploaderId",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN uploaderId STRING(MAX) NOT NULL"
+    }, {
+      "name": "title",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN title STRING(MAX) NOT NULL"
+    }, {
+      "name": "content",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN content STRING(MAX) NOT NULL"
+    }, {
+      "name": "updatedTimeMs",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN updatedTimeMs INT64 NOT NULL"
+    }, {
+      "name": "index",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN index INT64 NOT NULL"
+    }, {
+      "name": "textTokens",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN textTokens TOKENLIST AS (TOKENIZE_FULLTEXT(title || ' ' || content)) HIDDEN"
+    }, {
+      "name": "titleTokens",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN titleTokens TOKENLIST AS (TOKENIZE_FULLTEXT(title)) HIDDEN"
+    }, {
+      "name": "contentTokens",
+      "addColumnDdl": "ALTER TABLE TextTable ADD COLUMN contentTokens TOKENLIST AS (TOKENIZE_FULLTEXT(content)) HIDDEN"
+    }],
+    "createTableDdl": "CREATE TABLE TextTable (id STRING(MAX) NOT NULL, uploaderId STRING(MAX) NOT NULL, title STRING(MAX) NOT NULL, content STRING(MAX) NOT NULL, updatedTimeMs INT64 NOT NULL, index INT64 NOT NULL, textTokens TOKENLIST AS (TOKENIZE_FULLTEXT(title || ' ' || content)) HIDDEN, titleTokens TOKENLIST AS (TOKENIZE_FULLTEXT(title)) HIDDEN, contentTokens TOKENLIST AS (TOKENIZE_FULLTEXT(content)) HIDDEN) PRIMARY KEY (id ASC)",
+    "indexes": [{
+      "name": "ByText",
+      "createIndexDdl": "CREATE SEARCH INDEX ByText ON TextTable(textTokens)"
+    }, {
+      "name": "ByTitleAndContent",
+      "createIndexDdl": "CREATE SEARCH INDEX ByTitleAndContent ON TextTable(titleTokens, contentTokens) PARTITION BY uploaderId ORDER BY updatedTimeMs, index DESC"
+    }]
+  }]
+}`),
+          "ddl",
+        );
+        assertThat(
+          outputContentMap.get("./database/queries").build(),
+          eqLongStr(
+            `import { Spanner, Database, Transaction } from '@google-cloud/spanner';
+import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
+
+export interface SearchTextRow {
+  textTableId?: string,
+  textTableUploaderId?: string,
+  textTableTitle?: string,
+  textTableContent?: string,
+  textTableUpdatedTimeMs?: number,
+  textTableIndex?: number,
+}
+
+export let SEARCH_TEXT_ROW: MessageDescriptor<SearchTextRow> = {
+  name: 'SearchTextRow',
+  fields: [{
+    name: 'textTableId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'textTableUploaderId',
+    index: 2,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'textTableTitle',
+    index: 3,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'textTableContent',
+    index: 4,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'textTableUpdatedTimeMs',
+    index: 5,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'textTableIndex',
+    index: 6,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
+};
+
+export async function searchText(
+  runner: Database | Transaction,
+  textTableTextTokensSearch: string,
+  textTableTextTokensScoreWhere: string,
+  textTableTextTokensScoreLt: number,
+  textTableTextTokensScoreOrderBy: string,
+  limit: number,
+): Promise<Array<SearchTextRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhere) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
+    params: {
+      textTableTextTokensSearch: textTableTextTokensSearch,
+      textTableTextTokensScoreWhere: textTableTextTokensScoreWhere,
+      textTableTextTokensScoreLt: Spanner.float(textTableTextTokensScoreLt),
+      textTableTextTokensScoreOrderBy: textTableTextTokensScoreOrderBy,
+      limit: limit.toString(),
+    },
+    types: {
+      textTableTextTokensSearch: { type: "string" },
+      textTableTextTokensScoreWhere: { type: "string" },
+      textTableTextTokensScoreLt: { type: "float64" },
+      textTableTextTokensScoreOrderBy: { type: "string" },
+      limit: { type: "int53" },
+    }
+  });
+  let resRows = new Array<SearchTextRow>();
+  for (let row of rows) {
+    resRows.push({
+      textTableId: row.at(0).value == null ? undefined : row.at(0).value,
+      textTableUploaderId: row.at(1).value == null ? undefined : row.at(1).value,
+      textTableTitle: row.at(2).value == null ? undefined : row.at(2).value,
+      textTableContent: row.at(3).value == null ? undefined : row.at(3).value,
+      textTableUpdatedTimeMs: row.at(4).value == null ? undefined : row.at(4).value.valueOf(),
+      textTableIndex: row.at(5).value == null ? undefined : row.at(5).value.valueOf(),
+    });
+  }
+  return resRows;
+}
+
+export interface SearchTitleAndContentRow {
+  textTableId?: string,
+}
+
+export let SEARCH_TITLE_AND_CONTENT_ROW: MessageDescriptor<SearchTitleAndContentRow> = {
+  name: 'SearchTitleAndContentRow',
+  fields: [{
+    name: 'textTableId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }],
+};
+
+export async function searchTitleAndContent(
+  runner: Database | Transaction,
+  textTableUploaderIdEq: string,
+  textTableTitleTokensSearch: string,
+  textTableContentTokensSearch: string,
+): Promise<Array<SearchTitleAndContentRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT TextTable.id FROM TextTable WHERE (TextTable.uploaderId = @textTableUploaderIdEq AND (SEARCH(TextTable.titleTokens, @textTableTitleTokensSearch) OR SEARCH(TextTable.contentTokens, @textTableContentTokensSearch))) ORDER BY TextTable.updatedTimeMs, TextTable.index DESC",
+    params: {
+      textTableUploaderIdEq: textTableUploaderIdEq,
+      textTableTitleTokensSearch: textTableTitleTokensSearch,
+      textTableContentTokensSearch: textTableContentTokensSearch,
+    },
+    types: {
+      textTableUploaderIdEq: { type: "string" },
+      textTableTitleTokensSearch: { type: "string" },
+      textTableContentTokensSearch: { type: "string" },
+    }
+  });
+  let resRows = new Array<SearchTitleAndContentRow>();
+  for (let row of rows) {
+    resRows.push({
+      textTableId: row.at(0).value == null ? undefined : row.at(0).value,
+    });
+  }
+  return resRows;
+}
+`,
+          ),
+          "sql",
+        );
+      },
+    },
+    {
+      name: "SearchColumnIsNotString",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "int53",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content", "updatedTimeMs"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "column updatedTimeMs is not a string and cannot be used in a search column",
+            ),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchColumnIsAnArray",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                      isArray: true,
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "column content is an array and cannot be used in a search column",
+            ),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchIndexNotReferringSearchColumn",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "int53",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content"],
+                    },
+                  ],
+                  searchIndexes: [
+                    {
+                      name: "ByUpdatedTimeMs",
+                      columns: ["updatedTimeMs"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "search column updatedTimeMs is not found in the table TextTable",
+            ),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchIndexPartitionColumnNotFound",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "int53",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content"],
+                    },
+                  ],
+                  searchIndexes: [
+                    {
+                      name: "ByUpdatedTimeMs",
+                      columns: ["tokens"],
+                      partitionByColumns: ["nonExistent"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error("column nonExistent is not found in the table TextTable"),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchIndexOrderByColumnNotFound",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "int53",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content"],
+                    },
+                  ],
+                  searchIndexes: [
+                    {
+                      name: "ByUpdatedTimeMs",
+                      columns: ["tokens"],
+                      orderByColumns: ["nonExistent"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error("column nonExistent is not found in the table TextTable"),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchIndexOrderByColumnIsNotInt",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "float64",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                  searchColumns: [
+                    {
+                      name: "tokens",
+                      columnRefs: ["content"],
+                    },
+                  ],
+                  searchIndexes: [
+                    {
+                      name: "ByUpdatedTimeMs",
+                      columns: ["tokens"],
+                      orderByColumns: ["updatedTimeMs"],
+                    },
+                  ],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(new Error("order by column updatedTimeMs is not an int53")),
+          "error",
+        );
+      },
+    },
+    {
+      name: "SearchQuery",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+        let mockDefinitionResolver =
+          new (class extends MockDefinitionResolver {})();
+
+        // Execute
+        let error = assertThrow(() =>
+          new SpannerDatabaseGenerator(
+            "./database/user",
+            {
+              kind: "SpannerDatabase",
+              name: "UserDatabase",
+              tables: [
+                {
+                  kind: "Table",
+                  name: "TextTable",
+                  columns: [
+                    {
+                      name: "id",
+                      type: "string",
+                    },
+                    {
+                      name: "content",
+                      type: "string",
+                    },
+                    {
+                      name: "updatedTimeMs",
+                      type: "float64",
+                    },
+                  ],
+                  primaryKeys: ["id"],
+                },
+              ],
+              selects: [
+                {
+                  name: "SearchText",
+                  from: "TextTable",
+                  where: {
+                    op: "SEARCH",
+                    lColumn: "content",
+                  },
+                  withLimit: true,
+                  getAllColumnsFrom: ["TextTable"],
+                },
+              ],
+              outputDdl: "./database/schema_ddl",
+              outputSql: "./database/queries",
+            },
+            mockDefinitionResolver,
+            outputContentMap,
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(new Error("search column content is not found in the table TextTable")),
           "error",
         );
       },
