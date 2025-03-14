@@ -505,6 +505,26 @@ export class SpannerDatabaseGenerator {
         get: table.columns.map((column) => column.name),
       });
     }
+
+    if (table.update) {
+      let primaryKeys = table.primaryKeys.map((key) =>
+        typeof key === "string" ? key : key.name,
+      );
+      this.generateSpannerUpdate({
+        name: table.update,
+        table: table.name,
+        where: {
+          op: "AND",
+          exprs: primaryKeys.map((key) => ({
+            lColumn: key,
+            op: "=",
+          })),
+        },
+        set: table.columns
+          .map((column) => column.name)
+          .filter((name) => !primaryKeys.includes(name)),
+      });
+    }
   }
 
   private generateSpannerTaskTable(table: SpannerTaskTableDefinition): void {
@@ -709,7 +729,9 @@ export class SpannerDatabaseGenerator {
 
     this.sqlContentBuilder.importFromSpannerTransaction("Statement");
     this.sqlContentBuilder.push(`
-export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+export function ${toInitalLowercased(insertDefinition.name)}Statement(
+  args: {${joinArray(this.inputArgs, "\n    ", ",")}
+  }
 ): Statement {
   return {
     sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
@@ -773,7 +795,9 @@ export function ${toInitalLowercased(insertDefinition.name)}Statement(${joinArra
 
     this.sqlContentBuilder.importFromSpannerTransaction("Statement");
     this.sqlContentBuilder.push(`
-export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+export function ${toInitalLowercased(updateDefinition.name)}Statement(
+  args: {${joinArray(this.inputArgs, "\n    ", ",")}
+  }
 ): Statement {
   return {
     sql: "UPDATE ${updateDefinition.table} SET ${setItems.join(", ")} WHERE ${whereClause}",
@@ -816,7 +840,9 @@ export function ${toInitalLowercased(updateDefinition.name)}Statement(${joinArra
 
     this.sqlContentBuilder.importFromSpannerTransaction("Statement");
     this.sqlContentBuilder.push(`
-export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArray(this.inputArgs, "\n  ", ",")}
+export function ${toInitalLowercased(deleteDefinition.name)}Statement(
+  args: {${joinArray(this.inputArgs, "\n    ", ",")}
+  }
 ): Statement {
   return {
     sql: "DELETE ${deleteDefinition.table} WHERE ${whereClause}",
@@ -999,7 +1025,9 @@ export let ${toUppercaseSnaked(selectDefinition.name)}_ROW: MessageDescriptor<${
 };
 
 export async function ${toInitalLowercased(selectDefinition.name)}(
-  runner: Database | Transaction,${joinArray(this.inputArgs, "\n  ", ",")}
+  runner: Database | Transaction,
+  args: {${joinArray(this.inputArgs, "\n    ", ",")}
+  }
 ): Promise<Array<${selectDefinition.name}Row>> {
   let [rows] = await runner.run({
     sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}",
@@ -1234,6 +1262,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     let tsType = COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE.get(columnType.type);
     let queryType: string;
     let conversion: string;
+    let argsDotVariable = `args.${argVariable}`;
     if (!tsType) {
       let typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
@@ -1249,11 +1278,11 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         if (!columnType.isArray) {
           tsType = typeDefinition.name;
           queryType = `{ type: "float64" }`;
-          conversion = `Spanner.float(${argVariable})`;
+          conversion = `Spanner.float(${argsDotVariable})`;
         } else {
           tsType = `Array<${typeDefinition.name}>`;
           queryType = `{ type: "array", child: { type: "float64" } }`;
-          conversion = `${argVariable}.map((e) => Spanner.float(e))`;
+          conversion = `${argsDotVariable}.map((e) => Spanner.float(e))`;
         }
       } else if (typeDefinition.kind === "Message") {
         this.sqlContentBuilder.importFromMessageSerializer("serializeMessage");
@@ -1265,11 +1294,11 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         if (!columnType.isArray) {
           tsType = typeDefinition.name;
           queryType = `{ type: "bytes" }`;
-          conversion = `Buffer.from(serializeMessage(${argVariable}, ${tsTypeDescriptor}).buffer)`;
+          conversion = `Buffer.from(serializeMessage(${argsDotVariable}, ${tsTypeDescriptor}).buffer)`;
         } else {
           tsType = `Array<${typeDefinition.name}>`;
           queryType = `{ type: "array", child: { type: "bytes" } }`;
-          conversion = `${argVariable}.map((e) => Buffer.from(serializeMessage(e, ${tsTypeDescriptor}).buffer))`;
+          conversion = `${argsDotVariable}.map((e) => Buffer.from(serializeMessage(e, ${tsTypeDescriptor}).buffer))`;
         }
       }
     } else {
@@ -1277,53 +1306,44 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         queryType = `{ type: "${columnType.type}" }`;
         switch (columnType.type) {
           case "int53":
-            conversion = `${argVariable}.toString()`;
+            conversion = `${argsDotVariable}.toString()`;
             break;
           case "float64":
             this.sqlContentBuilder.importFromSpanner("Spanner");
-            conversion = `Spanner.float(${argVariable})`;
+            conversion = `Spanner.float(${argsDotVariable})`;
             break;
           case "timestamp":
-            conversion = `new Date(${argVariable}).toISOString()`;
+            conversion = `new Date(${argsDotVariable}).toISOString()`;
             break;
           default:
             // bool, string
-            conversion = `${argVariable}`;
+            conversion = `${argsDotVariable}`;
         }
       } else {
         queryType = `{ type: "array", child: { type: "${columnType.type}" } }`;
         tsType = `Array<${tsType}>`;
         switch (columnType.type) {
           case "int53":
-            conversion = `${argVariable}.map((e) => e.toString())`;
+            conversion = `${argsDotVariable}.map((e) => e.toString())`;
             break;
           case "float64":
             this.sqlContentBuilder.importFromSpanner("Spanner");
-            conversion = `${argVariable}.map((e) => Spanner.float(e))`;
+            conversion = `${argsDotVariable}.map((e) => Spanner.float(e))`;
             break;
           case "timestamp":
-            conversion = `${argVariable}.map((e) => new Date(e).toISOString())`;
+            conversion = `${argsDotVariable}.map((e) => new Date(e).toISOString())`;
             break;
           default:
             // bool, string
-            conversion = `${argVariable}`;
+            conversion = `${argsDotVariable}`;
         }
       }
     }
     if (columnType.nullable) {
-      conversion = `${argVariable} == null ? null : ${conversion}`;
+      conversion = `${argsDotVariable} == null ? null : ${conversion}`;
       tsType = `${tsType} | null | undefined`;
     }
 
-    this.collectInputExplictly(argVariable, tsType, queryType, conversion);
-  }
-
-  private collectInputExplictly(
-    argVariable: string,
-    tsType: string,
-    queryType: string,
-    conversion: string,
-  ): void {
     this.inputArgs.push(`${argVariable}: ${tsType}`);
     this.inputQueryTypes.push(`${argVariable}: ${queryType}`);
     this.inputConversions.push(`${argVariable}: ${conversion}`);
@@ -1427,7 +1447,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       }
     }
     this.outputFields.push(`${fieldName}?: ${tsType}`);
-    this.outputConversions.push(`${fieldName}: ${columnVariable}.value == null ? undefined : ${conversion}`);
+    this.outputConversions.push(
+      `${fieldName}: ${columnVariable}.value == null ? undefined : ${conversion}`,
+    );
     this.outputFieldDescriptors.push(`{
     name: '${fieldName}',
     index: ${columnIndex + 1},

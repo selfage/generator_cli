@@ -5,16 +5,18 @@ import { Statement } from '@google-cloud/spanner/build/src/transaction';
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export function insertNewUserStatement(
-  userId: number,
-  user: User | null | undefined,
-  createdTimestamp: number,
+  args: {
+    userId: number,
+    user: User | null | undefined,
+    createdTimestamp: number,
+  }
 ): Statement {
   return {
     sql: "INSERT UserTable (userId, user, createdTimestamp) VALUES (@userId, @user, @createdTimestamp)",
     params: {
-      userId: Spanner.float(userId),
-      user: user == null ? null : Buffer.from(serializeMessage(user, USER).buffer),
-      createdTimestamp: new Date(createdTimestamp).toISOString(),
+      userId: Spanner.float(args.userId),
+      user: args.user == null ? null : Buffer.from(serializeMessage(args.user, USER).buffer),
+      createdTimestamp: new Date(args.createdTimestamp).toISOString(),
     },
     types: {
       userId: { type: "float64" },
@@ -25,12 +27,14 @@ export function insertNewUserStatement(
 }
 
 export function deleteUserStatement(
-  userTableUserIdEq: number,
+  args: {
+    userTableUserIdEq: number,
+  }
 ): Statement {
   return {
     sql: "DELETE UserTable WHERE (UserTable.userId = @userTableUserIdEq)",
     params: {
-      userTableUserIdEq: Spanner.float(userTableUserIdEq),
+      userTableUserIdEq: Spanner.float(args.userTableUserIdEq),
     },
     types: {
       userTableUserIdEq: { type: "float64" },
@@ -63,12 +67,14 @@ export let GET_USER_ROW: MessageDescriptor<GetUserRow> = {
 
 export async function getUser(
   runner: Database | Transaction,
-  userTableUserIdEq: number,
+  args: {
+    userTableUserIdEq: number,
+  }
 ): Promise<Array<GetUserRow>> {
   let [rows] = await runner.run({
     sql: "SELECT UserTable.userId, UserTable.user, UserTable.createdTimestamp FROM UserTable WHERE (UserTable.userId = @userTableUserIdEq)",
     params: {
-      userTableUserIdEq: Spanner.float(userTableUserIdEq),
+      userTableUserIdEq: Spanner.float(args.userTableUserIdEq),
     },
     types: {
       userTableUserIdEq: { type: "float64" },
@@ -85,17 +91,41 @@ export async function getUser(
   return resRows;
 }
 
+export function updateUserStatement(
+  args: {
+    userTableUserIdEq: number,
+    setUser: User | null | undefined,
+    setCreatedTimestamp: number,
+  }
+): Statement {
+  return {
+    sql: "UPDATE UserTable SET user = @setUser, createdTimestamp = @setCreatedTimestamp WHERE (UserTable.userId = @userTableUserIdEq)",
+    params: {
+      userTableUserIdEq: Spanner.float(args.userTableUserIdEq),
+      setUser: args.setUser == null ? null : Buffer.from(serializeMessage(args.setUser, USER).buffer),
+      setCreatedTimestamp: new Date(args.setCreatedTimestamp).toISOString(),
+    },
+    types: {
+      userTableUserIdEq: { type: "float64" },
+      setUser: { type: "bytes" },
+      setCreatedTimestamp: { type: "timestamp" },
+    }
+  };
+}
+
 export function insertNewUserContentStatement(
-  userId: number,
-  contentId: string,
-  content: string,
+  args: {
+    userId: number,
+    contentId: string,
+    content: string,
+  }
 ): Statement {
   return {
     sql: "INSERT UserContent (userId, contentId, content) VALUES (@userId, @contentId, @content)",
     params: {
-      userId: Spanner.float(userId),
-      contentId: contentId,
-      content: content,
+      userId: Spanner.float(args.userId),
+      contentId: args.contentId,
+      content: args.content,
     },
     types: {
       userId: { type: "float64" },
@@ -106,14 +136,16 @@ export function insertNewUserContentStatement(
 }
 
 export function updateUserContentStatement(
-  userContentUserIdEq: number,
-  setContent: string,
+  args: {
+    userContentUserIdEq: number,
+    setContent: string,
+  }
 ): Statement {
   return {
     sql: "UPDATE UserContent SET content = @setContent WHERE UserContent.userId = @userContentUserIdEq",
     params: {
-      userContentUserIdEq: Spanner.float(userContentUserIdEq),
-      setContent: setContent,
+      userContentUserIdEq: Spanner.float(args.userContentUserIdEq),
+      setContent: args.setContent,
     },
     types: {
       userContentUserIdEq: { type: "float64" },
@@ -123,14 +155,16 @@ export function updateUserContentStatement(
 }
 
 export function deleteUserContentStatement(
-  userContentUserIdEq: number,
-  userContentContentIdEq: string,
+  args: {
+    userContentUserIdEq: number,
+    userContentContentIdEq: string,
+  }
 ): Statement {
   return {
     sql: "DELETE UserContent WHERE (UserContent.userId = @userContentUserIdEq AND UserContent.contentId = @userContentContentIdEq)",
     params: {
-      userContentUserIdEq: Spanner.float(userContentUserIdEq),
-      userContentContentIdEq: userContentContentIdEq,
+      userContentUserIdEq: Spanner.float(args.userContentUserIdEq),
+      userContentContentIdEq: args.userContentContentIdEq,
     },
     types: {
       userContentUserIdEq: { type: "float64" },
@@ -159,14 +193,16 @@ export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
 
 export async function getLastUser(
   runner: Database | Transaction,
-  ucContentIdEq: string,
-  limit: number,
+  args: {
+    ucContentIdEq: string,
+    limit: number,
+  }
 ): Promise<Array<GetLastUserRow>> {
   let [rows] = await runner.run({
     sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp LIMIT @limit",
     params: {
-      ucContentIdEq: ucContentIdEq,
-      limit: limit.toString(),
+      ucContentIdEq: args.ucContentIdEq,
+      limit: args.limit.toString(),
     },
     types: {
       ucContentIdEq: { type: "string" },

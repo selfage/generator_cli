@@ -201,6 +201,7 @@ export interface SpannerTableDefinition {
   insert?: string;
   delete?: string;
   get?: string;
+  update?: string;
 }
 
 export interface SpannerTaskTableDefinition {

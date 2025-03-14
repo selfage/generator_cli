@@ -157,6 +157,7 @@ TEST_RUNNER.run({
                 insert: "InsertTypesTable",
                 delete: "DeleteTypesTable",
                 get: "GetTypesTable",
+                update: "UpdateTypesTable",
               },
             ],
             inserts: [
@@ -170,7 +171,6 @@ TEST_RUNNER.run({
               {
                 name: "UpdateARow",
                 table: "TypesTable",
-                set: ["stringValue", "timestampValue"],
                 where: {
                   op: "AND",
                   exprs: [
@@ -202,6 +202,7 @@ TEST_RUNNER.run({
                     },
                   ],
                 },
+                set: ["stringValue", "timestampValue"],
               },
             ],
             deletes: [
@@ -319,40 +320,42 @@ import { Statement } from '@google-cloud/spanner/build/src/transaction';
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export function insertTypesTableStatement(
-  id: string,
-  stringValue: string,
-  boolValue: boolean,
-  int53Value: number,
-  float64Value: number | null | undefined,
-  timestampValue: number,
-  stringArrayValue: Array<string>,
-  boolArrayValue: Array<boolean>,
-  int53ArrayValue: Array<number>,
-  float64ArrayValue: Array<number> | null | undefined,
-  timestampArrayValue: Array<number>,
-  user: User,
-  userType: UserType | null | undefined,
-  userArray: Array<User> | null | undefined,
-  userTypeArray: Array<UserType>,
+  args: {
+    id: string,
+    stringValue: string,
+    boolValue: boolean,
+    int53Value: number,
+    float64Value: number | null | undefined,
+    timestampValue: number,
+    stringArrayValue: Array<string>,
+    boolArrayValue: Array<boolean>,
+    int53ArrayValue: Array<number>,
+    float64ArrayValue: Array<number> | null | undefined,
+    timestampArrayValue: Array<number>,
+    user: User,
+    userType: UserType | null | undefined,
+    userArray: Array<User> | null | undefined,
+    userTypeArray: Array<UserType>,
+  }
 ): Statement {
   return {
     sql: "INSERT TypesTable (id, stringValue, boolValue, int53Value, float64Value, timestampValue, stringArrayValue, boolArrayValue, int53ArrayValue, float64ArrayValue, timestampArrayValue, user, userType, userArray, userTypeArray) VALUES (@id, @stringValue, @boolValue, @int53Value, @float64Value, @timestampValue, @stringArrayValue, @boolArrayValue, @int53ArrayValue, @float64ArrayValue, @timestampArrayValue, @user, @userType, @userArray, @userTypeArray)",
     params: {
-      id: id,
-      stringValue: stringValue,
-      boolValue: boolValue,
-      int53Value: int53Value.toString(),
-      float64Value: float64Value == null ? null : Spanner.float(float64Value),
-      timestampValue: new Date(timestampValue).toISOString(),
-      stringArrayValue: stringArrayValue,
-      boolArrayValue: boolArrayValue,
-      int53ArrayValue: int53ArrayValue.map((e) => e.toString()),
-      float64ArrayValue: float64ArrayValue == null ? null : float64ArrayValue.map((e) => Spanner.float(e)),
-      timestampArrayValue: timestampArrayValue.map((e) => new Date(e).toISOString()),
-      user: Buffer.from(serializeMessage(user, USER).buffer),
-      userType: userType == null ? null : Spanner.float(userType),
-      userArray: userArray == null ? null : userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
-      userTypeArray: userTypeArray.map((e) => Spanner.float(e)),
+      id: args.id,
+      stringValue: args.stringValue,
+      boolValue: args.boolValue,
+      int53Value: args.int53Value.toString(),
+      float64Value: args.float64Value == null ? null : Spanner.float(args.float64Value),
+      timestampValue: new Date(args.timestampValue).toISOString(),
+      stringArrayValue: args.stringArrayValue,
+      boolArrayValue: args.boolArrayValue,
+      int53ArrayValue: args.int53ArrayValue.map((e) => e.toString()),
+      float64ArrayValue: args.float64ArrayValue == null ? null : args.float64ArrayValue.map((e) => Spanner.float(e)),
+      timestampArrayValue: args.timestampArrayValue.map((e) => new Date(e).toISOString()),
+      user: Buffer.from(serializeMessage(args.user, USER).buffer),
+      userType: args.userType == null ? null : Spanner.float(args.userType),
+      userArray: args.userArray == null ? null : args.userArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
+      userTypeArray: args.userTypeArray.map((e) => Spanner.float(e)),
     },
     types: {
       id: { type: "string" },
@@ -375,14 +378,16 @@ export function insertTypesTableStatement(
 }
 
 export function deleteTypesTableStatement(
-  typesTableIdEq: string,
-  typesTableStringValueEq: string,
+  args: {
+    typesTableIdEq: string,
+    typesTableStringValueEq: string,
+  }
 ): Statement {
   return {
     sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
-      typesTableIdEq: typesTableIdEq,
-      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableIdEq: args.typesTableIdEq,
+      typesTableStringValueEq: args.typesTableStringValueEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
@@ -483,14 +488,16 @@ export let GET_TYPES_TABLE_ROW: MessageDescriptor<GetTypesTableRow> = {
 
 export async function getTypesTable(
   runner: Database | Transaction,
-  typesTableIdEq: string,
-  typesTableStringValueEq: string,
+  args: {
+    typesTableIdEq: string,
+    typesTableStringValueEq: string,
+  }
 ): Promise<Array<GetTypesTableRow>> {
   let [rows] = await runner.run({
     sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int53Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int53ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
     params: {
-      typesTableIdEq: typesTableIdEq,
-      typesTableStringValueEq: typesTableStringValueEq,
+      typesTableIdEq: args.typesTableIdEq,
+      typesTableStringValueEq: args.typesTableStringValueEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
@@ -520,17 +527,77 @@ export async function getTypesTable(
   return resRows;
 }
 
+export function updateTypesTableStatement(
+  args: {
+    typesTableIdEq: string,
+    typesTableStringValueEq: string,
+    setBoolValue: boolean,
+    setInt53Value: number,
+    setFloat64Value: number | null | undefined,
+    setTimestampValue: number,
+    setStringArrayValue: Array<string>,
+    setBoolArrayValue: Array<boolean>,
+    setInt53ArrayValue: Array<number>,
+    setFloat64ArrayValue: Array<number> | null | undefined,
+    setTimestampArrayValue: Array<number>,
+    setUser: User,
+    setUserType: UserType | null | undefined,
+    setUserArray: Array<User> | null | undefined,
+    setUserTypeArray: Array<UserType>,
+  }
+): Statement {
+  return {
+    sql: "UPDATE TypesTable SET boolValue = @setBoolValue, int53Value = @setInt53Value, float64Value = @setFloat64Value, timestampValue = @setTimestampValue, stringArrayValue = @setStringArrayValue, boolArrayValue = @setBoolArrayValue, int53ArrayValue = @setInt53ArrayValue, float64ArrayValue = @setFloat64ArrayValue, timestampArrayValue = @setTimestampArrayValue, user = @setUser, userType = @setUserType, userArray = @setUserArray, userTypeArray = @setUserTypeArray WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.stringValue = @typesTableStringValueEq)",
+    params: {
+      typesTableIdEq: args.typesTableIdEq,
+      typesTableStringValueEq: args.typesTableStringValueEq,
+      setBoolValue: args.setBoolValue,
+      setInt53Value: args.setInt53Value.toString(),
+      setFloat64Value: args.setFloat64Value == null ? null : Spanner.float(args.setFloat64Value),
+      setTimestampValue: new Date(args.setTimestampValue).toISOString(),
+      setStringArrayValue: args.setStringArrayValue,
+      setBoolArrayValue: args.setBoolArrayValue,
+      setInt53ArrayValue: args.setInt53ArrayValue.map((e) => e.toString()),
+      setFloat64ArrayValue: args.setFloat64ArrayValue == null ? null : args.setFloat64ArrayValue.map((e) => Spanner.float(e)),
+      setTimestampArrayValue: args.setTimestampArrayValue.map((e) => new Date(e).toISOString()),
+      setUser: Buffer.from(serializeMessage(args.setUser, USER).buffer),
+      setUserType: args.setUserType == null ? null : Spanner.float(args.setUserType),
+      setUserArray: args.setUserArray == null ? null : args.setUserArray.map((e) => Buffer.from(serializeMessage(e, USER).buffer)),
+      setUserTypeArray: args.setUserTypeArray.map((e) => Spanner.float(e)),
+    },
+    types: {
+      typesTableIdEq: { type: "string" },
+      typesTableStringValueEq: { type: "string" },
+      setBoolValue: { type: "bool" },
+      setInt53Value: { type: "int53" },
+      setFloat64Value: { type: "float64" },
+      setTimestampValue: { type: "timestamp" },
+      setStringArrayValue: { type: "array", child: { type: "string" } },
+      setBoolArrayValue: { type: "array", child: { type: "bool" } },
+      setInt53ArrayValue: { type: "array", child: { type: "int53" } },
+      setFloat64ArrayValue: { type: "array", child: { type: "float64" } },
+      setTimestampArrayValue: { type: "array", child: { type: "timestamp" } },
+      setUser: { type: "bytes" },
+      setUserType: { type: "float64" },
+      setUserArray: { type: "array", child: { type: "bytes" } },
+      setUserTypeArray: { type: "array", child: { type: "float64" } },
+    }
+  };
+}
+
 export function insertPartialRowStatement(
-  id: string,
-  stringValue: string,
-  timestampValue: number,
+  args: {
+    id: string,
+    stringValue: string,
+    timestampValue: number,
+  }
 ): Statement {
   return {
     sql: "INSERT TypesTable (id, stringValue, timestampValue) VALUES (@id, @stringValue, @timestampValue)",
     params: {
-      id: id,
-      stringValue: stringValue,
-      timestampValue: new Date(timestampValue).toISOString(),
+      id: args.id,
+      stringValue: args.stringValue,
+      timestampValue: new Date(args.timestampValue).toISOString(),
     },
     types: {
       id: { type: "string" },
@@ -541,22 +608,24 @@ export function insertPartialRowStatement(
 }
 
 export function updateARowStatement(
-  typesTableStringValueEq: string,
-  typesTableFloat64ValueGe: number | null | undefined,
-  typesTableBoolValueNe: boolean,
-  typesTableTimestampValueGt: number,
-  setStringValue: string,
-  setTimestampValue: number,
+  args: {
+    typesTableStringValueEq: string,
+    typesTableFloat64ValueGe: number | null | undefined,
+    typesTableBoolValueNe: boolean,
+    typesTableTimestampValueGt: number,
+    setStringValue: string,
+    setTimestampValue: number,
+  }
 ): Statement {
   return {
     sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = @setTimestampValue WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
-      typesTableStringValueEq: typesTableStringValueEq,
-      typesTableFloat64ValueGe: typesTableFloat64ValueGe == null ? null : Spanner.float(typesTableFloat64ValueGe),
-      typesTableBoolValueNe: typesTableBoolValueNe,
-      typesTableTimestampValueGt: new Date(typesTableTimestampValueGt).toISOString(),
-      setStringValue: setStringValue,
-      setTimestampValue: new Date(setTimestampValue).toISOString(),
+      typesTableStringValueEq: args.typesTableStringValueEq,
+      typesTableFloat64ValueGe: args.typesTableFloat64ValueGe == null ? null : Spanner.float(args.typesTableFloat64ValueGe),
+      typesTableBoolValueNe: args.typesTableBoolValueNe,
+      typesTableTimestampValueGt: new Date(args.typesTableTimestampValueGt).toISOString(),
+      setStringValue: args.setStringValue,
+      setTimestampValue: new Date(args.setTimestampValue).toISOString(),
     },
     types: {
       typesTableStringValueEq: { type: "string" },
@@ -570,12 +639,14 @@ export function updateARowStatement(
 }
 
 export function deleteARowStatement(
-  typesTableIdEq: string,
+  args: {
+    typesTableIdEq: string,
+  }
 ): Statement {
   return {
     sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.float64Value IS NULL)",
     params: {
-      typesTableIdEq: typesTableIdEq,
+      typesTableIdEq: args.typesTableIdEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
@@ -675,6 +746,8 @@ export let GET_A_ROW_ROW: MessageDescriptor<GetARowRow> = {
 
 export async function getARow(
   runner: Database | Transaction,
+  args: {
+  }
 ): Promise<Array<GetARowRow>> {
   let [rows] = await runner.run({
     sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.boolValue, TypesTable.int53Value, TypesTable.float64Value, TypesTable.timestampValue, TypesTable.stringArrayValue, TypesTable.boolArrayValue, TypesTable.int53ArrayValue, TypesTable.float64ArrayValue, TypesTable.timestampArrayValue, TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
@@ -732,6 +805,8 @@ export let GET_PARTIAL_ROW_ROW: MessageDescriptor<GetPartialRowRow> = {
 
 export async function getPartialRow(
   runner: Database | Transaction,
+  args: {
+  }
 ): Promise<Array<GetPartialRowRow>> {
   let [rows] = await runner.run({
     sql: "SELECT TypesTable.id, TypesTable.stringValue, TypesTable.userTypeArray FROM TypesTable",
@@ -1419,22 +1494,24 @@ import { Statement } from '@google-cloud/spanner/build/src/transaction';
 import { PrimitiveType, MessageDescriptor } from '@selfage/message/descriptor';
 
 export function insertWorkingTaskStatement(
-  id1: string,
-  id2: string,
-  payload: string,
-  retryCount: number,
-  executionTime: number,
-  createdTime: number,
+  args: {
+    id1: string,
+    id2: string,
+    payload: string,
+    retryCount: number,
+    executionTime: number,
+    createdTime: number,
+  }
 ): Statement {
   return {
     sql: "INSERT WorkingTask (id1, id2, payload, retryCount, executionTime, createdTime) VALUES (@id1, @id2, @payload, @retryCount, @executionTime, @createdTime)",
     params: {
-      id1: id1,
-      id2: id2,
-      payload: payload,
-      retryCount: Spanner.float(retryCount),
-      executionTime: new Date(executionTime).toISOString(),
-      createdTime: new Date(createdTime).toISOString(),
+      id1: args.id1,
+      id2: args.id2,
+      payload: args.payload,
+      retryCount: Spanner.float(args.retryCount),
+      executionTime: new Date(args.executionTime).toISOString(),
+      createdTime: new Date(args.createdTime).toISOString(),
     },
     types: {
       id1: { type: "string" },
@@ -1448,14 +1525,16 @@ export function insertWorkingTaskStatement(
 }
 
 export function deleteWorkingTaskStatement(
-  workingTaskId1Eq: string,
-  workingTaskId2Eq: string,
+  args: {
+    workingTaskId1Eq: string,
+    workingTaskId2Eq: string,
+  }
 ): Statement {
   return {
     sql: "DELETE WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
     params: {
-      workingTaskId1Eq: workingTaskId1Eq,
-      workingTaskId2Eq: workingTaskId2Eq,
+      workingTaskId1Eq: args.workingTaskId1Eq,
+      workingTaskId2Eq: args.workingTaskId2Eq,
     },
     types: {
       workingTaskId1Eq: { type: "string" },
@@ -1504,14 +1583,16 @@ export let GET_WORKING_TASK_ROW: MessageDescriptor<GetWorkingTaskRow> = {
 
 export async function getWorkingTask(
   runner: Database | Transaction,
-  workingTaskId1Eq: string,
-  workingTaskId2Eq: string,
+  args: {
+    workingTaskId1Eq: string,
+    workingTaskId2Eq: string,
+  }
 ): Promise<Array<GetWorkingTaskRow>> {
   let [rows] = await runner.run({
     sql: "SELECT WorkingTask.id1, WorkingTask.id2, WorkingTask.payload, WorkingTask.retryCount, WorkingTask.executionTime, WorkingTask.createdTime FROM WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
     params: {
-      workingTaskId1Eq: workingTaskId1Eq,
-      workingTaskId2Eq: workingTaskId2Eq,
+      workingTaskId1Eq: args.workingTaskId1Eq,
+      workingTaskId2Eq: args.workingTaskId2Eq,
     },
     types: {
       workingTaskId1Eq: { type: "string" },
@@ -1557,12 +1638,14 @@ export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingT
 
 export async function listPendingWorkingTasks(
   runner: Database | Transaction,
-  workingTaskExecutionTimeLe: number,
+  args: {
+    workingTaskExecutionTimeLe: number,
+  }
 ): Promise<Array<ListPendingWorkingTasksRow>> {
   let [rows] = await runner.run({
     sql: "SELECT WorkingTask.id1, WorkingTask.id2, WorkingTask.payload FROM WorkingTask WHERE WorkingTask.executionTime <= @workingTaskExecutionTimeLe",
     params: {
-      workingTaskExecutionTimeLe: new Date(workingTaskExecutionTimeLe).toISOString(),
+      workingTaskExecutionTimeLe: new Date(args.workingTaskExecutionTimeLe).toISOString(),
     },
     types: {
       workingTaskExecutionTimeLe: { type: "timestamp" },
@@ -1599,14 +1682,16 @@ export let GET_WORKING_TASK_METADATA_ROW: MessageDescriptor<GetWorkingTaskMetada
 
 export async function getWorkingTaskMetadata(
   runner: Database | Transaction,
-  workingTaskId1Eq: string,
-  workingTaskId2Eq: string,
+  args: {
+    workingTaskId1Eq: string,
+    workingTaskId2Eq: string,
+  }
 ): Promise<Array<GetWorkingTaskMetadataRow>> {
   let [rows] = await runner.run({
     sql: "SELECT WorkingTask.retryCount, WorkingTask.executionTime FROM WorkingTask WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
     params: {
-      workingTaskId1Eq: workingTaskId1Eq,
-      workingTaskId2Eq: workingTaskId2Eq,
+      workingTaskId1Eq: args.workingTaskId1Eq,
+      workingTaskId2Eq: args.workingTaskId2Eq,
     },
     types: {
       workingTaskId1Eq: { type: "string" },
@@ -1624,18 +1709,20 @@ export async function getWorkingTaskMetadata(
 }
 
 export function updateWorkingTaskMetadataStatement(
-  workingTaskId1Eq: string,
-  workingTaskId2Eq: string,
-  setRetryCount: number,
-  setExecutionTime: number,
+  args: {
+    workingTaskId1Eq: string,
+    workingTaskId2Eq: string,
+    setRetryCount: number,
+    setExecutionTime: number,
+  }
 ): Statement {
   return {
     sql: "UPDATE WorkingTask SET retryCount = @setRetryCount, executionTime = @setExecutionTime WHERE (WorkingTask.id1 = @workingTaskId1Eq AND WorkingTask.id2 = @workingTaskId2Eq)",
     params: {
-      workingTaskId1Eq: workingTaskId1Eq,
-      workingTaskId2Eq: workingTaskId2Eq,
-      setRetryCount: Spanner.float(setRetryCount),
-      setExecutionTime: new Date(setExecutionTime).toISOString(),
+      workingTaskId1Eq: args.workingTaskId1Eq,
+      workingTaskId2Eq: args.workingTaskId2Eq,
+      setRetryCount: Spanner.float(args.setRetryCount),
+      setExecutionTime: new Date(args.setExecutionTime).toISOString(),
     },
     types: {
       workingTaskId1Eq: { type: "string" },
@@ -1867,18 +1954,20 @@ export let S1_ROW: MessageDescriptor<S1Row> = {
 
 export async function s1(
   runner: Database | Transaction,
-  t1F2Eq: string,
-  t3F1Eq: string,
-  t2TableF2Ne: string,
-  limit: number,
+  args: {
+    t1F2Eq: string,
+    t3F1Eq: string,
+    t2TableF2Ne: string,
+    limit: number,
+  }
 ): Promise<Array<S1Row>> {
   let [rows] = await runner.run({
     sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit",
     params: {
-      t1F2Eq: t1F2Eq,
-      t3F1Eq: t3F1Eq,
-      t2TableF2Ne: t2TableF2Ne,
-      limit: limit.toString(),
+      t1F2Eq: args.t1F2Eq,
+      t3F1Eq: args.t3F1Eq,
+      t2TableF2Ne: args.t2TableF2Ne,
+      limit: args.limit.toString(),
     },
     types: {
       t1F2Eq: { type: "string" },
@@ -3039,20 +3128,22 @@ export let SEARCH_TEXT_ROW: MessageDescriptor<SearchTextRow> = {
 
 export async function searchText(
   runner: Database | Transaction,
-  textTableTextTokensSearch: string,
-  textTableTextTokensScoreWhere: string,
-  textTableTextTokensScoreLt: number,
-  textTableTextTokensScoreOrderBy: string,
-  limit: number,
+  args: {
+    textTableTextTokensSearch: string,
+    textTableTextTokensScoreWhere: string,
+    textTableTextTokensScoreLt: number,
+    textTableTextTokensScoreOrderBy: string,
+    limit: number,
+  }
 ): Promise<Array<SearchTextRow>> {
   let [rows] = await runner.run({
     sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhere) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
     params: {
-      textTableTextTokensSearch: textTableTextTokensSearch,
-      textTableTextTokensScoreWhere: textTableTextTokensScoreWhere,
-      textTableTextTokensScoreLt: Spanner.float(textTableTextTokensScoreLt),
-      textTableTextTokensScoreOrderBy: textTableTextTokensScoreOrderBy,
-      limit: limit.toString(),
+      textTableTextTokensSearch: args.textTableTextTokensSearch,
+      textTableTextTokensScoreWhere: args.textTableTextTokensScoreWhere,
+      textTableTextTokensScoreLt: Spanner.float(args.textTableTextTokensScoreLt),
+      textTableTextTokensScoreOrderBy: args.textTableTextTokensScoreOrderBy,
+      limit: args.limit.toString(),
     },
     types: {
       textTableTextTokensSearch: { type: "string" },
@@ -3091,16 +3182,18 @@ export let SEARCH_TITLE_AND_CONTENT_ROW: MessageDescriptor<SearchTitleAndContent
 
 export async function searchTitleAndContent(
   runner: Database | Transaction,
-  textTableUploaderIdEq: string,
-  textTableTitleTokensSearch: string,
-  textTableContentTokensSearch: string,
+  args: {
+    textTableUploaderIdEq: string,
+    textTableTitleTokensSearch: string,
+    textTableContentTokensSearch: string,
+  }
 ): Promise<Array<SearchTitleAndContentRow>> {
   let [rows] = await runner.run({
     sql: "SELECT TextTable.id FROM TextTable WHERE (TextTable.uploaderId = @textTableUploaderIdEq AND (SEARCH(TextTable.titleTokens, @textTableTitleTokensSearch) OR SEARCH(TextTable.contentTokens, @textTableContentTokensSearch))) ORDER BY TextTable.updatedTimeMs, TextTable.index DESC",
     params: {
-      textTableUploaderIdEq: textTableUploaderIdEq,
-      textTableTitleTokensSearch: textTableTitleTokensSearch,
-      textTableContentTokensSearch: textTableContentTokensSearch,
+      textTableUploaderIdEq: args.textTableUploaderIdEq,
+      textTableTitleTokensSearch: args.textTableTitleTokensSearch,
+      textTableContentTokensSearch: args.textTableContentTokensSearch,
     },
     types: {
       textTableUploaderIdEq: { type: "string" },
