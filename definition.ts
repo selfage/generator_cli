@@ -277,9 +277,10 @@ export interface SpannerOrderByExpr {
   desc?: true;
 }
 
-export interface SpannerColumnRef {
-  column: string;
-  table: string;
+export interface SpannerGetColumnRef {
+  column?: string;
+  all?: true; // Get all columns from the table.
+  table?: string;
 }
 
 export interface SpannerSelectDefinition {
@@ -291,8 +292,7 @@ export interface SpannerSelectDefinition {
   where?: SpannerWhereConcat | SpannerWhereLeaf;
   orderBy?: Array<string | SpannerOrderByExpr>;
   withLimit?: boolean;
-  getAllColumnsFrom?: Array<string>; // List of tables in the query.
-  get?: Array<string | SpannerColumnRef>;
+  get: Array<string | SpannerGetColumnRef>;
 }
 
 export interface SpannerInsertDefinition {

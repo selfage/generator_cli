@@ -949,41 +949,41 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(${joinArra
 
     this.clearOutput();
     let selectColumns = new Array<string>();
-    if (selectDefinition.getAllColumnsFrom) {
-      for (let tableAlias of selectDefinition.getAllColumnsFrom) {
-        let tableName = this.currentTableAliases.get(tableAlias);
+    if (!selectDefinition.get) {
+      throw new Error(`${loggingPrefix} "get" is missing.`);
+    }
+    for (let getRef of selectDefinition.get) {
+      if (typeof getRef === "string") {
+        getRef = {
+          column: getRef,
+          table: this.currentDefaultTableAlias,
+        };
+      }
+      if (!getRef.table) {
+        getRef.table = this.currentDefaultTableAlias;
+      }
+      if (getRef.all) {
+        let tableName = this.currentTableAliases.get(getRef.table);
         if (!tableName) {
           throw new Error(
-            `${loggingPrefix} ${tableAlias} refers to a table not found in the query.`,
+            `${loggingPrefix} ${getRef.table} refers to a table not found in the query.`,
           );
         }
         let allColumns = this.databaseTables.get(tableName).columns;
         for (let column of allColumns) {
-          let fieldName = `${toInitalLowercased(tableAlias)}${toInitialUppercased(column.name)}`;
+          let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(column.name)}`;
           this.collectOuptut(loggingPrefix, fieldName, column);
-          selectColumns.push(`${tableAlias}.${column.name}`);
+          selectColumns.push(`${getRef.table}.${column.name}`);
         }
-      }
-    }
-    if (selectDefinition.get) {
-      for (let column of selectDefinition.get) {
-        if (typeof column === "string") {
-          column = {
-            column: column,
-            table: this.currentDefaultTableAlias,
-          };
-        }
-        if (!column.table) {
-          column.table = this.currentDefaultTableAlias;
-        }
+      } else {
         let columnDefinition = this.resolveColumnDefinition(
           loggingPrefix + ` and when generating select columns,`,
-          column.column,
-          column.table,
+          getRef.column,
+          getRef.table,
         );
-        let fieldName = `${toInitalLowercased(column.table)}${toInitialUppercased(column.column)}`;
+        let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(getRef.column)}`;
         this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
-        selectColumns.push(`${column.table}.${column.column}`);
+        selectColumns.push(`${getRef.table}.${getRef.column}`);
       }
     }
 

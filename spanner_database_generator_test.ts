@@ -227,7 +227,11 @@ TEST_RUNNER.run({
               {
                 name: "GetARow",
                 from: "TypesTable",
-                getAllColumnsFrom: ["TypesTable"],
+                get: [
+                  {
+                    all: true,
+                  },
+                ],
               },
               {
                 name: "GetPartialRow",
@@ -2895,7 +2899,11 @@ export async function s1(
                   },
                 ],
                 withLimit: true,
-                getAllColumnsFrom: ["TextTable"],
+                get: [
+                  {
+                    all: true,
+                  },
+                ],
               },
               {
                 name: "SearchTitleAndContent",
@@ -3547,7 +3555,11 @@ export async function searchTitleAndContent(
                     lColumn: "content",
                   },
                   withLimit: true,
-                  getAllColumnsFrom: ["TextTable"],
+                  get: [
+                    {
+                      all: true,
+                    },
+                  ],
                 },
               ],
               outputDdl: "./database/schema_ddl",
@@ -3561,7 +3573,11 @@ export async function searchTitleAndContent(
         // Verify
         assertThat(
           error,
-          eqError(new Error("search column content is not found in the table TextTable")),
+          eqError(
+            new Error(
+              "search column content is not found in the table TextTable",
+            ),
+          ),
           "error",
         );
       },
