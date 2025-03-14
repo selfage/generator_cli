@@ -1470,15 +1470,15 @@ export async function getPartialRow(
       "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN payload STRING(MAX) NOT NULL"
     }, {
       "name": "retryCount",
-      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN retryCount FLOAT64 NOT NULL"
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN retryCount FLOAT64"
     }, {
       "name": "executionTime",
-      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN executionTime TIMESTAMP NOT NULL"
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN executionTime TIMESTAMP"
     }, {
       "name": "createdTime",
-      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN createdTime TIMESTAMP NOT NULL"
+      "addColumnDdl": "ALTER TABLE WorkingTask ADD COLUMN createdTime TIMESTAMP"
     }],
-    "createTableDdl": "CREATE TABLE WorkingTask (id1 STRING(MAX) NOT NULL, id2 STRING(MAX) NOT NULL, payload STRING(MAX) NOT NULL, retryCount FLOAT64 NOT NULL, executionTime TIMESTAMP NOT NULL, createdTime TIMESTAMP NOT NULL) PRIMARY KEY (id1 ASC, id2 DESC)",
+    "createTableDdl": "CREATE TABLE WorkingTask (id1 STRING(MAX) NOT NULL, id2 STRING(MAX) NOT NULL, payload STRING(MAX) NOT NULL, retryCount FLOAT64, executionTime TIMESTAMP, createdTime TIMESTAMP) PRIMARY KEY (id1 ASC, id2 DESC)",
     "indexes": [{
       "name": "ByExecutionTime",
       "createIndexDdl": "CREATE INDEX ByExecutionTime ON WorkingTask(executionTime)"
@@ -1498,9 +1498,9 @@ export function insertWorkingTaskStatement(
     id1: string,
     id2: string,
     payload: string,
-    retryCount: number,
-    executionTime: number,
-    createdTime: number,
+    retryCount?: number,
+    executionTime?: number,
+    createdTime?: number,
   }
 ): Statement {
   return {
@@ -1509,9 +1509,9 @@ export function insertWorkingTaskStatement(
       id1: args.id1,
       id2: args.id2,
       payload: args.payload,
-      retryCount: Spanner.float(args.retryCount),
-      executionTime: new Date(args.executionTime).toISOString(),
-      createdTime: new Date(args.createdTime).toISOString(),
+      retryCount: args.retryCount == null ? null : Spanner.float(args.retryCount),
+      executionTime: args.executionTime == null ? null : new Date(args.executionTime).toISOString(),
+      createdTime: args.createdTime == null ? null : new Date(args.createdTime).toISOString(),
     },
     types: {
       id1: { type: "string" },
@@ -1639,13 +1639,13 @@ export let LIST_PENDING_WORKING_TASKS_ROW: MessageDescriptor<ListPendingWorkingT
 export async function listPendingWorkingTasks(
   runner: Database | Transaction,
   args: {
-    workingTaskExecutionTimeLe: number,
+    workingTaskExecutionTimeLe?: number,
   }
 ): Promise<Array<ListPendingWorkingTasksRow>> {
   let [rows] = await runner.run({
     sql: "SELECT WorkingTask.id1, WorkingTask.id2, WorkingTask.payload FROM WorkingTask WHERE WorkingTask.executionTime <= @workingTaskExecutionTimeLe",
     params: {
-      workingTaskExecutionTimeLe: new Date(args.workingTaskExecutionTimeLe).toISOString(),
+      workingTaskExecutionTimeLe: args.workingTaskExecutionTimeLe == null ? null : new Date(args.workingTaskExecutionTimeLe).toISOString(),
     },
     types: {
       workingTaskExecutionTimeLe: { type: "timestamp" },
@@ -1712,8 +1712,8 @@ export function updateWorkingTaskMetadataStatement(
   args: {
     workingTaskId1Eq: string,
     workingTaskId2Eq: string,
-    setRetryCount: number,
-    setExecutionTime: number,
+    setRetryCount?: number,
+    setExecutionTime?: number,
   }
 ): Statement {
   return {
@@ -1721,8 +1721,8 @@ export function updateWorkingTaskMetadataStatement(
     params: {
       workingTaskId1Eq: args.workingTaskId1Eq,
       workingTaskId2Eq: args.workingTaskId2Eq,
-      setRetryCount: Spanner.float(args.setRetryCount),
-      setExecutionTime: new Date(args.setExecutionTime).toISOString(),
+      setRetryCount: args.setRetryCount == null ? null : Spanner.float(args.setRetryCount),
+      setExecutionTime: args.setExecutionTime == null ? null : new Date(args.setExecutionTime).toISOString(),
     },
     types: {
       workingTaskId1Eq: { type: "string" },

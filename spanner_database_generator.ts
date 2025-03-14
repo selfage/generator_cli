@@ -557,14 +557,17 @@ export class SpannerDatabaseGenerator {
       {
         name: table.retryCountColumn,
         type: "float64",
+        nullable: true,
       },
       {
         name: table.executionTimeColumn,
         type: "timestamp",
+        nullable: true,
       },
       {
         name: table.createdTimeColumn,
         type: "timestamp",
+        nullable: true,
       },
     );
 
