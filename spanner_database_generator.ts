@@ -31,8 +31,8 @@ import {
 
 let COLUMN_PRIMITIVE_TYPE_TO_TS_TYPE = new Map<string, string>([
   ["bool", "boolean"],
-  ["float64", "number"],
   ["int53", "number"],
+  ["float64", "number"],
   ["timestamp", "number"],
   ["string", "string"],
 ]);
@@ -42,6 +42,13 @@ let COLUMN_PRIMITIVE_TYPE_TO_TABLE_TYPE = new Map<string, string>([
   ["float64", "FLOAT64"],
   ["timestamp", "TIMESTAMP"],
   ["string", "STRING(MAX)"],
+]);
+let COLUMN_PRIMITIVE_TYPE_TO_QUERY_TYPE = new Map<string, string>([
+  ["bool", "bool"],
+  ["int53", "int64"],
+  ["float64", "float64"],
+  ["timestamp", "timestamp"],
+  ["string", "string"],
 ]);
 let BINARY_OP_NAME = new Map<string, string>([
   [">", "Gt"],
@@ -1306,7 +1313,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       }
     } else {
       if (!columnType.isArray) {
-        queryType = `{ type: "${columnType.type}" }`;
+        queryType = `{ type: "${COLUMN_PRIMITIVE_TYPE_TO_QUERY_TYPE.get(columnType.type)}" }`;
         switch (columnType.type) {
           case "int53":
             conversion = `${argsDotVariable}.toString()`;
@@ -1323,7 +1330,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
             conversion = `${argsDotVariable}`;
         }
       } else {
-        queryType = `{ type: "array", child: { type: "${columnType.type}" } }`;
+        queryType = `{ type: "array", child: { type: "${COLUMN_PRIMITIVE_TYPE_TO_QUERY_TYPE.get(columnType.type)}" } }`;
         tsType = `Array<${tsType}>`;
         switch (columnType.type) {
           case "int53":
@@ -1345,7 +1352,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     this.inputQueryTypes.push(`${argVariable}: ${queryType}`);
     if (columnType.nullable) {
       this.inputArgs.push(`${argVariable}?: ${tsType}`);
-      this.inputConversions.push(`${argVariable}: ${argsDotVariable} == null ? null : ${conversion}`);
+      this.inputConversions.push(
+        `${argVariable}: ${argsDotVariable} == null ? null : ${conversion}`,
+      );
     } else {
       this.inputArgs.push(`${argVariable}: ${tsType}`);
       this.inputConversions.push(`${argVariable}: ${conversion}`);

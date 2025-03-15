@@ -206,7 +206,7 @@ export async function getLastUser(
     },
     types: {
       ucContentIdEq: { type: "string" },
-      limit: { type: "int53" },
+      limit: { type: "int64" },
     }
   });
   let resRows = new Array<GetLastUserRow>();

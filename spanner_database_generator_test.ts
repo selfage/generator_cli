@@ -361,12 +361,12 @@ export function insertTypesTableStatement(
       id: { type: "string" },
       stringValue: { type: "string" },
       boolValue: { type: "bool" },
-      int53Value: { type: "int53" },
+      int53Value: { type: "int64" },
       float64Value: { type: "float64" },
       timestampValue: { type: "timestamp" },
       stringArrayValue: { type: "array", child: { type: "string" } },
       boolArrayValue: { type: "array", child: { type: "bool" } },
-      int53ArrayValue: { type: "array", child: { type: "int53" } },
+      int53ArrayValue: { type: "array", child: { type: "int64" } },
       float64ArrayValue: { type: "array", child: { type: "float64" } },
       timestampArrayValue: { type: "array", child: { type: "timestamp" } },
       user: { type: "bytes" },
@@ -569,12 +569,12 @@ export function updateTypesTableStatement(
       typesTableIdEq: { type: "string" },
       typesTableStringValueEq: { type: "string" },
       setBoolValue: { type: "bool" },
-      setInt53Value: { type: "int53" },
+      setInt53Value: { type: "int64" },
       setFloat64Value: { type: "float64" },
       setTimestampValue: { type: "timestamp" },
       setStringArrayValue: { type: "array", child: { type: "string" } },
       setBoolArrayValue: { type: "array", child: { type: "bool" } },
-      setInt53ArrayValue: { type: "array", child: { type: "int53" } },
+      setInt53ArrayValue: { type: "array", child: { type: "int64" } },
       setFloat64ArrayValue: { type: "array", child: { type: "float64" } },
       setTimestampArrayValue: { type: "array", child: { type: "timestamp" } },
       setUser: { type: "bytes" },
@@ -1973,7 +1973,7 @@ export async function s1(
       t1F2Eq: { type: "string" },
       t3F1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
-      limit: { type: "int53" },
+      limit: { type: "int64" },
     }
   });
   let resRows = new Array<S1Row>();
@@ -3150,7 +3150,7 @@ export async function searchText(
       textTableTextTokensScoreWhere: { type: "string" },
       textTableTextTokensScoreLt: { type: "float64" },
       textTableTextTokensScoreOrderBy: { type: "string" },
-      limit: { type: "int53" },
+      limit: { type: "int64" },
     }
   });
   let resRows = new Array<SearchTextRow>();
