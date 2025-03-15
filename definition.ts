@@ -142,6 +142,13 @@ export interface SpannerTableColumnDefinition extends SpannerTableColumnType {
   name: string;
 }
 
+export interface SpannerTableColumnGroupDefinition {
+  // Must be of camelCase.
+  name: string;
+  // Columns to be grouped.
+  columns: Array<string>;
+}
+
 export interface SpannerTableSearchColumnDefinition {
   // Must be of camelCase.
   name: string;
@@ -192,6 +199,8 @@ export interface SpannerTableDefinition {
   // Must be of CamelCase.
   name: string;
   columns: Array<SpannerTableColumnDefinition>;
+  // Group columns to be easily selected.
+  columnGroups?: Array<SpannerTableColumnGroupDefinition>;
   searchColumns?: Array<SpannerTableSearchColumnDefinition>;
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
   interleave?: SpannerTableInterleaveDefinition;
@@ -281,6 +290,7 @@ export interface SpannerOrderByExpr {
 export interface SpannerGetColumnRef {
   column?: string;
   all?: true; // Get all columns from the table.
+  columnGroup?: string; // Get columns from the column group.
   table?: string;
 }
 

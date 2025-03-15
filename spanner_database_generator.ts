@@ -7,6 +7,7 @@ import {
   SpannerJoinOnLeaf,
   SpannerSelectDefinition,
   SpannerTableColumnDefinition,
+  SpannerTableColumnGroupDefinition,
   SpannerTableColumnType,
   SpannerTableDefinition,
   SpannerTablePrimaryKeyDefinition,
@@ -87,6 +88,21 @@ function getColumnDefinition(
   }
   throw new Error(
     `${loggingPrefix} column ${columnName} is not found in the table ${table.name}.`,
+  );
+}
+
+function getColumnGroupDefinition(
+  loggingPrefix: string,
+  table: SpannerTableDefinition,
+  columnGroupName: string,
+): SpannerTableColumnGroupDefinition {
+  for (let columnGroup of table.columnGroups) {
+    if (columnGroup.name === columnGroupName) {
+      return columnGroup;
+    }
+  }
+  throw new Error(
+    `${loggingPrefix} column group ${columnGroupName} is not found in the table ${table.name}.`,
   );
 }
 
@@ -685,6 +701,27 @@ export class SpannerDatabaseGenerator {
     return columnDefinition;
   }
 
+  private resolveColumnGroupDefinition(
+    loggingPrefix: string,
+    columnGroup: string,
+    tableAlias: string,
+  ): SpannerTableColumnGroupDefinition {
+    let tableName = this.currentTableAliases.get(tableAlias);
+    if (!tableName) {
+      throw new Error(
+        `${loggingPrefix} ${tableAlias}.${columnGroup} refers to a table not found in the query.`,
+      );
+    }
+    // Its presence should have checked elsewhere.
+    let table = this.databaseTables.get(tableName);
+    let columnGroupDefinition = getColumnGroupDefinition(
+      loggingPrefix,
+      table,
+      columnGroup,
+    );
+    return columnGroupDefinition;
+  }
+
   private resolveSearchColumnDefinition(
     loggingPrefix: string,
     column: string,
@@ -1010,6 +1047,23 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
           let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(column.name)}`;
           this.collectOuptut(loggingPrefix, fieldName, column);
           selectColumns.push(`${getRef.table}.${column.name}`);
+        }
+      } else if (getRef.columnGroup) {
+        let columnGroupDefinition = this.resolveColumnGroupDefinition(
+          loggingPrefix + ` and when generating select column groups,`,
+          getRef.columnGroup,
+          getRef.table,
+        );
+        for (let columnName of columnGroupDefinition.columns) {
+          let columnDefinition = this.resolveColumnDefinition(
+            loggingPrefix +
+              ` and when generating select columns for column group ${getRef.columnGroup},`,
+            columnName,
+            getRef.table,
+          );
+          let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(columnName)}`;
+          this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
+          selectColumns.push(`${getRef.table}.${columnName}`);
         }
       } else {
         let columnDefinition = this.resolveColumnDefinition(

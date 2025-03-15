@@ -130,6 +130,12 @@ TEST_RUNNER.run({
                     isArray: true,
                   },
                 ],
+                columnGroups: [
+                  {
+                    name: "userData",
+                    columns: ["user", "userType", "userArray", "userTypeArray"],
+                  },
+                ],
                 primaryKeys: [
                   {
                     name: "id",
@@ -238,6 +244,15 @@ TEST_RUNNER.run({
                 name: "GetPartialRow",
                 from: "TypesTable",
                 get: ["id", "stringValue", "userTypeArray"],
+              },
+              {
+                name: "GetGroupRow",
+                from: "TypesTable",
+                get: [
+                  {
+                    columnGroup: "userData",
+                  },
+                ],
               },
             ],
             outputDdl: "./database/schema_ddl",
@@ -821,6 +836,60 @@ export async function getPartialRow(
       typesTableId: row.at(0).value == null ? undefined : row.at(0).value,
       typesTableStringValue: row.at(1).value == null ? undefined : row.at(1).value,
       typesTableUserTypeArray: row.at(2).value == null ? undefined : row.at(2).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
+    });
+  }
+  return resRows;
+}
+
+export interface GetGroupRowRow {
+  typesTableUser?: User,
+  typesTableUserType?: UserType,
+  typesTableUserArray?: Array<User>,
+  typesTableUserTypeArray?: Array<UserType>,
+}
+
+export let GET_GROUP_ROW_ROW: MessageDescriptor<GetGroupRowRow> = {
+  name: 'GetGroupRowRow',
+  fields: [{
+    name: 'typesTableUser',
+    index: 1,
+    messageType: USER,
+  }, {
+    name: 'typesTableUserType',
+    index: 2,
+    enumType: USER_TYPE,
+  }, {
+    name: 'typesTableUserArray',
+    index: 3,
+    messageType: USER,
+    isArray: true,
+  }, {
+    name: 'typesTableUserTypeArray',
+    index: 4,
+    enumType: USER_TYPE,
+    isArray: true,
+  }],
+};
+
+export async function getGroupRow(
+  runner: Database | Transaction,
+  args: {
+  }
+): Promise<Array<GetGroupRowRow>> {
+  let [rows] = await runner.run({
+    sql: "SELECT TypesTable.user, TypesTable.userType, TypesTable.userArray, TypesTable.userTypeArray FROM TypesTable",
+    params: {
+    },
+    types: {
+    }
+  });
+  let resRows = new Array<GetGroupRowRow>();
+  for (let row of rows) {
+    resRows.push({
+      typesTableUser: row.at(0).value == null ? undefined : deserializeMessage(row.at(0).value, USER),
+      typesTableUserType: row.at(1).value == null ? undefined : toEnumFromNumber(row.at(1).value.value, USER_TYPE),
+      typesTableUserArray: row.at(2).value == null ? undefined : row.at(2).value.map((e) => deserializeMessage(e, USER)),
+      typesTableUserTypeArray: row.at(3).value == null ? undefined : row.at(3).value.map((e) => toEnumFromNumber(e.value, USER_TYPE)),
     });
   }
   return resRows;
