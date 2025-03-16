@@ -1025,55 +1025,68 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
     if (!selectDefinition.get) {
       throw new Error(`${loggingPrefix} "get" is missing.`);
     }
-    for (let getRef of selectDefinition.get) {
-      if (typeof getRef === "string") {
-        getRef = {
-          column: getRef,
+    for (let getExpr of selectDefinition.get) {
+      if (typeof getExpr === "string") {
+        getExpr = {
+          column: getExpr,
           table: this.currentDefaultTableAlias,
         };
       }
-      if (!getRef.table) {
-        getRef.table = this.currentDefaultTableAlias;
+      if (!getExpr.table) {
+        getExpr.table = this.currentDefaultTableAlias;
       }
-      if (getRef.all) {
-        let tableName = this.currentTableAliases.get(getRef.table);
+      if (getExpr.all) {
+        let tableName = this.currentTableAliases.get(getExpr.table);
         if (!tableName) {
           throw new Error(
-            `${loggingPrefix} ${getRef.table} refers to a table not found in the query.`,
+            `${loggingPrefix} ${getExpr.table} refers to a table not found in the query.`,
           );
         }
         let allColumns = this.databaseTables.get(tableName).columns;
         for (let column of allColumns) {
-          let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(column.name)}`;
+          let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(column.name)}`;
           this.collectOuptut(loggingPrefix, fieldName, column);
-          selectColumns.push(`${getRef.table}.${column.name}`);
+          selectColumns.push(`${getExpr.table}.${column.name}`);
         }
-      } else if (getRef.columnGroup) {
+      } else if (getExpr.columnGroup) {
         let columnGroupDefinition = this.resolveColumnGroupDefinition(
           loggingPrefix + ` and when generating select column groups,`,
-          getRef.columnGroup,
-          getRef.table,
+          getExpr.columnGroup,
+          getExpr.table,
         );
         for (let columnName of columnGroupDefinition.columns) {
           let columnDefinition = this.resolveColumnDefinition(
             loggingPrefix +
-              ` and when generating select columns for column group ${getRef.columnGroup},`,
+              ` and when generating select columns for column group ${getExpr.columnGroup},`,
             columnName,
-            getRef.table,
+            getExpr.table,
           );
-          let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(columnName)}`;
+          let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(columnName)}`;
           this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
-          selectColumns.push(`${getRef.table}.${columnName}`);
+          selectColumns.push(`${getExpr.table}.${columnName}`);
         }
+      } else if (getExpr.func) {
+        let { lExpr, returnType } = this.generateFunction(
+          loggingPrefix + ` and when generating select columns,`,
+          getExpr.func,
+          getExpr.column,
+          getExpr.table,
+          "Select",
+        );
+        let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(getExpr.column)}${BINARY_OP_NAME.get(getExpr.func)}`;
+        this.collectOuptut(loggingPrefix, fieldName, {
+          type: returnType,
+        });
+        selectColumns.push(lExpr);
       } else {
         let columnDefinition = this.resolveColumnDefinition(
           loggingPrefix + ` and when generating select columns,`,
-          getRef.column,
-          getRef.table,
+          getExpr.column,
+          getExpr.table,
         );
-        let fieldName = `${toInitalLowercased(getRef.table)}${toInitialUppercased(getRef.column)}`;
+        let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(getExpr.column)}`;
         this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
-        selectColumns.push(`${getRef.table}.${getRef.column}`);
+        selectColumns.push(`${getExpr.table}.${getExpr.column}`);
       }
     }
 

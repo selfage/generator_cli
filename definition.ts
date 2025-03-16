@@ -287,8 +287,9 @@ export interface SpannerOrderByExpr {
   desc?: true;
 }
 
-export interface SpannerGetColumnRef {
+export interface SpannerGetColumnExpr {
   column?: string;
+  func?: "SCORE"; // Function only works with `column`.
   all?: true; // Get all columns from the table.
   columnGroup?: string; // Get columns from the column group.
   table?: string;
@@ -303,7 +304,7 @@ export interface SpannerSelectDefinition {
   where?: SpannerWhereConcat | SpannerWhereLeaf;
   orderBy?: Array<string | SpannerOrderByExpr>;
   withLimit?: boolean;
-  get: Array<string | SpannerGetColumnRef>;
+  get: Array<string | SpannerGetColumnExpr>;
 }
 
 export interface SpannerInsertDefinition {

@@ -3061,6 +3061,10 @@ export async function s1(
                   {
                     all: true,
                   },
+                  {
+                    column: "textTokens",
+                    func: "SCORE",
+                  }
                 ],
               },
               {
@@ -3164,6 +3168,7 @@ export interface SearchTextRow {
   textTableContent?: string,
   textTableUpdatedTimeMs?: number,
   textTableIndex?: number,
+  textTableTextTokensScore?: number,
 }
 
 export let SEARCH_TEXT_ROW: MessageDescriptor<SearchTextRow> = {
@@ -3192,6 +3197,10 @@ export let SEARCH_TEXT_ROW: MessageDescriptor<SearchTextRow> = {
     name: 'textTableIndex',
     index: 6,
     primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'textTableTextTokensScore',
+    index: 7,
+    primitiveType: PrimitiveType.NUMBER,
   }],
 };
 
@@ -3203,16 +3212,18 @@ export async function searchText(
     textTableTextTokensScoreLt: number,
     textTableTextTokensScoreOrderBy: string,
     limit: number,
+    textTableTextTokensScoreSelect: string,
   }
 ): Promise<Array<SearchTextRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhere) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
+    sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index, SCORE(TextTable.textTokens, @textTableTextTokensScoreSelect) FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhere) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
     params: {
       textTableTextTokensSearch: args.textTableTextTokensSearch,
       textTableTextTokensScoreWhere: args.textTableTextTokensScoreWhere,
       textTableTextTokensScoreLt: Spanner.float(args.textTableTextTokensScoreLt),
       textTableTextTokensScoreOrderBy: args.textTableTextTokensScoreOrderBy,
       limit: args.limit.toString(),
+      textTableTextTokensScoreSelect: args.textTableTextTokensScoreSelect,
     },
     types: {
       textTableTextTokensSearch: { type: "string" },
@@ -3220,6 +3231,7 @@ export async function searchText(
       textTableTextTokensScoreLt: { type: "float64" },
       textTableTextTokensScoreOrderBy: { type: "string" },
       limit: { type: "int64" },
+      textTableTextTokensScoreSelect: { type: "string" },
     }
   });
   let resRows = new Array<SearchTextRow>();
@@ -3231,6 +3243,7 @@ export async function searchText(
       textTableContent: row.at(3).value == null ? undefined : row.at(3).value,
       textTableUpdatedTimeMs: row.at(4).value == null ? undefined : row.at(4).value.valueOf(),
       textTableIndex: row.at(5).value == null ? undefined : row.at(5).value.valueOf(),
+      textTableTextTokensScore: row.at(6).value == null ? undefined : row.at(6).value.value,
     });
   }
   return resRows;
