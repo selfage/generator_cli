@@ -1994,20 +1994,20 @@ export function updateWorkingTaskMetadataStatement(
 import { Database, Transaction } from '@google-cloud/spanner';
 
 export interface S1Row {
-  t1F1?: string,
-  t1F2?: string,
+  t1TableF1?: string,
+  t1TableF2?: string,
   t2TableF2?: string,
-  t3F2?: string,
+  t3TableF2?: string,
 }
 
 export let S1_ROW: MessageDescriptor<S1Row> = {
   name: 'S1Row',
   fields: [{
-    name: 't1F1',
+    name: 't1TableF1',
     index: 1,
     primitiveType: PrimitiveType.STRING,
   }, {
-    name: 't1F2',
+    name: 't1TableF2',
     index: 2,
     primitiveType: PrimitiveType.STRING,
   }, {
@@ -2015,7 +2015,7 @@ export let S1_ROW: MessageDescriptor<S1Row> = {
     index: 3,
     primitiveType: PrimitiveType.STRING,
   }, {
-    name: 't3F2',
+    name: 't3TableF2',
     index: 4,
     primitiveType: PrimitiveType.STRING,
   }],
@@ -2024,23 +2024,23 @@ export let S1_ROW: MessageDescriptor<S1Row> = {
 export async function s1(
   runner: Database | Transaction,
   args: {
-    t1F2Eq: string,
-    t3F1Eq: string,
+    t1TableF2Eq: string,
+    t3TableF1Eq: string,
     t2TableF2Ne: string,
     limit: number,
   }
 ): Promise<Array<S1Row>> {
   let [rows] = await runner.run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1F2Eq AND t3.f1 = @t3F1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1TableF2Eq AND t3.f1 = @t3TableF1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit",
     params: {
-      t1F2Eq: args.t1F2Eq,
-      t3F1Eq: args.t3F1Eq,
+      t1TableF2Eq: args.t1TableF2Eq,
+      t3TableF1Eq: args.t3TableF1Eq,
       t2TableF2Ne: args.t2TableF2Ne,
       limit: args.limit.toString(),
     },
     types: {
-      t1F2Eq: { type: "string" },
-      t3F1Eq: { type: "string" },
+      t1TableF2Eq: { type: "string" },
+      t3TableF1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
       limit: { type: "int64" },
     }
@@ -2048,10 +2048,10 @@ export async function s1(
   let resRows = new Array<S1Row>();
   for (let row of rows) {
     resRows.push({
-      t1F1: row.at(0).value == null ? undefined : row.at(0).value,
-      t1F2: row.at(1).value == null ? undefined : row.at(1).value,
+      t1TableF1: row.at(0).value == null ? undefined : row.at(0).value,
+      t1TableF2: row.at(1).value == null ? undefined : row.at(1).value,
       t2TableF2: row.at(2).value == null ? undefined : row.at(2).value,
-      t3F2: row.at(3).value == null ? undefined : row.at(3).value,
+      t3TableF2: row.at(3).value == null ? undefined : row.at(3).value,
     });
   }
   return resRows;
@@ -2498,7 +2498,7 @@ export async function s1(
           error,
           eqError(
             new Error(
-              "when generating where clause, t2.f1 refers to a table not found",
+              "when generating where clause, t2 refers to a table not found",
             ),
           ),
           "error",
@@ -2759,7 +2759,7 @@ export async function s1(
           error,
           eqError(
             new Error(
-              "when generating order by clause, t2.f1 refers to a table not found",
+              "when generating order by clause, t2 refers to a table not found",
             ),
           ),
           "error",
@@ -2945,7 +2945,7 @@ export async function s1(
           error,
           eqError(
             new Error(
-              "when generating select columns, t2.f3 refers to a table not found",
+              "when generating select columns, t2 refers to a table not found",
             ),
           ),
           "error",

@@ -78,8 +78,8 @@ let SCORE_RESULT_OP = new Set().add(">").add(">=").add("<").add("<=");
 
 function getColumnDefinition(
   loggingPrefix: string,
-  table: SpannerTableDefinition,
   columnName: string,
+  table: SpannerTableDefinition,
 ): SpannerTableColumnDefinition {
   for (let column of table.columns) {
     if (column.name === columnName) {
@@ -93,8 +93,8 @@ function getColumnDefinition(
 
 function getColumnGroupDefinition(
   loggingPrefix: string,
-  table: SpannerTableDefinition,
   columnGroupName: string,
+  table: SpannerTableDefinition,
 ): SpannerTableColumnGroupDefinition {
   for (let columnGroup of table.columnGroups) {
     if (columnGroup.name === columnGroupName) {
@@ -108,8 +108,8 @@ function getColumnGroupDefinition(
 
 function getSearchColumnDefinition(
   loggingPrefix: string,
-  table: SpannerTableDefinition,
   searchColumnName: string,
+  table: SpannerTableDefinition,
 ): SpannerTableSearchColumnDefinition {
   if (table.searchColumns) {
     for (let column of table.searchColumns) {
@@ -266,8 +266,8 @@ export class SpannerDatabaseGenerator {
         for (let columnRef of searchColumn.columnRefs) {
           let columnDef = getColumnDefinition(
             loggingPrefix + " and when generating search column ref,",
-            table,
             columnRef,
+            table,
           );
           // Only string type for now.
           if (columnDef.type !== "string") {
@@ -316,8 +316,8 @@ export class SpannerDatabaseGenerator {
       }
       let columnDefinition = getColumnDefinition(
         loggingPrefix + " and when generating primary keys,",
-        table,
         key.name,
+        table,
       );
       if (columnDefinition.isArray) {
         throw new Error(
@@ -362,13 +362,13 @@ export class SpannerDatabaseGenerator {
         }
         let parentColumnDefinition = getColumnDefinition(
           loggingPrefix + "and when validating interleaving,",
-          parentTable,
           parentKey.name,
+          parentTable,
         );
         let childColumnDefinition = getColumnDefinition(
           loggingPrefix + "and when validating interleaving,",
-          table,
           childKey.name,
+          table,
         );
         if (parentColumnDefinition.type !== childColumnDefinition.type) {
           throw new Error(
@@ -407,8 +407,8 @@ export class SpannerDatabaseGenerator {
           }
           getColumnDefinition(
             loggingPrefix + " and when generating indexes,",
-            table,
             column.name,
+            table,
           );
           indexColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
         }
@@ -435,8 +435,8 @@ export class SpannerDatabaseGenerator {
         for (let column of searchIndex.columns) {
           getSearchColumnDefinition(
             loggingPrefix + " and when generating search indexes,",
-            table,
             column,
+            table,
           );
         }
         let paritiionByClause = "";
@@ -445,8 +445,8 @@ export class SpannerDatabaseGenerator {
             getColumnDefinition(
               loggingPrefix +
                 " and when generating search indexes with partition by clauses,",
-              table,
               column,
+              table,
             );
           }
           paritiionByClause = ` PARTITION BY ${searchIndex.partitionByColumns.join(", ")}`;
@@ -464,8 +464,8 @@ export class SpannerDatabaseGenerator {
             let columnDef = getColumnDefinition(
               loggingPrefix +
                 " and when generating search indexes with order by clauses,",
-              table,
               column.name,
+              table,
             );
             if (columnDef.type !== "int53") {
               throw new Error(
@@ -684,63 +684,17 @@ export class SpannerDatabaseGenerator {
     });
   }
 
-  private resolveColumnDefinition(
+  private resolveTableAlias(
     loggingPrefix: string,
-    column: string,
     tableAlias: string,
-  ): SpannerTableColumnDefinition {
+  ): SpannerTableDefinition {
     let tableName = this.currentTableAliases.get(tableAlias);
     if (!tableName) {
       throw new Error(
-        `${loggingPrefix} ${tableAlias}.${column} refers to a table not found in the query.`,
+        `${loggingPrefix} ${tableAlias} refers to a table not found in the query.`,
       );
     }
-    // Its presence should have checked elsewhere.
-    let table = this.databaseTables.get(tableName);
-    let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
-    return columnDefinition;
-  }
-
-  private resolveColumnGroupDefinition(
-    loggingPrefix: string,
-    columnGroup: string,
-    tableAlias: string,
-  ): SpannerTableColumnGroupDefinition {
-    let tableName = this.currentTableAliases.get(tableAlias);
-    if (!tableName) {
-      throw new Error(
-        `${loggingPrefix} ${tableAlias}.${columnGroup} refers to a table not found in the query.`,
-      );
-    }
-    // Its presence should have checked elsewhere.
-    let table = this.databaseTables.get(tableName);
-    let columnGroupDefinition = getColumnGroupDefinition(
-      loggingPrefix,
-      table,
-      columnGroup,
-    );
-    return columnGroupDefinition;
-  }
-
-  private resolveSearchColumnDefinition(
-    loggingPrefix: string,
-    column: string,
-    tableAlias: string,
-  ): SpannerTableSearchColumnDefinition {
-    let tableName = this.currentTableAliases.get(tableAlias);
-    if (!tableName) {
-      throw new Error(
-        `${loggingPrefix} ${tableAlias}.${column} refers to a table not found in the query.`,
-      );
-    }
-    // Its presence should have checked elsewhere.
-    let table = this.databaseTables.get(tableName);
-    let columnDefinition = getSearchColumnDefinition(
-      loggingPrefix,
-      table,
-      column,
-    );
-    return columnDefinition;
+    return this.databaseTables.get(tableName);
   }
 
   private generateSpannerInsert(
@@ -767,7 +721,7 @@ export class SpannerDatabaseGenerator {
       throw new Error(`${loggingPrefix} "set" is missing.`);
     }
     for (let column of insertDefinition.set) {
-      let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+      let columnDefinition = getColumnDefinition(loggingPrefix, column, table);
       columns.push(column);
       let argVariable = column;
       this.collectInput(loggingPrefix, argVariable, columnDefinition);
@@ -830,7 +784,7 @@ export function ${toInitalLowercased(insertDefinition.name)}Statement(
       throw new Error(`${loggingPrefix} "set" is missing.`);
     }
     for (let column of updateDefinition.set) {
-      let columnDefinition = getColumnDefinition(loggingPrefix, table, column);
+      let columnDefinition = getColumnDefinition(loggingPrefix, column, table);
       let argVariable = `set${toInitialUppercased(column)}`;
       this.collectInput(
         loggingPrefix + " and when generating set columns,",
@@ -989,20 +943,22 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
         if (!expr.table) {
           expr.table = this.currentDefaultTableAlias;
         }
+        let table = this.resolveTableAlias(loggingPrefix, expr.table);
         if (expr.func) {
           let { lExpr } = this.generateFunction(
             loggingPrefix + ` and when generating order by clause,`,
             expr.func,
             expr.column,
             expr.table,
+            table,
             "OrderBy",
           );
           orderByExprs.push(`${lExpr}${expr.desc ? " DESC" : ""}`);
         } else {
-          this.resolveColumnDefinition(
+          getColumnDefinition(
             loggingPrefix + ` and when generating order by clause,`,
             expr.column,
-            expr.table,
+            table,
           );
           orderByExprs.push(
             `${expr.table}.${expr.column}${expr.desc ? " DESC" : ""}`,
@@ -1035,33 +991,28 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
       if (!getExpr.table) {
         getExpr.table = this.currentDefaultTableAlias;
       }
+      let table = this.resolveTableAlias(loggingPrefix, getExpr.table);
       if (getExpr.all) {
-        let tableName = this.currentTableAliases.get(getExpr.table);
-        if (!tableName) {
-          throw new Error(
-            `${loggingPrefix} ${getExpr.table} refers to a table not found in the query.`,
-          );
-        }
-        let allColumns = this.databaseTables.get(tableName).columns;
+        let allColumns = table.columns;
         for (let column of allColumns) {
-          let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(column.name)}`;
+          let fieldName = `${toInitalLowercased(table.name)}${toInitialUppercased(column.name)}`;
           this.collectOuptut(loggingPrefix, fieldName, column);
           selectColumns.push(`${getExpr.table}.${column.name}`);
         }
       } else if (getExpr.columnGroup) {
-        let columnGroupDefinition = this.resolveColumnGroupDefinition(
+        let columnGroupDefinition = getColumnGroupDefinition(
           loggingPrefix + ` and when generating select column groups,`,
           getExpr.columnGroup,
-          getExpr.table,
+          table,
         );
         for (let columnName of columnGroupDefinition.columns) {
-          let columnDefinition = this.resolveColumnDefinition(
+          let columnDefinition = getColumnDefinition(
             loggingPrefix +
               ` and when generating select columns for column group ${getExpr.columnGroup},`,
             columnName,
-            getExpr.table,
+            table,
           );
-          let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(columnName)}`;
+          let fieldName = `${toInitalLowercased(table.name)}${toInitialUppercased(columnName)}`;
           this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
           selectColumns.push(`${getExpr.table}.${columnName}`);
         }
@@ -1071,20 +1022,21 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
           getExpr.func,
           getExpr.column,
           getExpr.table,
+          table,
           "Select",
         );
-        let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(getExpr.column)}${BINARY_OP_NAME.get(getExpr.func)}`;
+        let fieldName = `${toInitalLowercased(table.name)}${toInitialUppercased(getExpr.column)}${BINARY_OP_NAME.get(getExpr.func)}`;
         this.collectOuptut(loggingPrefix, fieldName, {
           type: returnType,
         });
         selectColumns.push(lExpr);
       } else {
-        let columnDefinition = this.resolveColumnDefinition(
+        let columnDefinition = getColumnDefinition(
           loggingPrefix + ` and when generating select columns,`,
           getExpr.column,
-          getExpr.table,
+          table,
         );
-        let fieldName = `${toInitalLowercased(getExpr.table)}${toInitialUppercased(getExpr.column)}`;
+        let fieldName = `${toInitalLowercased(table.name)}${toInitialUppercased(getExpr.column)}`;
         this.collectOuptut(loggingPrefix, fieldName, columnDefinition);
         selectColumns.push(`${getExpr.table}.${getExpr.column}`);
       }
@@ -1159,15 +1111,18 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     if (!leaf.lTable) {
       leaf.lTable = this.currentDefaultTableAlias;
     }
+
+    let lTable = this.resolveTableAlias(loggingPrefix, leaf.lTable);
     if (leaf.func) {
       let { lExpr, returnType } = this.generateFunction(
         loggingPrefix,
         leaf.func,
         leaf.lColumn,
         leaf.lTable,
+        lTable,
         "Where",
       );
-      let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
+      let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.collectInput(loggingPrefix, argVariable, {
         type: returnType,
       });
@@ -1186,22 +1141,18 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       }
     } else {
       if (leaf.op === "SEARCH") {
-        this.resolveSearchColumnDefinition(
-          loggingPrefix,
-          leaf.lColumn,
-          leaf.lTable,
-        );
+        getSearchColumnDefinition(loggingPrefix, leaf.lColumn, lTable);
         // Search column only supports string type for now.
-        let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+        let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
         this.collectInput(loggingPrefix, argVariable, {
           type: "string",
         });
         return `${leaf.op}(${leaf.lTable}.${leaf.lColumn}, @${argVariable})`;
       } else {
-        let columnDefinition = this.resolveColumnDefinition(
+        let columnDefinition = getColumnDefinition(
           loggingPrefix,
           leaf.lColumn,
-          leaf.lTable,
+          lTable,
         );
         switch (leaf.op) {
           case "IS NULL":
@@ -1218,7 +1169,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
           case "<=":
           case "!=":
           case "=":
-            let argVariable = `${toInitalLowercased(leaf.lTable)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, argVariable, columnDefinition);
             return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${argVariable}`;
           default:
@@ -1269,18 +1220,19 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     if (!leaf.lTable) {
       throw new Error(`${loggingPrefix} "lTable" is missing.`);
     }
-    let leftColumnDefinition = this.resolveColumnDefinition(
+    let lTable = this.resolveTableAlias(loggingPrefix, leaf.lTable);
+    let leftColumnDefinition = getColumnDefinition(
       loggingPrefix,
       leaf.lColumn,
-      leaf.lTable,
+      lTable,
     );
     if (!leaf.rColumn) {
       throw new Error(`${loggingPrefix} "rColumn" is missing.`);
     }
     let rightColumnDefinition = getColumnDefinition(
       loggingPrefix,
-      this.currentJoinRightTable,
       leaf.rColumn,
+      this.currentJoinRightTable,
     );
     if (leftColumnDefinition.type !== rightColumnDefinition.type) {
       throw new Error(
@@ -1299,23 +1251,24 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     loggingPrefix: string,
     func: "SCORE",
     lColumn: string,
-    lTable: string,
+    lTableAlias: string,
+    lTable: SpannerTableDefinition,
     context: string,
   ): {
     lExpr: string;
     returnType: string;
   } {
-    let argVariable = `${toInitalLowercased(lTable)}${toInitialUppercased(lColumn)}${BINARY_OP_NAME.get(func)}${context}`;
+    let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(lColumn)}${BINARY_OP_NAME.get(func)}${context}`;
     switch (func) {
       case "SCORE":
-        this.resolveSearchColumnDefinition(loggingPrefix, lColumn, lTable);
+        getSearchColumnDefinition(loggingPrefix, lColumn, lTable);
         // Search column only supports string type for now.
         this.collectInput(loggingPrefix, argVariable, {
           type: "string",
         });
         // The function returns a number.
         return {
-          lExpr: `${func}(${lTable}.${lColumn}, @${argVariable})`,
+          lExpr: `${func}(${lTableAlias}.${lColumn}, @${argVariable})`,
           returnType: "float64",
         };
       default:

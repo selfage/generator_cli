@@ -175,7 +175,7 @@ export function deleteUserContentStatement(
 
 export interface GetLastUserRow {
   userTableUserId?: number,
-  ucContent?: string,
+  userContentContent?: string,
 }
 
 export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
@@ -185,7 +185,7 @@ export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
     index: 1,
     primitiveType: PrimitiveType.NUMBER,
   }, {
-    name: 'ucContent',
+    name: 'userContentContent',
     index: 2,
     primitiveType: PrimitiveType.STRING,
   }],
@@ -194,18 +194,18 @@ export let GET_LAST_USER_ROW: MessageDescriptor<GetLastUserRow> = {
 export async function getLastUser(
   runner: Database | Transaction,
   args: {
-    ucContentIdEq: string,
+    userContentContentIdEq: string,
     limit: number,
   }
 ): Promise<Array<GetLastUserRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @ucContentIdEq ORDER BY UserTable.createdTimestamp LIMIT @limit",
+    sql: "SELECT UserTable.userId, uc.content FROM UserTable INNER JOIN UserContent AS uc ON UserTable.userId = uc.userId WHERE uc.contentId = @userContentContentIdEq ORDER BY UserTable.createdTimestamp LIMIT @limit",
     params: {
-      ucContentIdEq: args.ucContentIdEq,
+      userContentContentIdEq: args.userContentContentIdEq,
       limit: args.limit.toString(),
     },
     types: {
-      ucContentIdEq: { type: "string" },
+      userContentContentIdEq: { type: "string" },
       limit: { type: "int64" },
     }
   });
@@ -213,7 +213,7 @@ export async function getLastUser(
   for (let row of rows) {
     resRows.push({
       userTableUserId: row.at(0).value == null ? undefined : row.at(0).value.value,
-      ucContent: row.at(1).value == null ? undefined : row.at(1).value,
+      userContentContent: row.at(1).value == null ? undefined : row.at(1).value,
     });
   }
   return resRows;
