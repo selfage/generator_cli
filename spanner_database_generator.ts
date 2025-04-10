@@ -943,7 +943,10 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
         if (!expr.table) {
           expr.table = this.currentDefaultTableAlias;
         }
-        let table = this.resolveTableAlias(loggingPrefix, expr.table);
+        let table = this.resolveTableAlias(
+          loggingPrefix + ` and when generating order by clause,`,
+          expr.table,
+        );
         if (expr.func) {
           let { lExpr } = this.generateFunction(
             loggingPrefix + ` and when generating order by clause,`,
@@ -991,7 +994,10 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
       if (!getExpr.table) {
         getExpr.table = this.currentDefaultTableAlias;
       }
-      let table = this.resolveTableAlias(loggingPrefix, getExpr.table);
+      let table = this.resolveTableAlias(
+        loggingPrefix + ` and when generating get columns,`,
+        getExpr.table,
+      );
       if (getExpr.all) {
         let allColumns = table.columns;
         for (let column of allColumns) {
@@ -1001,14 +1007,14 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
         }
       } else if (getExpr.columnGroup) {
         let columnGroupDefinition = getColumnGroupDefinition(
-          loggingPrefix + ` and when generating select column groups,`,
+          loggingPrefix + ` and when generating get column groups,`,
           getExpr.columnGroup,
           table,
         );
         for (let columnName of columnGroupDefinition.columns) {
           let columnDefinition = getColumnDefinition(
             loggingPrefix +
-              ` and when generating select columns for column group ${getExpr.columnGroup},`,
+              ` and when generating get columns for column group ${getExpr.columnGroup},`,
             columnName,
             table,
           );
@@ -1018,7 +1024,7 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
         }
       } else if (getExpr.func) {
         let { lExpr, returnType } = this.generateFunction(
-          loggingPrefix + ` and when generating select columns,`,
+          loggingPrefix + ` and when generating get columns,`,
           getExpr.func,
           getExpr.column,
           getExpr.table,
@@ -1120,7 +1126,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         leaf.lColumn,
         leaf.lTable,
         lTable,
-        "Where",
+        `Where${BINARY_OP_NAME.get(leaf.op)}`,
       );
       let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.collectInput(loggingPrefix, argVariable, {

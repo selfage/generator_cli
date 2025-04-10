@@ -2945,7 +2945,7 @@ export async function s1(
           error,
           eqError(
             new Error(
-              "when generating select columns, t2 refers to a table not found",
+              "when generating get columns, t2 refers to a table not found",
             ),
           ),
           "error",
@@ -3208,7 +3208,7 @@ export async function searchText(
   runner: Database | Transaction,
   args: {
     textTableTextTokensSearch: string,
-    textTableTextTokensScoreWhere: string,
+    textTableTextTokensScoreWhereLt: string,
     textTableTextTokensScoreLt: number,
     textTableTextTokensScoreOrderBy: string,
     limit: number,
@@ -3216,10 +3216,10 @@ export async function searchText(
   }
 ): Promise<Array<SearchTextRow>> {
   let [rows] = await runner.run({
-    sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index, SCORE(TextTable.textTokens, @textTableTextTokensScoreSelect) FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhere) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
+    sql: "SELECT TextTable.id, TextTable.uploaderId, TextTable.title, TextTable.content, TextTable.updatedTimeMs, TextTable.index, SCORE(TextTable.textTokens, @textTableTextTokensScoreSelect) FROM TextTable WHERE (SEARCH(TextTable.textTokens, @textTableTextTokensSearch) AND SCORE(TextTable.textTokens, @textTableTextTokensScoreWhereLt) < @textTableTextTokensScoreLt) ORDER BY SCORE(TextTable.textTokens, @textTableTextTokensScoreOrderBy) DESC LIMIT @limit",
     params: {
       textTableTextTokensSearch: args.textTableTextTokensSearch,
-      textTableTextTokensScoreWhere: args.textTableTextTokensScoreWhere,
+      textTableTextTokensScoreWhereLt: args.textTableTextTokensScoreWhereLt,
       textTableTextTokensScoreLt: Spanner.float(args.textTableTextTokensScoreLt),
       textTableTextTokensScoreOrderBy: args.textTableTextTokensScoreOrderBy,
       limit: args.limit.toString(),
@@ -3227,7 +3227,7 @@ export async function searchText(
     },
     types: {
       textTableTextTokensSearch: { type: "string" },
-      textTableTextTokensScoreWhere: { type: "string" },
+      textTableTextTokensScoreWhereLt: { type: "string" },
       textTableTextTokensScoreLt: { type: "float64" },
       textTableTextTokensScoreOrderBy: { type: "string" },
       limit: { type: "int64" },
