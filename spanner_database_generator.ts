@@ -472,6 +472,16 @@ export class SpannerDatabaseGenerator {
                 `${loggingPrefix} search index ${searchIndex.name}'s order by column ${column.name} is not an int53. Search index can only be ordered by ints.`,
               );
             }
+            if (columnDef.isArray) {
+              throw new Error(
+                `${loggingPrefix} search index ${searchIndex.name}'s order by column ${column.name} is an array. Search index can only be ordered by non-array columns.`,
+              );
+            }
+            if (columnDef.nullable) {
+              throw new Error(
+                `${loggingPrefix} search index ${searchIndex.name}'s order by column ${column.name} is nullable. Search index can only be ordered by non-null columns.`,
+              );
+            }
             orderByColumns.push(`${column.name}${column.desc ? " DESC" : ""}`);
           }
           orderByClause = ` ORDER BY ${orderByColumns.join(", ")}`;
