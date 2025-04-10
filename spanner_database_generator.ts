@@ -74,7 +74,7 @@ let ALL_JOIN_TYPE = new Set()
   .add("FULL")
   .add("LEFT")
   .add("RIGHT");
-let SCORE_RESULT_OP = new Set().add(">").add(">=").add("<").add("<=");
+let SCORE_RESULT_OP = new Set().add(">").add(">=").add("<").add("<=").add("=");
 
 function getColumnDefinition(
   loggingPrefix: string,
