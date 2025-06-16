@@ -109,7 +109,7 @@ export interface RemoteCallsGroupDefinition {
   service: string;
   // Import relative to CWD. Do not include '.yaml'.
   importService?: string;
-  path: string;
+  path?: string;
   calls: Array<RemoteCallDefinition>;
   // The path to output the generated web client interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.

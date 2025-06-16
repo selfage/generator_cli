@@ -135,7 +135,6 @@ export let COMMENT_NODE_SERVICE: ServiceDescriptor = {
             name: "CommentWebCalls",
             service: "CommentWebService",
             importService: "./comment_service",
-            path: "/base",
             calls: [
               {
                 name: "GetComments",
@@ -161,7 +160,7 @@ import { RemoteCallDescriptor } from '@selfage/service_descriptor';
 export let GET_COMMENTS: RemoteCallDescriptor = {
   name: "GetComments",
   service: COMMENT_WEB_SERVICE,
-  path: "/base/get_comments",
+  path: "/get_comments",
   body: {
     messageType: GET_COMMENTS_REQUEST_BODY,
   },

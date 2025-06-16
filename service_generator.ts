@@ -90,18 +90,13 @@ export function generateRemoteCallsGroup(
     remoteCallsGroupDefinition.outputHandler,
   );
 
-  if (!remoteCallsGroupDefinition.path) {
-    throw new Error(
-      `"path" is missing on remote calls group ${remoteCallsGroupDefinition.name}.`,
-    );
-  }
   if (!remoteCallsGroupDefinition.calls) {
     throw new Error(
       `"calls" is either missing or not an array on remote calls group ${remoteCallsGroupDefinition.name}.`,
     );
   }
   for (let remoteCall of remoteCallsGroupDefinition.calls) {
-    remoteCall.path = remoteCallsGroupDefinition.path + remoteCall.path;
+    remoteCall.path = (remoteCallsGroupDefinition.path ?? "") + remoteCall.path;
     generateRemoteCall(
       definitionModulePath,
       remoteCall,
