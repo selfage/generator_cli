@@ -18,8 +18,6 @@ export function generateMessage(
     throw new Error(`"name" field is missing on a message.`);
   }
 
-  messageDefinition.fields.sort((a, b) => a.index - b.index);
-
   let loggingPrefix = `When generating message ${messageDefinition.name},`;
   let tsContentBuilder = TsContentBuilder.get(
     outputContentMap,
