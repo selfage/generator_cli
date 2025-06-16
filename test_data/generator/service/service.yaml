@@ -20,10 +20,11 @@
   outputHandler: ./test_data/generator/service/handler
 - kind: Service
   name: WebService
-  path: "/web"
+  path: /web
 - kind: RemoteCallsGroup
   name: WebCalls
   service: WebService
+  path: /b
   calls:
     - name: UploadFile
       path: /UploadFile

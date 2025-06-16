@@ -27,26 +27,20 @@ TEST_RUNNER.run({
                 index: 1,
               },
               {
-                name: "stringField",
-                type: "string",
-                index: 2,
-              },
-              {
                 name: "deprecatedStringField",
                 type: "string",
                 index: 3,
                 deprecated: true,
               },
               {
+                name: "stringField",
+                type: "string",
+                index: 2,
+              },
+              {
                 name: "booleanField",
                 type: "boolean",
                 index: 4,
-              },
-              {
-                name: "numberArrayField",
-                type: "number",
-                isArray: true,
-                index: 5,
               },
               {
                 name: "stringArrayField",
@@ -59,6 +53,12 @@ TEST_RUNNER.run({
                 type: "boolean",
                 isArray: true,
                 index: 7,
+              },
+              {
+                name: "numberArrayField",
+                type: "number",
+                isArray: true,
+                index: 5,
               },
             ],
           },

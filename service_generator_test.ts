@@ -135,6 +135,7 @@ export let COMMENT_NODE_SERVICE: ServiceDescriptor = {
             name: "CommentWebCalls",
             service: "CommentWebService",
             importService: "./comment_service",
+            path: "/base",
             calls: [
               {
                 name: "GetComments",
@@ -160,7 +161,7 @@ import { RemoteCallDescriptor } from '@selfage/service_descriptor';
 export let GET_COMMENTS: RemoteCallDescriptor = {
   name: "GetComments",
   service: COMMENT_WEB_SERVICE,
-  path: "/get_comments",
+  path: "/base/get_comments",
   body: {
     messageType: GET_COMMENTS_REQUEST_BODY,
   },
@@ -264,6 +265,7 @@ export abstract class GetCommentsHandlerInterface implements RemoteCallHandlerIn
             name: "HistoryNodeCalls",
             service: "HistoryNodeSerivce",
             importService: "./history_service",
+            path: "/base",
             calls: [
               {
                 name: "GetHistory",
@@ -294,7 +296,7 @@ import { RemoteCallDescriptor } from '@selfage/service_descriptor';
 export let GET_HISTORY: RemoteCallDescriptor = {
   name: "GetHistory",
   service: HISTORY_NODE_SERIVCE,
-  path: "/get_history",
+  path: "/base/get_history",
   body: {
     messageType: GET_HISTORY_REQUEST_BODY,
   },
@@ -403,6 +405,7 @@ export abstract class GetHistoryHandlerInterface implements RemoteCallHandlerInt
             kind: "RemoteCallsGroup",
             name: "UploadFileGroup",
             service: "UploadFileService",
+            path: "/base",
             calls: [
               {
                 name: "UploadFile",
@@ -431,7 +434,7 @@ export abstract class GetHistoryHandlerInterface implements RemoteCallHandlerInt
 export let UPLOAD_FILE: RemoteCallDescriptor = {
   name: "UploadFile",
   service: UPLOAD_FILE_SERVICE,
-  path: "/upload_file",
+  path: "/base/upload_file",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
   },

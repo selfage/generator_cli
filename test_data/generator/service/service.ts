@@ -28,7 +28,7 @@ export let WEB_SERVICE: ServiceDescriptor = {
 export let UPLOAD_FILE: RemoteCallDescriptor = {
   name: "UploadFile",
   service: WEB_SERVICE,
-  path: "/UploadFile",
+  path: "/b/UploadFile",
   body: {
     primitiveType: PrimitveTypeForBody.BYTES,
   },

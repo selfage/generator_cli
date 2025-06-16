@@ -18,6 +18,8 @@ export function generateMessage(
     throw new Error(`"name" field is missing on a message.`);
   }
 
+  messageDefinition.fields.sort((a, b) => a.index - b.index);
+
   let loggingPrefix = `When generating message ${messageDefinition.name},`;
   let tsContentBuilder = TsContentBuilder.get(
     outputContentMap,
@@ -25,11 +27,14 @@ export function generateMessage(
   );
   let fields = new Array<string>();
   let fieldDescriptors = new Array<string>();
-  let usedIndexes = new Set<number>();
   if (messageDefinition.fields) {
+    let usedIndexes = new Set<number>();
     for (let field of messageDefinition.fields) {
       if (!field.name) {
         throw new Error(`${loggingPrefix} "name" is missing on a field.`);
+      }
+      if (!field.type) {
+        throw new Error(`${loggingPrefix} "type" is missing on ${field.name}.`);
       }
       if (!field.index) {
         throw new Error(
@@ -42,10 +47,10 @@ export function generateMessage(
         );
       }
       usedIndexes.add(field.index);
+    }
+    messageDefinition.fields.sort((a, b) => a.index - b.index);
 
-      if (!field.type) {
-        throw new Error(`${loggingPrefix} "type" is missing on ${field.name}.`);
-      }
+    for (let field of messageDefinition.fields) {
       let typeDescriptorLine: string;
       if (PRIMITIVE_TYPES.has(field.type)) {
         tsContentBuilder.importFromMessageDescriptor("PrimitiveType");

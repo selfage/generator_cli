@@ -1,6 +1,6 @@
 {
   "name": "@selfage/generator_cli",
-  "version": "4.3.11",
+  "version": "4.4.0",
   "description": "Code generation for message, service, and database.",
   "repository": {
     "type": "git",
@@ -37,7 +37,6 @@
     "@google-cloud/spanner": "^7.19.1",
     "@selfage/cli": "^5.0.3",
     "@selfage/counter": "^2.0.0",
-    "@selfage/datastore_client": "^3.0.0",
     "@selfage/message": "^3.5.8",
     "@selfage/service_descriptor": "^5.3.1",
     "@selfage/spanner_schema_update_cli": "^1.4.3",
