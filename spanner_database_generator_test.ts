@@ -1506,6 +1506,12 @@ export async function getGroupRow(
                     desc: true,
                   },
                 ],
+                indexes: [
+                  {
+                    name: "ById2",
+                    columns: ["id2"],
+                  },
+                ],
                 executionTimeIndex: "ByExecutionTime",
                 insert: "InsertWorkingTask",
                 delete: "DeleteWorkingTask",
@@ -1549,6 +1555,9 @@ export async function getGroupRow(
     }],
     "createTableDdl": "CREATE TABLE WorkingTask (id1 STRING(MAX) NOT NULL, id2 STRING(MAX) NOT NULL, payload STRING(MAX) NOT NULL, retryCount FLOAT64, executionTime TIMESTAMP, createdTime TIMESTAMP) PRIMARY KEY (id1 ASC, id2 DESC)",
     "indexes": [{
+      "name": "ById2",
+      "createIndexDdl": "CREATE INDEX ById2 ON WorkingTask(id2)"
+    }, {
       "name": "ByExecutionTime",
       "createIndexDdl": "CREATE INDEX ByExecutionTime ON WorkingTask(executionTime)"
     }]
@@ -3064,7 +3073,7 @@ export async function s1(
                   {
                     column: "textTokens",
                     func: "SCORE",
-                  }
+                  },
                 ],
               },
               {

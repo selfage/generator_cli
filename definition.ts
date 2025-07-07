@@ -226,6 +226,7 @@ export interface SpannerTaskTableDefinition {
   // The type is always timestamp.
   createdTimeColumn: string;
   primaryKeys: Array<string | SpannerTablePrimaryKeyDefinition>;
+  indexes?: Array<SpannerIndexDefinition>;
   // Always indexed by `executionTimeColumn`.
   executionTimeIndex: string;
   // Specify name of the queries.

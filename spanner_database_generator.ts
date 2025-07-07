@@ -610,6 +610,7 @@ export class SpannerDatabaseGenerator {
       );
     }
     let indexes: Array<SpannerIndexDefinition> = [
+      ...(table.indexes ?? []),
       {
         name: table.executionTimeIndex,
         columns: [table.executionTimeColumn],
