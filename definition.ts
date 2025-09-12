@@ -273,7 +273,8 @@ export interface SpannerWhereLeaf {
     | "="
     | "IS NULL"
     | "IS NOT NULL"
-    | "SEARCH";
+    | "SEARCH"
+    | "IN";
   // For binary operations, and you want a variable to be used in code.
   rVar?: string;
 }

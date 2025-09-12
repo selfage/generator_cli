@@ -198,6 +198,10 @@ TEST_RUNNER.run({
                               op: "!=",
                               lColumn: "boolValue",
                             },
+                            {
+                              op: "IN",
+                              lColumn: "stringValue",
+                            }
                           ],
                         },
                         {
@@ -632,17 +636,19 @@ export function updateARowStatement(
     typesTableStringValueEq: string,
     typesTableFloat64ValueGe?: number,
     typesTableBoolValueNe: boolean,
+    typesTableStringValueIn: Array<string>,
     typesTableTimestampValueGt: number,
     setStringValue: string,
     setTimestampValue: number,
   }
 ): Statement {
   return {
-    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = @setTimestampValue WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
+    sql: "UPDATE TypesTable SET stringValue = @setStringValue, timestampValue = @setTimestampValue WHERE (TypesTable.stringValue = @typesTableStringValueEq AND ((TypesTable.float64Value >= @typesTableFloat64ValueGe AND TypesTable.boolValue != @typesTableBoolValueNe AND TypesTable.stringValue IN @typesTableStringValueIn) OR TypesTable.timestampValue > @typesTableTimestampValueGt))",
     params: {
       typesTableStringValueEq: args.typesTableStringValueEq,
       typesTableFloat64ValueGe: args.typesTableFloat64ValueGe == null ? null : Spanner.float(args.typesTableFloat64ValueGe),
       typesTableBoolValueNe: args.typesTableBoolValueNe,
+      typesTableStringValueIn: args.typesTableStringValueIn,
       typesTableTimestampValueGt: new Date(args.typesTableTimestampValueGt).toISOString(),
       setStringValue: args.setStringValue,
       setTimestampValue: new Date(args.setTimestampValue).toISOString(),
@@ -651,6 +657,7 @@ export function updateARowStatement(
       typesTableStringValueEq: { type: "string" },
       typesTableFloat64ValueGe: { type: "float64" },
       typesTableBoolValueNe: { type: "bool" },
+      typesTableStringValueIn: { type: "array", child: { type: "string" } },
       typesTableTimestampValueGt: { type: "timestamp" },
       setStringValue: { type: "string" },
       setTimestampValue: { type: "timestamp" },

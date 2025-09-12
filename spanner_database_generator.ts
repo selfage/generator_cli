@@ -60,6 +60,7 @@ let BINARY_OP_NAME = new Map<string, string>([
   ["!=", "Ne"],
   ["SEARCH", "Search"],
   ["SCORE", "Score"],
+  ["IN", "In"],
 ]);
 let ALL_JOIN_LEAF_OP = new Set()
   .add(">")
@@ -1186,9 +1187,26 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
           case "<=":
           case "!=":
           case "=":
+            if (columnDefinition.isArray) {
+              throw new Error(
+                `${loggingPrefix} column ${leaf.lTable}.${leaf.lColumn} is an array and doesn't support operator "${leaf.op}".`,
+              );
+            }
             let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, argVariable, columnDefinition);
             return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${argVariable}`;
+          case "IN":
+            if (columnDefinition.isArray) {
+              throw new Error(
+                `${loggingPrefix} column ${leaf.lTable}.${leaf.lColumn} is an array and doesn't support operator "IN".`,
+              );
+            }
+            let inArgVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            this.collectInput(loggingPrefix, inArgVariable, {
+              type: columnDefinition.type,
+              isArray: true,
+            });
+            return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${inArgVariable}`;
           default:
             throw new Error(
               `${loggingPrefix} "op" is either missing or not valid.`,
