@@ -274,6 +274,8 @@ export interface SpannerWhereLeaf {
     | "IS NULL"
     | "IS NOT NULL"
     | "SEARCH";
+  // For binary operations, and you want a variable to be used in code.
+  rVar?: string;
 }
 
 export interface SpannerWhereConcat {

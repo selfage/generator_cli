@@ -1139,7 +1139,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         lTable,
         `Where${BINARY_OP_NAME.get(leaf.op)}`,
       );
-      let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
+      let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.collectInput(loggingPrefix, argVariable, {
         type: returnType,
       });
@@ -1160,7 +1160,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       if (leaf.op === "SEARCH") {
         getSearchColumnDefinition(loggingPrefix, leaf.lColumn, lTable);
         // Search column only supports string type for now.
-        let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+        let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
         this.collectInput(loggingPrefix, argVariable, {
           type: "string",
         });
@@ -1186,7 +1186,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
           case "<=":
           case "!=":
           case "=":
-            let argVariable = `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, argVariable, columnDefinition);
             return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${argVariable}`;
           default:

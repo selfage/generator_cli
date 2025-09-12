@@ -223,6 +223,11 @@ TEST_RUNNER.run({
                       lColumn: "id",
                     },
                     {
+                      op: "=",
+                      lColumn: "id",
+                      rVar: "anotherIdEq",
+                    },
+                    {
                       op: "IS NULL",
                       lColumn: "float64Value",
                     },
@@ -656,15 +661,18 @@ export function updateARowStatement(
 export function deleteARowStatement(
   args: {
     typesTableIdEq: string,
+    anotherIdEq: string,
   }
 ): Statement {
   return {
-    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.float64Value IS NULL)",
+    sql: "DELETE TypesTable WHERE (TypesTable.id = @typesTableIdEq AND TypesTable.id = @anotherIdEq AND TypesTable.float64Value IS NULL)",
     params: {
       typesTableIdEq: args.typesTableIdEq,
+      anotherIdEq: args.anotherIdEq,
     },
     types: {
       typesTableIdEq: { type: "string" },
+      anotherIdEq: { type: "string" },
     }
   };
 }
