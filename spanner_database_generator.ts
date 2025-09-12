@@ -1203,7 +1203,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
             }
             let inArgVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, inArgVariable, {
-              type: columnDefinition.type,
+              ...columnDefinition,
               isArray: true,
             });
             return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${inArgVariable}`;
