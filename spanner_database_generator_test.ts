@@ -1987,6 +1987,7 @@ export function updateWorkingTaskMetadataStatement(
                   },
                 ],
                 withLimit: true,
+                withOffset: true,
                 get: [
                   "f1",
                   {
@@ -2052,21 +2053,24 @@ export async function s1(
     t3TableF1Eq: string,
     t2TableF2Ne: string,
     limit: number,
+    offset: number,
   }
 ): Promise<Array<S1Row>> {
   let [rows] = await runner.run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1TableF2Eq AND t3.f1 = @t3TableF1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1TableF2Eq AND t3.f1 = @t3TableF1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit OFFSET @offset",
     params: {
       t1TableF2Eq: args.t1TableF2Eq,
       t3TableF1Eq: args.t3TableF1Eq,
       t2TableF2Ne: args.t2TableF2Ne,
       limit: args.limit.toString(),
+      offset: args.offset.toString(),
     },
     types: {
       t1TableF2Eq: { type: "string" },
       t3TableF1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
       limit: { type: "int64" },
+      offset: { type: "int64" },
     }
   });
   let resRows = new Array<S1Row>();

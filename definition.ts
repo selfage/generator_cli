@@ -309,6 +309,7 @@ export interface SpannerSelectDefinition {
   where?: SpannerWhereConcat | SpannerWhereLeaf;
   orderBy?: Array<string | SpannerOrderByExpr>;
   withLimit?: boolean;
+  withOffset?: boolean;
   get: Array<string | SpannerGetColumnExpr>;
 }
 

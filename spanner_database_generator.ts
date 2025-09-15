@@ -990,6 +990,13 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
       });
       limitClause = ` LIMIT @limit`;
     }
+    let offsetClause = "";
+    if (selectDefinition.withOffset) {
+      this.collectInput(loggingPrefix, "offset", {
+        type: "int53",
+      });
+      offsetClause = ` OFFSET @offset`;
+    }
 
     this.clearOutput();
     let selectColumns = new Array<string>();
@@ -1077,7 +1084,7 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
   }
 ): Promise<Array<${selectDefinition.name}Row>> {
   let [rows] = await runner.run({
-    sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}",
+    sql: "SELECT ${selectColumns.join(", ")} FROM ${fromTables.join(" ")}${whereClause}${orderByClause}${limitClause}${offsetClause}",
     params: {${joinArray(this.inputConversions, "\n      ", ",")}
     },
     types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}
