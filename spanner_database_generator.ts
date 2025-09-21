@@ -884,6 +884,7 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
         `${loggingPrefix} table ${selectDefinition.from} is not found in the database.`,
       );
     }
+    this.clearInput();
 
     this.currentDefaultTableAlias = selectDefinition.as;
     this.currentTableAliases = new Map<string, string>().set(
@@ -931,7 +932,6 @@ export function ${toInitalLowercased(deleteDefinition.name)}Statement(
       }
     }
 
-    this.clearInput();
     let whereClause = "";
     if (selectDefinition.where) {
       whereClause = this.generateWhere(
@@ -1147,7 +1147,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
         lTable,
         `Where${BINARY_OP_NAME.get(leaf.op)}`,
       );
-      let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
+      let argVariable =
+        leaf.rVar ??
+        `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.func)}${BINARY_OP_NAME.get(leaf.op)}`;
       this.collectInput(loggingPrefix, argVariable, {
         type: returnType,
       });
@@ -1168,7 +1170,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       if (leaf.op === "SEARCH") {
         getSearchColumnDefinition(loggingPrefix, leaf.lColumn, lTable);
         // Search column only supports string type for now.
-        let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+        let argVariable =
+          leaf.rVar ??
+          `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
         this.collectInput(loggingPrefix, argVariable, {
           type: "string",
         });
@@ -1199,7 +1203,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
                 `${loggingPrefix} column ${leaf.lTable}.${leaf.lColumn} is an array and doesn't support operator "${leaf.op}".`,
               );
             }
-            let argVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            let argVariable =
+              leaf.rVar ??
+              `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, argVariable, columnDefinition);
             return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} @${argVariable}`;
           case "IN":
@@ -1208,7 +1214,9 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
                 `${loggingPrefix} column ${leaf.lTable}.${leaf.lColumn} is an array and doesn't support operator "IN".`,
               );
             }
-            let inArgVariable = leaf.rVar ?? `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+            let inArgVariable =
+              leaf.rVar ??
+              `${toInitalLowercased(lTable.name)}${toInitialUppercased(leaf.lColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
             this.collectInput(loggingPrefix, inArgVariable, {
               ...columnDefinition,
               isArray: true,
@@ -1256,18 +1264,11 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
     loggingPrefix: string,
     leaf: SpannerJoinOnLeaf,
   ): string {
-    if (!leaf.lColumn) {
-      throw new Error(`${loggingPrefix} "lColumn" is missing.`);
+    if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
+      throw new Error(
+        `${loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
+      );
     }
-    if (!leaf.lTable) {
-      throw new Error(`${loggingPrefix} "lTable" is missing.`);
-    }
-    let lTable = this.resolveTableAlias(loggingPrefix, leaf.lTable);
-    let leftColumnDefinition = getColumnDefinition(
-      loggingPrefix,
-      leaf.lColumn,
-      lTable,
-    );
     if (!leaf.rColumn) {
       throw new Error(`${loggingPrefix} "rColumn" is missing.`);
     }
@@ -1276,17 +1277,29 @@ export async function ${toInitalLowercased(selectDefinition.name)}(
       leaf.rColumn,
       this.currentJoinRightTable,
     );
-    if (leftColumnDefinition.type !== rightColumnDefinition.type) {
-      throw new Error(
-        `${loggingPrefix} the left column ${leaf.lTable}.${leaf.lColumn} whose type is ${leftColumnDefinition.type} doesn't match the right column ${this.currentJoinRightTableAlias}.${leaf.rColumn} whose type is ${rightColumnDefinition.type}.`,
+    if (leaf.lColumn) {
+      if (!leaf.lTable) {
+        throw new Error(`${loggingPrefix} "lTable" is missing.`);
+      }
+      let lTable = this.resolveTableAlias(loggingPrefix, leaf.lTable);
+      let leftColumnDefinition = getColumnDefinition(
+        loggingPrefix,
+        leaf.lColumn,
+        lTable,
       );
+      if (leftColumnDefinition.type !== rightColumnDefinition.type) {
+        throw new Error(
+          `${loggingPrefix} the left column ${leaf.lTable}.${leaf.lColumn} whose type is ${leftColumnDefinition.type} doesn't match the right column ${this.currentJoinRightTableAlias}.${leaf.rColumn} whose type is ${rightColumnDefinition.type}.`,
+        );
+      }
+      return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} ${this.currentJoinRightTableAlias}.${leaf.rColumn}`;
+    } else {
+      let argVariable =
+        leaf.lVar ??
+        `${toInitalLowercased(this.currentJoinRightTableAlias)}${toInitialUppercased(leaf.rColumn)}${BINARY_OP_NAME.get(leaf.op)}`;
+      this.collectInput(loggingPrefix, argVariable, rightColumnDefinition);
+      return `@${argVariable} ${leaf.op} ${this.currentJoinRightTableAlias}.${leaf.rColumn}`;
     }
-    if (!ALL_JOIN_LEAF_OP.has(leaf.op)) {
-      throw new Error(
-        `${loggingPrefix} "op" is either missing or not one of valid types "${Array.from(ALL_JOIN_LEAF_OP).join(",")}".`,
-      );
-    }
-    return `${leaf.lTable}.${leaf.lColumn} ${leaf.op} ${this.currentJoinRightTableAlias}.${leaf.rColumn}`;
   }
 
   private generateFunction(

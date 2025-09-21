@@ -239,10 +239,13 @@ export interface SpannerTaskTableDefinition {
 }
 
 export interface SpannerJoinOnLeaf {
-  lColumn: string;
-  lTable: string;
+  // If not present, it matches an external variable.
+  lColumn?: string;
+  lTable?: string;
+  // For matching an external variable and you want a variable to be used in code.
+  lVar?: string;
   op: ">" | "<" | ">=" | "<=" | "!=" | "=";
-  // Must refer to the table to be joined.
+  // Must be present, and refer to the table being joined.
   rColumn: string;
 }
 

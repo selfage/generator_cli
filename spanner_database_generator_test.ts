@@ -201,7 +201,7 @@ TEST_RUNNER.run({
                             {
                               op: "IN",
                               lColumn: "stringValue",
-                            }
+                            },
                           ],
                         },
                         {
@@ -1901,10 +1901,24 @@ export function updateWorkingTaskMetadataStatement(
                     type: "INNER",
                     with: "T2Table",
                     on: {
-                      lColumn: "f1",
-                      lTable: "t1",
-                      op: "=",
-                      rColumn: "f1",
+                      op: "AND",
+                      exprs: [
+                        {
+                          lColumn: "f1",
+                          lTable: "t1",
+                          op: "=",
+                          rColumn: "f1",
+                        },
+                        {
+                          op: "=",
+                          rColumn: "f2",
+                        },
+                        {
+                          lVar: "someVar",
+                          op: "=",
+                          rColumn: "f2",
+                        },
+                      ],
                     },
                   },
                   {
@@ -2049,6 +2063,8 @@ export let S1_ROW: MessageDescriptor<S1Row> = {
 export async function s1(
   runner: Database | Transaction,
   args: {
+    t2TableF2Eq: string,
+    someVar: string,
     t1TableF2Eq: string,
     t3TableF1Eq: string,
     t2TableF2Ne: string,
@@ -2057,8 +2073,10 @@ export async function s1(
   }
 ): Promise<Array<S1Row>> {
   let [rows] = await runner.run({
-    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON t1.f1 = T2Table.f1 CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1TableF2Eq AND t3.f1 = @t3TableF1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit OFFSET @offset",
+    sql: "SELECT t1.f1, t1.f2, T2Table.f2, t3.f2 FROM T1Table AS t1 INNER JOIN T2Table ON (t1.f1 = T2Table.f1 AND @t2TableF2Eq = T2Table.f2 AND @someVar = T2Table.f2) CROSS JOIN T3Table AS t3 ON ((T2Table.f1 = t3.f1 OR t1.f1 != t3.f1) AND (T2Table.f2 = t3.f2 OR t1.f2 != t3.f2)) WHERE (t1.f2 = @t1TableF2Eq AND t3.f1 = @t3TableF1Eq AND T2Table.f2 != @t2TableF2Ne) ORDER BY t1.f2, t1.f1, T2Table.f2 DESC, t3.f1 LIMIT @limit OFFSET @offset",
     params: {
+      t2TableF2Eq: args.t2TableF2Eq,
+      someVar: args.someVar,
       t1TableF2Eq: args.t1TableF2Eq,
       t3TableF1Eq: args.t3TableF1Eq,
       t2TableF2Ne: args.t2TableF2Ne,
@@ -2066,6 +2084,8 @@ export async function s1(
       offset: args.offset.toString(),
     },
     types: {
+      t2TableF2Eq: { type: "string" },
+      someVar: { type: "string" },
       t1TableF2Eq: { type: "string" },
       t3TableF1Eq: { type: "string" },
       t2TableF2Ne: { type: "string" },
