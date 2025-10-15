@@ -740,6 +740,13 @@ export class SpannerDatabaseGenerator {
       values.push(`@${argVariable}`);
     }
 
+    let onConflictClause = "";
+    if (insertDefinition.onConflict === "IGNORE") {
+      onConflictClause = "OR IGNORE ";
+    } else if (insertDefinition.onConflict === "UPDATE") {
+      onConflictClause = "OR UPDATE ";
+    }
+
     this.sqlContentBuilder.importFromSpannerTransaction("Statement");
     this.sqlContentBuilder.push(`
 export function ${toInitalLowercased(insertDefinition.name)}Statement(
@@ -747,7 +754,7 @@ export function ${toInitalLowercased(insertDefinition.name)}Statement(
   }
 ): Statement {
   return {
-    sql: "INSERT ${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
+    sql: "INSERT ${onConflictClause}${insertDefinition.table} (${columns.join(", ")}) VALUES (${values.join(", ")})",
     params: {${joinArray(this.inputConversions, "\n      ", ",")}
     },
     types: {${joinArray(this.inputQueryTypes, "\n      ", ",")}

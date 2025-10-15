@@ -172,6 +172,18 @@ TEST_RUNNER.run({
                 table: "TypesTable",
                 set: ["id", "stringValue", "timestampValue"],
               },
+              {
+                name: "InsertOrIgnoreRow",
+                table: "TypesTable",
+                set: ["id", "stringValue", "boolValue"],
+                onConflict: "IGNORE",
+              },
+              {
+                name: "InsertOrUpdateRow",
+                table: "TypesTable",
+                set: ["id", "stringValue", "boolValue"],
+                onConflict: "UPDATE",
+              },
             ],
             updates: [
               {
@@ -627,6 +639,50 @@ export function insertPartialRowStatement(
       id: { type: "string" },
       stringValue: { type: "string" },
       timestampValue: { type: "timestamp" },
+    }
+  };
+}
+
+export function insertOrIgnoreRowStatement(
+  args: {
+    id: string,
+    stringValue: string,
+    boolValue: boolean,
+  }
+): Statement {
+  return {
+    sql: "INSERT OR IGNORE TypesTable (id, stringValue, boolValue) VALUES (@id, @stringValue, @boolValue)",
+    params: {
+      id: args.id,
+      stringValue: args.stringValue,
+      boolValue: args.boolValue,
+    },
+    types: {
+      id: { type: "string" },
+      stringValue: { type: "string" },
+      boolValue: { type: "bool" },
+    }
+  };
+}
+
+export function insertOrUpdateRowStatement(
+  args: {
+    id: string,
+    stringValue: string,
+    boolValue: boolean,
+  }
+): Statement {
+  return {
+    sql: "INSERT OR UPDATE TypesTable (id, stringValue, boolValue) VALUES (@id, @stringValue, @boolValue)",
+    params: {
+      id: args.id,
+      stringValue: args.stringValue,
+      boolValue: args.boolValue,
+    },
+    types: {
+      id: { type: "string" },
+      stringValue: { type: "string" },
+      boolValue: { type: "bool" },
     }
   };
 }

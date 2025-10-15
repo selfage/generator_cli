@@ -321,6 +321,7 @@ export interface SpannerInsertDefinition {
   name: string;
   table: string;
   set: Array<string>;
+  onConflict?: "IGNORE" | "UPDATE"; // Absence means fail on conflict.
 }
 
 export interface SpannerUpdateDefinition {
