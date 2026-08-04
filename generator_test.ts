@@ -11,7 +11,7 @@ function assertCompile(file: string): void {
 }
 
 function assertJsonValidity(file: string): void {
-  readFileSync(file).toJSON();
+  JSON.parse(readFileSync(file).toString());
 }
 
 TEST_RUNNER.run({
@@ -65,6 +65,18 @@ TEST_RUNNER.run({
         assertCompile("./test_data/generator/spanner/user.ts");
         assertCompile("./test_data/generator/spanner/sql.ts");
         assertJsonValidity("./test_data/generator/spanner/ddl.json");
+      },
+    },
+    {
+      name: "GenerateFirestoreDatabase",
+      execute: () => {
+        // Execute
+        generate("./test_data/generator/firestore/orders");
+
+        // Verify
+        assertCompile("./test_data/generator/firestore/orders.ts");
+        assertCompile("./test_data/generator/firestore/queries.ts");
+        assertJsonValidity("./test_data/generator/firestore/indexes.json");
       },
     },
   ],

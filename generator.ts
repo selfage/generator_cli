@@ -2,6 +2,7 @@ import fs = require("fs");
 import { Definition } from "./definition";
 import { DefinitionResolver } from "./definition_resolver";
 import { generateEnum } from "./enum_generator";
+import { FirestoreDatabaseGenerator } from "./firestore_database_generator";
 import { stripFileExtension } from "./io_helper";
 import { generateMessage } from "./message_generator";
 import { OutputContentBuilder } from "./output_content_builder";
@@ -37,6 +38,13 @@ export function generate(inputFile: string, dryRun?: boolean): void {
         definitionResolver,
         outputContentMap,
       );
+    } else if (definition.kind === "FirestoreDatabase") {
+      new FirestoreDatabaseGenerator(
+        modulePath,
+        definition,
+        definitionResolver,
+        outputContentMap,
+      ).generate();
     } else if (definition.kind === "SpannerDatabase") {
       new SpannerDatabaseGenerator(
         modulePath,

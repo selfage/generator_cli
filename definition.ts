@@ -24,44 +24,12 @@ export interface MessageFieldDefinition {
   deprecated?: true;
 }
 
-export interface DatastoreFilterTemplate {
-  // The name of a `MessageFieldDefinition`.
-  fieldName: string;
-  // One of "=", ">", "<", ">=" and "<=".
-  operator: string;
-}
-
-export interface DatastoreOrdering {
-  // The name of a `MessageFieldDefinition`.
-  fieldName: string;
-  descending: boolean;
-}
-
-export interface DatastoreQueryTemplate {
-  // Recommended to be CamelCase, which will be part of the name of a class.
-  name: string;
-  filters?: Array<DatastoreFilterTemplate>;
-  orderings?: Array<DatastoreOrdering>;
-}
-
-export interface DatastoreDefinition {
-  // The path to output the generated Datastore definition, relative to the
-  // current definition JSON file. It should be separated from its message
-  // definition. Do not include '.ts'.
-  output: string;
-  key: string;
-  queries?: Array<DatastoreQueryTemplate>;
-}
-
 // Generated code requires package `@selfage/message`.
 export interface MessageDefinition {
   kind: "Message";
   // Must be of CamelCase.
   name: string;
   fields: Array<MessageFieldDefinition>;
-  // Deprecated for now.
-  // Requires package `@selfage/datastore_client`.
-  // datastore?: DatastoreDefinition;
 }
 
 // Generated code requires package `@selfage/service_descriptor`.
@@ -117,6 +85,121 @@ export interface RemoteCallsGroupDefinition {
   // The path to output the generated handler interfaces, relative to CWD.
   // It should be separated from its metadata definition. Do not include '.ts'.
   outputHandler: string;
+}
+
+export type FirestoreIndexMode =
+  | "ASC"
+  | "DESC"
+  | "CONTAINS";
+
+export interface FirestoreIndexFieldDefinition {
+  // A top-level non-message field on the collection's message. `__name__`
+  // refers to the full document name/path.
+  name: string;
+  mode: FirestoreIndexMode;
+}
+
+export interface FirestoreIndexDefinition {
+  // A logical name used for validation diagnostics. Must be of CamelCase and
+  // unique within the collection. It is not emitted to Firestore index JSON.
+  name: string;
+  // Must contain at least one field. One field declares an intended
+  // single-field index; multiple fields declare an intended composite index.
+  // Field order is significant.
+  fields: Array<FirestoreIndexFieldDefinition>;
+}
+
+export type FirestoreWhereOperator =
+  | "=="
+  | "!="
+  | "<"
+  | "<="
+  | ">"
+  | ">="
+  | "array-contains"
+  | "array-contains-any"
+  | "in"
+  | "not-in";
+
+export interface FirestoreWhereLeaf {
+  // A top-level non-message field on the collection's message.
+  field: string;
+  op: FirestoreWhereOperator;
+  // Overrides the generated input parameter name. Specify it when predicates
+  // would otherwise produce conflicting parameter names.
+  rVar?: string;
+}
+
+export interface FirestoreWhereConcat {
+  op: "AND" | "OR";
+  exprs: Array<FirestoreWhereConcat | FirestoreWhereLeaf>;
+}
+
+export interface FirestoreOrderByDefinition {
+  // A top-level non-message field on the collection's message. `__name__`
+  // refers to the full document name/path.
+  field: string;
+  desc?: true;
+}
+
+export interface FirestoreQueryDefinition {
+  // Must be of CamelCase. This becomes the generated query function name.
+  name: string;
+  where?: FirestoreWhereConcat | FirestoreWhereLeaf;
+  orderBy?: Array<FirestoreOrderByDefinition>;
+  // Add a `limit` number parameter to the generated function.
+  withLimit?: true;
+}
+
+export interface FirestoreCollectionDefinition {
+  // Must be of CamelCase. This is the logical name used by the other
+  // Firestore definitions, not the physical Firestore collection name.
+  name: string;
+  // The fixed root Firestore collection name, such as `users` or `orders`.
+  collectionName: string;
+  // The name of the message stored in each document.
+  message: string;
+  // Import relative to CWD. Do not include '.yaml'.
+  importMessage?: string;
+  // An ordered list of non-array string fields on the message. Their values
+  // are concatenated without a delimiter to form the document ID. Key fields
+  // remain stored in the document and can also be filtered or indexed.
+  primaryKeys: Array<string>;
+  // A positive list of indexes. The generated configuration disables
+  // automatic single-field indexes for this collection group, then enables
+  // the single-field indexes listed here and adds the composite ones.
+  indexes?: Array<FirestoreIndexDefinition>;
+  // Generated queries accept an optional transaction so reads can participate
+  // in a caller-owned read-write transaction.
+  queries?: Array<FirestoreQueryDefinition>;
+  // Names of generated document functions. Each name must be of CamelCase.
+  // Generated writes require a caller-owned transaction and only stage their
+  // mutations; the surrounding transaction callback performs the commit.
+  // `insert` fails if a document at the derived path already exists.
+  insert?: string;
+  // `upsert` replaces or creates the document at the derived path.
+  upsert?: string;
+  // `update` fails if the document at the derived path does not exist.
+  update?: string;
+  // Performs a direct document lookup using every primary key and accepts an
+  // optional transaction.
+  get?: string;
+  delete?: string;
+}
+
+// Defines a Firestore Standard edition database in Native mode. Generated
+// code requires packages `@google-cloud/firestore` and `@selfage/message`.
+export interface FirestoreDatabaseDefinition {
+  kind: "FirestoreDatabase";
+  // Must be of CamelCase.
+  name: string;
+  collections: Array<FirestoreCollectionDefinition>;
+  // The path to output generated TypeScript document and query functions,
+  // relative to CWD. Do not include '.ts'.
+  outputQueries: string;
+  // The path to output the generated Firestore index configuration, relative
+  // to CWD. Do not include '.json'.
+  outputIndexes: string;
 }
 
 export interface SpannerTableColumnType {
@@ -278,7 +361,8 @@ export interface SpannerWhereLeaf {
     | "IS NOT NULL"
     | "SEARCH"
     | "IN";
-  // For binary operations, and you want a variable to be used in code.
+  // Overrides the generated input parameter name. Specify it when predicates
+  // would otherwise produce conflicting parameter names.
   rVar?: string;
 }
 
@@ -362,4 +446,5 @@ export type Definition =
   | MessageDefinition
   | ServiceDefinition
   | RemoteCallsGroupDefinition
+  | FirestoreDatabaseDefinition
   | SpannerDatabaseDefinition;

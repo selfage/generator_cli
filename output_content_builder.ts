@@ -90,15 +90,6 @@ export class TsContentBuilder implements OutputContentBuilder {
     this.contentList.push(...newContent);
   }
 
-  public importFromDatastoreModelDescriptor(
-    ...namedImports: Array<string>
-  ): void {
-    this.importFrom(
-      "@selfage/datastore_client/model_descriptor",
-      ...namedImports,
-    );
-  }
-
   public importFromMessageDescriptor(...namedImports: Array<string>): void {
     this.importFrom("@selfage/message/descriptor", ...namedImports);
   }
@@ -139,6 +130,14 @@ export class TsContentBuilder implements OutputContentBuilder {
 
   public importFromSpanner(...namedImports: Array<string>): void {
     this.importFrom("@google-cloud/spanner", ...namedImports);
+  }
+
+  public importFromFirestore(...namedImports: Array<string>): void {
+    this.importFrom("@google-cloud/firestore", ...namedImports);
+  }
+
+  public importFromMessageParser(...namedImports: Array<string>): void {
+    this.importFrom("@selfage/message/parser", ...namedImports);
   }
 
   public importFromSpannerTransaction(...namedImports: Array<string>): void {

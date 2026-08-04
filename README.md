@@ -1,6 +1,6 @@
 # @selfage/generator_cli
 
-Turn a single YAML description into TypeScript code for data models, HTTP APIs, and Cloud Spanner schema.
+Turn a single YAML description into TypeScript code for data models, HTTP APIs, Cloud Spanner schema, and Firestore access.
 
 ## Why use this CLI?
 - Describe enums, messages, service APIs, and database schema once and generate the boilerplate automatically.
@@ -79,6 +79,7 @@ The binary is published as `geneage`. Invoke it with `npx` or wire it into a pac
 - **Enum** – TypeScript enums with an accompanying descriptor for `@selfage/message`.
 - **Message** – TypeScript interfaces with an accompanying descriptor for `@selfage/message`.
 - **Service API** – service API handler and client interfaces to be used together with `@selfage/serivce_handler`, `@selfage/web_service_client`, and `@selfage/node_service_client`.
+- **Firestore Database** – strongly typed document/query helpers and a Firestore index configuration to be used with `@google-cloud/firestore`.
 - **Spanner Database** – Cloud Spanner DDL JSON and strongly typed query helpers to be used with `@google-cloud/spanner`.
 
 ## CLI reference

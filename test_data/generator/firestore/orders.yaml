@@ -1,0 +1,118 @@
+- kind: Message
+  name: OrderDetails
+  fields:
+    - name: category
+      type: string
+      index: 1
+- kind: Message
+  name: Order
+  fields:
+    - name: accountId
+      type: string
+      index: 1
+    - name: orderId
+      type: string
+      index: 2
+    - name: status
+      type: string
+      index: 3
+    - name: total
+      type: number
+      index: 4
+    - name: tags
+      type: string
+      index: 5
+      isArray: true
+    - name: details
+      type: OrderDetails
+      index: 6
+- kind: FirestoreDatabase
+  name: OrderDatabase
+  collections:
+    - name: OrderCollection
+      collectionName: orders
+      message: Order
+      primaryKeys:
+        - accountId
+        - orderId
+      indexes:
+        - name: AccountIdIndex
+          fields:
+            - name: accountId
+              mode: ASC
+        - name: StatusIndex
+          fields:
+            - name: status
+              mode: ASC
+        - name: TagsIndex
+          fields:
+            - name: tags
+              mode: CONTAINS
+        - name: TotalIndex
+          fields:
+            - name: total
+              mode: ASC
+        - name: AccountTotalIndex
+          fields:
+            - name: accountId
+              mode: ASC
+            - name: total
+              mode: DESC
+        - name: AccountTagsIndex
+          fields:
+            - name: accountId
+              mode: ASC
+            - name: tags
+              mode: CONTAINS
+      queries:
+        - name: ListOrders
+          where:
+            field: accountId
+            op: ==
+            rVar: accountId
+        - name: ListOrdersByStatus
+          where:
+            op: AND
+            exprs:
+              - field: accountId
+                op: ==
+                rVar: accountId
+              - field: status
+                op: ==
+        - name: ListOrdersByTotalRange
+          where:
+            op: AND
+            exprs:
+              - field: accountId
+                op: ==
+                rVar: accountId
+              - field: total
+                op: ">="
+                rVar: minimumTotal
+              - field: total
+                op: "<="
+                rVar: maximumTotal
+          orderBy:
+            - field: total
+              desc: true
+          withLimit: true
+        - name: ListOrdersByTagOrStatus
+          where:
+            op: AND
+            exprs:
+              - field: accountId
+                op: ==
+                rVar: accountId
+              - op: OR
+                exprs:
+                  - field: tags
+                    op: array-contains-any
+                  - field: status
+                    op: ==
+      insert: InsertOrder
+      upsert: UpsertOrder
+      update: UpdateOrder
+      get: GetOrder
+      delete: DeleteOrder
+  outputQueries: ./test_data/generator/firestore/queries
+  outputIndexes: ./test_data/generator/firestore/indexes
