@@ -1,4 +1,4 @@
-import { Order, ORDER } from './orders';
+import { Order, ORDER, OrderTask, ORDER_TASK } from './orders';
 import { Firestore, Transaction, Query, Filter } from '@google-cloud/firestore';
 import { parseMessage } from '@selfage/message/parser';
 
@@ -139,4 +139,68 @@ export async function listOrdersByTagOrStatus(
     ? await transaction.get(query)
     : await query.get();
   return snapshot.docs.map((document) => parseMessage(document.data(), ORDER));
+}
+
+export function insertOrderTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  message: OrderTask,
+): void {
+  if (message.taskId == null) {
+    throw new Error("Firestore primary key field taskId is required.");
+  }
+  transaction.create(firestore.doc(["orderTasks", message.taskId].join("/")), message);
+}
+
+export function updateOrderTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  message: OrderTask,
+): void {
+  if (message.taskId == null) {
+    throw new Error("Firestore primary key field taskId is required.");
+  }
+  transaction.update(firestore.doc(["orderTasks", message.taskId].join("/")), message);
+}
+
+export async function getOrderTask(
+  firestore: Firestore,
+  args: {
+    taskId: string,
+  },
+  transaction?: Transaction,
+): Promise<OrderTask | undefined> {
+  let document = firestore.doc(["orderTasks", args.taskId].join("/"));
+  let snapshot = transaction
+    ? await transaction.get(document)
+    : await document.get();
+  if (!snapshot.exists) {
+    return undefined;
+  }
+  return parseMessage(snapshot.data(), ORDER_TASK);
+}
+
+export function deleteOrderTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  args: {
+    taskId: string,
+  },
+): void {
+  transaction.delete(firestore.doc(["orderTasks", args.taskId].join("/")));
+}
+
+export async function listPendingOrderTasks(
+  firestore: Firestore,
+  args: {
+    executionTimeLe: number,
+  },
+  transaction?: Transaction,
+): Promise<Array<OrderTask>> {
+  let query: Query = firestore.collection("orderTasks");
+  query = query.where(Filter.where("executionTime", "<=", args.executionTimeLe));
+  let snapshot = transaction
+    ? await transaction.get(query)
+    : await query.get();
+  return snapshot.docs.map((document) => parseMessage(document.data(), ORDER_TASK));
 }

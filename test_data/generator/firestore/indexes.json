@@ -74,6 +74,21 @@
           "queryScope": "COLLECTION"
         }
       ]
+    },
+    {
+      "collectionGroup": "orderTasks",
+      "fieldPath": "*",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "orderTasks",
+      "fieldPath": "executionTime",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
     }
   ]
 }

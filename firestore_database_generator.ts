@@ -2,10 +2,10 @@ import {
   Definition,
   FirestoreCollectionDefinition,
   FirestoreDatabaseDefinition,
-  FirestoreIndexDefinition,
   FirestoreIndexFieldDefinition,
   FirestoreIndexMode,
   FirestoreQueryDefinition,
+  FirestoreTaskCollectionDefinition,
   FirestoreWhereConcat,
   FirestoreWhereLeaf,
   MessageDefinition,
@@ -39,16 +39,9 @@ let ALL_INDEX_MODES = new Set<FirestoreIndexMode>(["ASC", "DESC", "CONTAINS"]);
 let CAMEL_CASE_REGEXP = /^[a-z][A-Za-z0-9]*$/;
 let PASCAL_CASE_REGEXP = /^[A-Z][A-Za-z0-9]*$/;
 
-interface ResolvedCollection {
-  definition: FirestoreCollectionDefinition;
-  messageDefinition: MessageDefinition;
-  messageModulePath?: string;
-}
-
 interface ResolvedField {
-  definition: MessageFieldDefinition;
+  fieldDefinition: MessageFieldDefinition;
   typeDefinition?: Definition;
-  typeModulePath?: string;
 }
 
 interface QueryArg {
@@ -137,7 +130,11 @@ export class FirestoreDatabaseGenerator {
       );
     }
     for (let collection of this.firestoreDatabaseDefinition.collections) {
-      this.generateCollection(collection);
+      if ("kind" in collection && collection.kind === "TaskCollection") {
+        this.generateTaskCollection(collection);
+      } else {
+        this.generateCollection(collection);
+      }
     }
 
     this.indexesContentBuilder.push(
@@ -181,23 +178,9 @@ export class FirestoreDatabaseGenerator {
     if (!collectionDefinition.message) {
       throw new Error(`${loggingPrefix} "message" is missing.`);
     }
-    let resolvedMessage = this.definitionResolver.resolve(
-      loggingPrefix,
-      collectionDefinition.message,
-      collectionDefinition.importMessage,
-    );
-    if (resolvedMessage.kind !== "Message") {
-      throw new Error(
-        `${loggingPrefix} ${collectionDefinition.message} is not a message.`,
-      );
-    }
-    let collection: ResolvedCollection = {
-      definition: collectionDefinition,
-      messageDefinition: resolvedMessage,
-      messageModulePath: collectionDefinition.importMessage,
-    };
+    this.resolveMessage(loggingPrefix, collectionDefinition);
 
-    this.validatePrimaryKeys(loggingPrefix, collection);
+    this.validatePrimaryKeys(loggingPrefix, collectionDefinition);
     let collectionGroupName = collectionDefinition.collectionName;
     if (!this.collectionGroupNameSet.has(collectionGroupName)) {
       this.collectionGroupNameSet.add(collectionGroupName);
@@ -230,8 +213,8 @@ export class FirestoreDatabaseGenerator {
         indexNames.add(indexDefinition.name);
         this.generateIndex(
           `${loggingPrefix} within ${indexDefinition.name},`,
-          collection,
-          indexDefinition,
+          collectionDefinition,
+          indexDefinition.fields,
         );
       }
     }
@@ -239,7 +222,7 @@ export class FirestoreDatabaseGenerator {
     if (collectionDefinition.insert) {
       this.generateWrite(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         collectionDefinition.insert,
         "create",
       );
@@ -247,7 +230,7 @@ export class FirestoreDatabaseGenerator {
     if (collectionDefinition.upsert) {
       this.generateWrite(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         collectionDefinition.upsert,
         "set",
       );
@@ -255,33 +238,96 @@ export class FirestoreDatabaseGenerator {
     if (collectionDefinition.update) {
       this.generateWrite(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         collectionDefinition.update,
         "update",
       );
     }
     if (collectionDefinition.get) {
-      this.generateGet(loggingPrefix, collection, collectionDefinition.get);
+      this.generateGet(
+        loggingPrefix,
+        collectionDefinition,
+        collectionDefinition.get,
+      );
     }
     if (collectionDefinition.delete) {
       this.generateDelete(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         collectionDefinition.delete,
       );
     }
     if (collectionDefinition.queries) {
       for (let query of collectionDefinition.queries) {
-        this.generateQuery(loggingPrefix, collection, query);
+        this.generateQuery(loggingPrefix, collectionDefinition, query);
       }
     }
   }
 
+  private generateTaskCollection(
+    taskCollectionDefinition: FirestoreTaskCollectionDefinition,
+  ): void {
+    this.generateCollection(taskCollectionDefinition);
+    let loggingPrefix = `When generating Firestore task collection ${taskCollectionDefinition.name},`;
+    this.validateTaskField(
+      loggingPrefix,
+      taskCollectionDefinition,
+      taskCollectionDefinition.retryCountField,
+      "retryCountField",
+    );
+    this.validateTaskField(
+      loggingPrefix,
+      taskCollectionDefinition,
+      taskCollectionDefinition.executionTimeField,
+      "executionTimeField",
+    );
+    this.validateTaskField(
+      loggingPrefix,
+      taskCollectionDefinition,
+      taskCollectionDefinition.createdTimeField,
+      "createdTimeField",
+    );
+
+    if (!taskCollectionDefinition.insert) {
+      throw new Error(`${loggingPrefix} "insert" is missing.`);
+    }
+    if (!taskCollectionDefinition.delete) {
+      throw new Error(`${loggingPrefix} "delete" is missing.`);
+    }
+    if (!taskCollectionDefinition.get) {
+      throw new Error(`${loggingPrefix} "get" is missing.`);
+    }
+    if (!taskCollectionDefinition.update) {
+      throw new Error(`${loggingPrefix} "update" is missing.`);
+    }
+    if (!taskCollectionDefinition.listPendingTasks) {
+      throw new Error(`${loggingPrefix} "listPendingTasks" is missing.`);
+    }
+
+    this.generateIndex(
+      `${loggingPrefix} within the implicit execution-time index,`,
+      taskCollectionDefinition,
+      [
+        {
+          name: taskCollectionDefinition.executionTimeField,
+          mode: "ASC",
+        },
+      ],
+    );
+    this.generateQuery(loggingPrefix, taskCollectionDefinition, {
+      name: taskCollectionDefinition.listPendingTasks,
+      where: {
+        field: taskCollectionDefinition.executionTimeField,
+        op: "<=",
+      },
+    });
+  }
+
   private validatePrimaryKeys(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
   ): void {
-    let primaryKeys = collection.definition.primaryKeys;
+    let primaryKeys = collectionDefinition.primaryKeys;
     if (!primaryKeys || primaryKeys.length === 0) {
       throw new Error(`${loggingPrefix} "primaryKeys" must not be empty.`);
     }
@@ -301,12 +347,12 @@ export class FirestoreDatabaseGenerator {
         );
       }
       keyFields.add(primaryKey);
-      let field = this.resolveField(
+      let { fieldDefinition } = this.lookUpAndResolveField(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         primaryKey,
-      ).definition;
-      if (field.type !== "string" || field.isArray) {
+      );
+      if (fieldDefinition.type !== "string" || fieldDefinition.isArray) {
         throw new Error(
           `${loggingPrefix} primary key field ${primaryKey} must be a non-array string.`,
         );
@@ -334,16 +380,20 @@ export class FirestoreDatabaseGenerator {
 
   private generateIndex(
     loggingPrefix: string,
-    collection: ResolvedCollection,
-    indexDefinition: FirestoreIndexDefinition,
+    collectionDefinition: FirestoreCollectionDefinition,
+    fieldDefinitions: Array<FirestoreIndexFieldDefinition>,
   ): void {
-    let collectionGroupName = collection.definition.collectionName;
-    if (!indexDefinition.fields || indexDefinition.fields.length === 0) {
+    let collectionGroupName = collectionDefinition.collectionName;
+    if (!fieldDefinitions || fieldDefinitions.length === 0) {
       throw new Error(`${loggingPrefix} "fields" must not be empty.`);
     }
-    if (indexDefinition.fields.length === 1) {
-      let fieldDefinition = indexDefinition.fields[0];
-      this.validateIndexField(loggingPrefix, collection, fieldDefinition);
+    if (fieldDefinitions.length === 1) {
+      let fieldDefinition = fieldDefinitions[0];
+      this.validateIndexField(
+        loggingPrefix,
+        collectionDefinition,
+        fieldDefinition,
+      );
       let fieldToModes = this.singleFieldIndexes.get(collectionGroupName);
       if (!fieldToModes) {
         fieldToModes = new Map<string, Set<FirestoreIndexMode>>();
@@ -361,8 +411,12 @@ export class FirestoreDatabaseGenerator {
     let usedFields = new Set<string>();
     let arrayFieldCount = 0;
     let indexFields = new Array<FirestoreCompositeIndexFieldJson>();
-    for (let fieldDefinition of indexDefinition.fields) {
-      this.validateIndexField(loggingPrefix, collection, fieldDefinition);
+    for (let fieldDefinition of fieldDefinitions) {
+      this.validateIndexField(
+        loggingPrefix,
+        collectionDefinition,
+        fieldDefinition,
+      );
       if (usedFields.has(fieldDefinition.name)) {
         throw new Error(
           `${loggingPrefix} field ${fieldDefinition.name} is duplicated.`,
@@ -397,36 +451,36 @@ export class FirestoreDatabaseGenerator {
 
   private validateIndexField(
     loggingPrefix: string,
-    collection: ResolvedCollection,
-    fieldDefinition: FirestoreIndexFieldDefinition,
+    collectionDefinition: FirestoreCollectionDefinition,
+    indexFieldDefinition: FirestoreIndexFieldDefinition,
   ): void {
-    if (!fieldDefinition.name) {
+    if (!indexFieldDefinition.name) {
       throw new Error(`${loggingPrefix} "name" is missing on an index field.`);
     }
-    if (!ALL_INDEX_MODES.has(fieldDefinition.mode)) {
+    if (!ALL_INDEX_MODES.has(indexFieldDefinition.mode)) {
       throw new Error(
-        `${loggingPrefix} index mode ${fieldDefinition.mode} is not supported.`,
+        `${loggingPrefix} index mode ${indexFieldDefinition.mode} is not supported.`,
       );
     }
-    if (fieldDefinition.name === "__name__") {
-      if (fieldDefinition.mode === "CONTAINS") {
+    if (indexFieldDefinition.name === "__name__") {
+      if (indexFieldDefinition.mode === "CONTAINS") {
         throw new Error(`${loggingPrefix} __name__ cannot use CONTAINS.`);
       }
       return;
     }
-    let field = this.resolveField(
+    let { fieldDefinition, typeDefinition } = this.lookUpAndResolveField(
       loggingPrefix,
-      collection,
-      fieldDefinition.name,
+      collectionDefinition,
+      indexFieldDefinition.name,
     );
-    if (field.typeDefinition?.kind === "Message") {
+    if (typeDefinition?.kind === "Message") {
       throw new Error(
-        `${loggingPrefix} field ${fieldDefinition.name} cannot be indexed or queried because it has message type ${field.definition.type}.`,
+        `${loggingPrefix} field ${indexFieldDefinition.name} cannot be indexed or queried because it has message type ${fieldDefinition.type}.`,
       );
     }
-    if (fieldDefinition.mode === "CONTAINS" && !field.definition.isArray) {
+    if (indexFieldDefinition.mode === "CONTAINS" && !fieldDefinition.isArray) {
       throw new Error(
-        `${loggingPrefix} field ${fieldDefinition.name} must be an array to use CONTAINS.`,
+        `${loggingPrefix} field ${indexFieldDefinition.name} must be an array to use CONTAINS.`,
       );
     }
   }
@@ -483,7 +537,7 @@ export class FirestoreDatabaseGenerator {
 
   private generateWrite(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     definitionName: string,
     firestoreMethod: "create" | "set" | "update",
   ): void {
@@ -495,15 +549,15 @@ export class FirestoreDatabaseGenerator {
     }
     let functionName = toInitalLowercased(definitionName);
     this.queriesContentBuilder.importFromDefinition(
-      collection.messageModulePath,
-      collection.definition.message,
+      collectionDefinition.importMessage,
+      collectionDefinition.message,
     );
     this.queriesContentBuilder.importFromFirestore("Firestore", "Transaction");
     let pathExpression = this.buildDocumentPathExpression(
-      collection,
+      collectionDefinition,
       "message",
     );
-    let primaryKeyChecks = collection.definition.primaryKeys
+    let primaryKeyChecks = collectionDefinition.primaryKeys
       .map((primaryKey) => {
         return `  if (message.${primaryKey} == null) {
     throw new Error("Firestore primary key field ${primaryKey} is required.");
@@ -515,7 +569,7 @@ export class FirestoreDatabaseGenerator {
 export function ${functionName}(
   firestore: Firestore,
   transaction: Transaction,
-  message: ${collection.definition.message},
+  message: ${collectionDefinition.message},
 ): void {
 ${primaryKeyChecks}  transaction.${firestoreMethod}(firestore.doc(${pathExpression}), message);
 }
@@ -524,7 +578,7 @@ ${primaryKeyChecks}  transaction.${firestoreMethod}(firestore.doc(${pathExpressi
 
   private generateGet(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     definitionName: string,
   ): void {
     loggingPrefix = `${loggingPrefix} within ${definitionName},`;
@@ -535,20 +589,23 @@ ${primaryKeyChecks}  transaction.${firestoreMethod}(firestore.doc(${pathExpressi
     }
     let functionName = toInitalLowercased(definitionName);
     this.queriesContentBuilder.importFromDefinition(
-      collection.messageModulePath,
-      collection.definition.message,
-      toUppercaseSnaked(collection.definition.message),
+      collectionDefinition.importMessage,
+      collectionDefinition.message,
+      toUppercaseSnaked(collectionDefinition.message),
     );
     this.queriesContentBuilder.importFromFirestore("Firestore", "Transaction");
     this.queriesContentBuilder.importFromMessageParser("parseMessage");
-    let pathExpression = this.buildDocumentPathExpression(collection, "args");
+    let pathExpression = this.buildDocumentPathExpression(
+      collectionDefinition,
+      "args",
+    );
     this.queriesContentBuilder.push(`
 export async function ${functionName}(
   firestore: Firestore,
   args: {
-${this.toArgsForPrimaryKeys(collection)}  },
+${this.toArgsForPrimaryKeys(collectionDefinition)}  },
   transaction?: Transaction,
-): Promise<${collection.definition.message} | undefined> {
+): Promise<${collectionDefinition.message} | undefined> {
   let document = firestore.doc(${pathExpression});
   let snapshot = transaction
     ? await transaction.get(document)
@@ -556,14 +613,14 @@ ${this.toArgsForPrimaryKeys(collection)}  },
   if (!snapshot.exists) {
     return undefined;
   }
-  return parseMessage(snapshot.data(), ${toUppercaseSnaked(collection.definition.message)});
+  return parseMessage(snapshot.data(), ${toUppercaseSnaked(collectionDefinition.message)});
 }
 `);
   }
 
   private generateDelete(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     definitionName: string,
   ): void {
     loggingPrefix = `${loggingPrefix} within ${definitionName},`;
@@ -574,13 +631,16 @@ ${this.toArgsForPrimaryKeys(collection)}  },
     }
     let functionName = toInitalLowercased(definitionName);
     this.queriesContentBuilder.importFromFirestore("Firestore", "Transaction");
-    let pathExpression = this.buildDocumentPathExpression(collection, "args");
+    let pathExpression = this.buildDocumentPathExpression(
+      collectionDefinition,
+      "args",
+    );
     this.queriesContentBuilder.push(`
 export function ${functionName}(
   firestore: Firestore,
   transaction: Transaction,
   args: {
-${this.toArgsForPrimaryKeys(collection)}  },
+${this.toArgsForPrimaryKeys(collectionDefinition)}  },
 ): void {
   transaction.delete(firestore.doc(${pathExpression}));
 }
@@ -589,7 +649,7 @@ ${this.toArgsForPrimaryKeys(collection)}  },
 
   private generateQuery(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     queryDefinition: FirestoreQueryDefinition,
   ): void {
     if (!queryDefinition.name) {
@@ -603,9 +663,9 @@ ${this.toArgsForPrimaryKeys(collection)}  },
     }
     let functionName = toInitalLowercased(queryDefinition.name);
     this.queriesContentBuilder.importFromDefinition(
-      collection.messageModulePath,
-      collection.definition.message,
-      toUppercaseSnaked(collection.definition.message),
+      collectionDefinition.importMessage,
+      collectionDefinition.message,
+      toUppercaseSnaked(collectionDefinition.message),
     );
     this.queriesContentBuilder.importFromFirestore(
       "Firestore",
@@ -620,7 +680,7 @@ ${this.toArgsForPrimaryKeys(collection)}  },
       this.queriesContentBuilder.importFromFirestore("Filter");
       whereExpression = this.generateWhereExpression(
         loggingPrefix,
-        collection,
+        collectionDefinition,
         queryDefinition.where,
       );
     }
@@ -640,14 +700,15 @@ ${this.toArgsForPrimaryKeys(collection)}  },
           this.queriesContentBuilder.importFromFirestore("FieldPath");
           fieldExpression = `FieldPath.documentId()`;
         } else {
-          let field = this.resolveField(
-            loggingPrefix,
-            collection,
-            orderBy.field,
-          );
-          if (field.typeDefinition?.kind === "Message") {
+          let { fieldDefinition, typeDefinition } =
+            this.lookUpAndResolveField(
+              loggingPrefix,
+              collectionDefinition,
+              orderBy.field,
+            );
+          if (typeDefinition?.kind === "Message") {
             throw new Error(
-              `${loggingPrefix} field ${orderBy.field} cannot be indexed or queried because it has message type ${field.definition.type}.`,
+              `${loggingPrefix} field ${orderBy.field} cannot be indexed or queried because it has message type ${fieldDefinition.type}.`,
             );
           }
           fieldExpression = `"${orderBy.field}"`;
@@ -672,19 +733,19 @@ ${this.toArgsObject(this.queryArgs)}  },`);
     }
     this.queriesContentBuilder.push(`
   transaction?: Transaction,
-): Promise<Array<${collection.definition.message}>> {
-  let query: Query = firestore.collection("${collection.definition.collectionName}");${queryLines.join("")}
+): Promise<Array<${collectionDefinition.message}>> {
+  let query: Query = firestore.collection("${collectionDefinition.collectionName}");${queryLines.join("")}
   let snapshot = transaction
     ? await transaction.get(query)
     : await query.get();
-  return snapshot.docs.map((document) => parseMessage(document.data(), ${toUppercaseSnaked(collection.definition.message)}));
+  return snapshot.docs.map((document) => parseMessage(document.data(), ${toUppercaseSnaked(collectionDefinition.message)}));
 }
 `);
   }
 
   private generateWhereExpression(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     where: FirestoreWhereConcat | FirestoreWhereLeaf,
   ): string {
     if ((where as FirestoreWhereLeaf).field !== undefined) {
@@ -698,28 +759,32 @@ ${this.toArgsObject(this.queryArgs)}  },`);
           `${loggingPrefix} where operator ${leaf.op} is not supported.`,
         );
       }
-      let field = this.resolveField(loggingPrefix, collection, leaf.field);
-      if (field.typeDefinition?.kind === "Message") {
+      let { fieldDefinition, typeDefinition } = this.lookUpAndResolveField(
+        loggingPrefix,
+        collectionDefinition,
+        leaf.field,
+      );
+      if (typeDefinition?.kind === "Message") {
         throw new Error(
-          `${loggingPrefix} field ${leaf.field} cannot be indexed or queried because it has message type ${field.definition.type}.`,
+          `${loggingPrefix} field ${leaf.field} cannot be indexed or queried because it has message type ${fieldDefinition.type}.`,
         );
       }
-      if (field.typeDefinition?.kind === "Enum") {
+      if (typeDefinition?.kind === "Enum") {
         this.queriesContentBuilder.importFromDefinition(
-          field.typeModulePath,
-          field.definition.type,
+          fieldDefinition.import ?? collectionDefinition.importMessage,
+          fieldDefinition.type,
         );
       }
       if (
         (leaf.op === "array-contains" || leaf.op === "array-contains-any") &&
-        !field.definition.isArray
+        !fieldDefinition.isArray
       ) {
         throw new Error(
           `${loggingPrefix} field ${leaf.field} must be an array to use ${leaf.op}.`,
         );
       }
       let rVar = leaf.rVar ?? `${leaf.field}${operatorSuffix}`;
-      let valueType = this.getWhereValueType(field, leaf.op);
+      let valueType = this.getWhereValueType(fieldDefinition, leaf.op);
       this.collectQueryArg(loggingPrefix, rVar, valueType);
       return `Filter.where("${leaf.field}", "${leaf.op}", args.${rVar})`;
     } else {
@@ -736,18 +801,22 @@ ${this.toArgsObject(this.queryArgs)}  },`);
       }
       return `Filter.${concat.op.toLowerCase()}(${concat.exprs
         .map((expr) => {
-          return this.generateWhereExpression(loggingPrefix, collection, expr);
+          return this.generateWhereExpression(
+            loggingPrefix,
+            collectionDefinition,
+            expr,
+          );
         })
         .join(", ")})`;
     }
   }
 
   private getWhereValueType(
-    resolvedField: ResolvedField,
+    fieldDefinition: MessageFieldDefinition,
     operator: string,
   ): string {
-    let elementType = resolvedField.definition.type;
-    let fieldType = resolvedField.definition.isArray
+    let elementType = fieldDefinition.type;
+    let fieldType = fieldDefinition.isArray
       ? `Array<${elementType}>`
       : elementType;
     switch (operator) {
@@ -777,17 +846,19 @@ ${this.toArgsObject(this.queryArgs)}  },`);
   }
 
   private buildDocumentPathExpression(
-    collection: ResolvedCollection,
+    collectionDefinition: FirestoreCollectionDefinition,
     source: "args" | "message",
   ): string {
-    let primaryKeyExpressions = collection.definition.primaryKeys.map(
+    let primaryKeyExpressions = collectionDefinition.primaryKeys.map(
       (primaryKey) => `${source}.${primaryKey}`,
     );
-    return `["${collection.definition.collectionName}", ${primaryKeyExpressions.join(" + ")}].join("/")`;
+    return `["${collectionDefinition.collectionName}", ${primaryKeyExpressions.join(" + ")}].join("/")`;
   }
 
-  private toArgsForPrimaryKeys(collection: ResolvedCollection): string {
-    return collection.definition.primaryKeys
+  private toArgsForPrimaryKeys(
+    collectionDefinition: FirestoreCollectionDefinition,
+  ): string {
+    return collectionDefinition.primaryKeys
       .map((primaryKey) => `    ${primaryKey}: string,\n`)
       .join("");
   }
@@ -796,9 +867,30 @@ ${this.toArgsObject(this.queryArgs)}  },`);
     return args.map((arg) => `    ${arg.name}: ${arg.type},\n`).join("");
   }
 
-  private resolveField(
+  private validateTaskField(
     loggingPrefix: string,
-    collection: ResolvedCollection,
+    taskCollectionDefinition: FirestoreTaskCollectionDefinition,
+    fieldName: string,
+    what: string,
+  ): void {
+    if (!fieldName) {
+      throw new Error(`${loggingPrefix} "${what}" is missing.`);
+    }
+    let { fieldDefinition } = this.lookUpAndResolveField(
+      loggingPrefix,
+      taskCollectionDefinition,
+      fieldName,
+    );
+    if (fieldDefinition.type !== "number" || fieldDefinition.isArray) {
+      throw new Error(
+        `${loggingPrefix} ${what} ${fieldName} must be a non-array number field.`,
+      );
+    }
+  }
+
+  private lookUpAndResolveField(
+    loggingPrefix: string,
+    collectionDefinition: FirestoreCollectionDefinition,
     fieldName: string,
   ): ResolvedField {
     if (!CAMEL_CASE_REGEXP.test(fieldName)) {
@@ -806,21 +898,24 @@ ${this.toArgsObject(this.queryArgs)}  },`);
         `${loggingPrefix} field ${fieldName} must be a top-level camelCase field.`,
       );
     }
-    let fieldDefinition = collection.messageDefinition.fields?.find((field) => {
+    let messageDefinition = this.resolveMessage(
+      loggingPrefix,
+      collectionDefinition,
+    );
+    let fieldDefinition = messageDefinition.fields?.find((field) => {
       return field.name === fieldName;
     });
     if (!fieldDefinition || fieldDefinition.deprecated) {
       throw new Error(
-        `${loggingPrefix} field ${fieldName} is not found on message ${collection.messageDefinition.name}.`,
+        `${loggingPrefix} field ${fieldName} is not found on message ${messageDefinition.name}.`,
       );
     }
     let typeDefinition: Definition | undefined;
-    let typeModulePath = fieldDefinition.import ?? collection.messageModulePath;
     if (!PRIMITIVE_TYPES.has(fieldDefinition.type)) {
       typeDefinition = this.definitionResolver.resolve(
         loggingPrefix,
         fieldDefinition.type,
-        typeModulePath,
+        fieldDefinition.import ?? collectionDefinition.importMessage,
       );
       if (typeDefinition.kind !== "Message" && typeDefinition.kind !== "Enum") {
         throw new Error(
@@ -829,9 +924,25 @@ ${this.toArgsObject(this.queryArgs)}  },`);
       }
     }
     return {
-      definition: fieldDefinition,
+      fieldDefinition,
       typeDefinition,
-      typeModulePath,
     };
+  }
+
+  private resolveMessage(
+    loggingPrefix: string,
+    collectionDefinition: FirestoreCollectionDefinition,
+  ): MessageDefinition {
+    let messageDefinition = this.definitionResolver.resolve(
+      loggingPrefix,
+      collectionDefinition.message,
+      collectionDefinition.importMessage,
+    );
+    if (messageDefinition.kind !== "Message") {
+      throw new Error(
+        `${loggingPrefix} ${collectionDefinition.message} is not a message.`,
+      );
+    }
+    return messageDefinition;
   }
 }

@@ -87,9 +87,69 @@ function newDefinitionResolver(): MockDefinitionResolver {
           ],
         };
       }
+      if (name === "WorkingTask") {
+        return {
+          kind: "Message",
+          name: "WorkingTask",
+          fields: [
+            {
+              name: "taskId",
+              type: "string",
+              index: 1,
+            },
+            {
+              name: "payload",
+              type: "string",
+              index: 2,
+            },
+            {
+              name: "retryCount",
+              type: "number",
+              index: 3,
+            },
+            {
+              name: "executionTime",
+              type: "number",
+              index: 4,
+            },
+            {
+              name: "createdTime",
+              type: "number",
+              index: 5,
+            },
+          ],
+        };
+      }
       throw new Error(`${loggingPrefix} unexpected definition ${name}.`);
     }
   })();
+}
+
+function newTaskDatabaseDefinition(): FirestoreDatabaseDefinition {
+  return {
+    kind: "FirestoreDatabase",
+    name: "TaskDatabase",
+    collections: [
+      {
+        kind: "TaskCollection",
+        name: "WorkingTaskCollection",
+        collectionName: "workingTasks",
+        message: "WorkingTask",
+        importMessage: "./tasks",
+        primaryKeys: ["taskId"],
+        retryCountField: "retryCount",
+        executionTimeField: "executionTime",
+        createdTimeField: "createdTime",
+        insert: "InsertWorkingTask",
+        update: "UpdateWorkingTask",
+        get: "GetWorkingTask",
+        delete: "DeleteWorkingTask",
+        listPendingTasks: "ListPendingWorkingTasks",
+      },
+    ],
+    outputQueries: "./queries",
+    outputIndexes: "./indexes",
+  };
 }
 
 function newDatabaseDefinition(): FirestoreDatabaseDefinition {
@@ -624,15 +684,41 @@ export async function listRecordsByNestedFilters(
       name: "RejectNonStringPrimaryKey",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].primaryKeys[1] = "score";
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "number",
+                  index: 1,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -646,43 +732,59 @@ export async function listRecordsByNestedFilters(
       },
     },
     {
-      name: "RejectMissingIndexName",
-      execute: () => {
-        // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].indexes[0].name = "";
-
-        // Execute
-        let error = assertThrow(() =>
-          new FirestoreDatabaseGenerator(
-            "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
-            new Map<string, OutputContentBuilder>(),
-          ).generate(),
-        );
-
-        // Verify
-        assertThat(
-          error,
-          eqError(new Error('index 1 is missing "name"')),
-          "error",
-        );
-      },
-    },
-    {
       name: "RejectDuplicateIndexName",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].indexes[1].name = "LabelsIndex";
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  indexes: [
+                    {
+                      name: "LabelsIndex",
+                      fields: [
+                        {
+                          name: "id",
+                          mode: "ASC",
+                        },
+                      ],
+                    },
+                    {
+                      name: "LabelsIndex",
+                      fields: [],
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -699,25 +801,52 @@ export async function listRecordsByNestedFilters(
       name: "RejectNestedIndexField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].indexes = [
-          {
-            name: "NestedDetailsIndex",
-            fields: [
-              {
-                name: "details.category",
-                mode: "ASC",
-              },
-            ],
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  indexes: [
+                    {
+                      name: "NestedDetailsIndex",
+                      fields: [
+                        {
+                          name: "details.category",
+                          mode: "ASC",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -738,23 +867,50 @@ export async function listRecordsByNestedFilters(
       name: "RejectNestedQueryField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].queries = [
-          {
-            name: "ListRecords",
-            where: {
-              field: "details.category",
-              op: "==",
-            },
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  queries: [
+                    {
+                      name: "ListRecords",
+                      where: {
+                        field: "details.category",
+                        op: "==",
+                      },
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -771,23 +927,50 @@ export async function listRecordsByNestedFilters(
       name: "RejectDocumentNameQueryField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].queries = [
-          {
-            name: "ListRecords",
-            where: {
-              field: "__name__",
-              op: "==",
-            },
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  queries: [
+                    {
+                      name: "ListRecords",
+                      where: {
+                        field: "__name__",
+                        op: "==",
+                      },
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -804,25 +987,64 @@ export async function listRecordsByNestedFilters(
       name: "RejectMessageIndexField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].indexes = [
-          {
-            name: "DetailsIndex",
-            fields: [
-              {
-                name: "details",
-                mode: "ASC",
-              },
-            ],
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(_loggingPrefix: string, name: string): Definition {
+            if (name === "Record") {
+              return {
+                kind: "Message",
+                name: "Record",
+                fields: [
+                  {
+                    name: "id",
+                    type: "string",
+                    index: 1,
+                  },
+                  {
+                    name: "details",
+                    type: "RecordDetails",
+                    index: 2,
+                  },
+                ],
+              };
+            }
+            return {
+              kind: "Message",
+              name: "RecordDetails",
+              fields: [],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  indexes: [
+                    {
+                      name: "DetailsIndex",
+                      fields: [
+                        {
+                          name: "details",
+                          mode: "ASC",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -843,23 +1065,62 @@ export async function listRecordsByNestedFilters(
       name: "RejectMessageFilterField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].queries = [
-          {
-            name: "ListRecords",
-            where: {
-              field: "details",
-              op: "==",
-            },
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(_loggingPrefix: string, name: string): Definition {
+            if (name === "Record") {
+              return {
+                kind: "Message",
+                name: "Record",
+                fields: [
+                  {
+                    name: "id",
+                    type: "string",
+                    index: 1,
+                  },
+                  {
+                    name: "details",
+                    type: "RecordDetails",
+                    index: 2,
+                  },
+                ],
+              };
+            }
+            return {
+              kind: "Message",
+              name: "RecordDetails",
+              fields: [],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  queries: [
+                    {
+                      name: "ListRecords",
+                      where: {
+                        field: "details",
+                        op: "==",
+                      },
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -880,24 +1141,63 @@ export async function listRecordsByNestedFilters(
       name: "RejectMessageOrderByField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].queries = [
-          {
-            name: "ListRecords",
-            orderBy: [
-              {
-                field: "details",
-              },
-            ],
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(_loggingPrefix: string, name: string): Definition {
+            if (name === "Record") {
+              return {
+                kind: "Message",
+                name: "Record",
+                fields: [
+                  {
+                    name: "id",
+                    type: "string",
+                    index: 1,
+                  },
+                  {
+                    name: "details",
+                    type: "RecordDetails",
+                    index: 2,
+                  },
+                ],
+              };
+            }
+            return {
+              kind: "Message",
+              name: "RecordDetails",
+              fields: [],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  queries: [
+                    {
+                      name: "ListRecords",
+                      orderBy: [
+                        {
+                          field: "details",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -918,25 +1218,57 @@ export async function listRecordsByNestedFilters(
       name: "RejectContainsIndexOnScalarField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].indexes = [
-          {
-            name: "ScoreContainsIndex",
-            fields: [
-              {
-                name: "score",
-                mode: "CONTAINS",
-              },
-            ],
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+                {
+                  name: "score",
+                  type: "number",
+                  index: 2,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  indexes: [
+                    {
+                      name: "ScoreContainsIndex",
+                      fields: [
+                        {
+                          name: "score",
+                          mode: "CONTAINS",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -953,23 +1285,55 @@ export async function listRecordsByNestedFilters(
       name: "RejectArrayOperatorOnScalarField",
       execute: () => {
         // Prepare
-        let databaseDefinition = newDatabaseDefinition();
-        databaseDefinition.collections[0].queries = [
-          {
-            name: "ListRecords",
-            where: {
-              field: "score",
-              op: "array-contains",
-            },
-          },
-        ];
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "Record",
+              fields: [
+                {
+                  name: "id",
+                  type: "string",
+                  index: 1,
+                },
+                {
+                  name: "score",
+                  type: "number",
+                  index: 2,
+                },
+              ],
+            };
+          }
+        })();
 
         // Execute
         let error = assertThrow(() =>
           new FirestoreDatabaseGenerator(
             "./definitions",
-            databaseDefinition,
-            newDefinitionResolver(),
+            {
+              kind: "FirestoreDatabase",
+              name: "RecordDatabase",
+              collections: [
+                {
+                  name: "RecordCollection",
+                  collectionName: "records",
+                  message: "Record",
+                  primaryKeys: ["id"],
+                  queries: [
+                    {
+                      name: "ListRecords",
+                      where: {
+                        field: "score",
+                        op: "array-contains",
+                      },
+                    },
+                  ],
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
             new Map<string, OutputContentBuilder>(),
           ).generate(),
         );
@@ -978,6 +1342,331 @@ export async function listRecordsByNestedFilters(
         assertThat(
           error,
           eqError(new Error("must be an array")),
+          "error",
+        );
+      },
+    },
+    {
+      name: "GenerateTaskCollection",
+      execute: () => {
+        // Prepare
+        let outputContentMap = new Map<string, OutputContentBuilder>();
+
+        // Execute
+        new FirestoreDatabaseGenerator(
+          "./definitions",
+          newTaskDatabaseDefinition(),
+          newDefinitionResolver(),
+          outputContentMap,
+        ).generate();
+
+        // Verify
+        assertThat(
+          outputContentMap.get("./queries").build(),
+          eqLongStr(`import { WorkingTask, WORKING_TASK } from './tasks';
+import { Firestore, Transaction, Query, Filter } from '@google-cloud/firestore';
+import { parseMessage } from '@selfage/message/parser';
+
+export function insertWorkingTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  message: WorkingTask,
+): void {
+  if (message.taskId == null) {
+    throw new Error("Firestore primary key field taskId is required.");
+  }
+  transaction.create(firestore.doc(["workingTasks", message.taskId].join("/")), message);
+}
+
+export function updateWorkingTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  message: WorkingTask,
+): void {
+  if (message.taskId == null) {
+    throw new Error("Firestore primary key field taskId is required.");
+  }
+  transaction.update(firestore.doc(["workingTasks", message.taskId].join("/")), message);
+}
+
+export async function getWorkingTask(
+  firestore: Firestore,
+  args: {
+    taskId: string,
+  },
+  transaction?: Transaction,
+): Promise<WorkingTask | undefined> {
+  let document = firestore.doc(["workingTasks", args.taskId].join("/"));
+  let snapshot = transaction
+    ? await transaction.get(document)
+    : await document.get();
+  if (!snapshot.exists) {
+    return undefined;
+  }
+  return parseMessage(snapshot.data(), WORKING_TASK);
+}
+
+export function deleteWorkingTask(
+  firestore: Firestore,
+  transaction: Transaction,
+  args: {
+    taskId: string,
+  },
+): void {
+  transaction.delete(firestore.doc(["workingTasks", args.taskId].join("/")));
+}
+
+export async function listPendingWorkingTasks(
+  firestore: Firestore,
+  args: {
+    executionTimeLe: number,
+  },
+  transaction?: Transaction,
+): Promise<Array<WorkingTask>> {
+  let query: Query = firestore.collection("workingTasks");
+  query = query.where(Filter.where("executionTime", "<=", args.executionTimeLe));
+  let snapshot = transaction
+    ? await transaction.get(query)
+    : await query.get();
+  return snapshot.docs.map((document) => parseMessage(document.data(), WORKING_TASK));
+}
+`),
+          "queries output",
+        );
+        assertThat(
+          outputContentMap.get("./indexes").build(),
+          eqLongStr(`{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "workingTasks",
+      "fieldPath": "*",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "workingTasks",
+      "fieldPath": "executionTime",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    }
+  ]
+}
+`),
+          "indexes output",
+        );
+      },
+    },
+    {
+      name: "RejectInvalidTaskRetryCountField",
+      execute: () => {
+        // Prepare
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "WorkingTask",
+              fields: [
+                {
+                  name: "taskId",
+                  type: "string",
+                  index: 1,
+                },
+                {
+                  name: "retryCount",
+                  type: "string",
+                  index: 2,
+                },
+              ],
+            };
+          }
+        })();
+
+        // Execute
+        let error = assertThrow(() =>
+          new FirestoreDatabaseGenerator(
+            "./definitions",
+            {
+              kind: "FirestoreDatabase",
+              name: "TaskDatabase",
+              collections: [
+                {
+                  kind: "TaskCollection",
+                  name: "WorkingTaskCollection",
+                  collectionName: "workingTasks",
+                  message: "WorkingTask",
+                  primaryKeys: ["taskId"],
+                  retryCountField: "retryCount",
+                  executionTimeField: "",
+                  createdTimeField: "",
+                  listPendingTasks: "",
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
+            new Map<string, OutputContentBuilder>(),
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "retryCountField retryCount must be a non-array number field",
+            ),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "RejectInvalidTaskExecutionTimeField",
+      execute: () => {
+        // Prepare
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "WorkingTask",
+              fields: [
+                {
+                  name: "taskId",
+                  type: "string",
+                  index: 1,
+                },
+                {
+                  name: "retryCount",
+                  type: "number",
+                  index: 2,
+                },
+                {
+                  name: "executionTime",
+                  type: "number",
+                  isArray: true,
+                  index: 3,
+                },
+              ],
+            };
+          }
+        })();
+
+        // Execute
+        let error = assertThrow(() =>
+          new FirestoreDatabaseGenerator(
+            "./definitions",
+            {
+              kind: "FirestoreDatabase",
+              name: "TaskDatabase",
+              collections: [
+                {
+                  kind: "TaskCollection",
+                  name: "WorkingTaskCollection",
+                  collectionName: "workingTasks",
+                  message: "WorkingTask",
+                  primaryKeys: ["taskId"],
+                  retryCountField: "retryCount",
+                  executionTimeField: "executionTime",
+                  createdTimeField: "",
+                  listPendingTasks: "",
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
+            new Map<string, OutputContentBuilder>(),
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "executionTimeField executionTime must be a non-array number field",
+            ),
+          ),
+          "error",
+        );
+      },
+    },
+    {
+      name: "RejectInvalidTaskCreatedTimeField",
+      execute: () => {
+        // Prepare
+        let mockDefinitionResolver = new (class extends MockDefinitionResolver {
+          public resolve(): Definition {
+            return {
+              kind: "Message",
+              name: "WorkingTask",
+              fields: [
+                {
+                  name: "taskId",
+                  type: "string",
+                  index: 1,
+                },
+                {
+                  name: "retryCount",
+                  type: "number",
+                  index: 2,
+                },
+                {
+                  name: "executionTime",
+                  type: "number",
+                  index: 3,
+                },
+                {
+                  name: "createdTime",
+                  type: "boolean",
+                  index: 4,
+                },
+              ],
+            };
+          }
+        })();
+
+        // Execute
+        let error = assertThrow(() =>
+          new FirestoreDatabaseGenerator(
+            "./definitions",
+            {
+              kind: "FirestoreDatabase",
+              name: "TaskDatabase",
+              collections: [
+                {
+                  kind: "TaskCollection",
+                  name: "WorkingTaskCollection",
+                  collectionName: "workingTasks",
+                  message: "WorkingTask",
+                  primaryKeys: ["taskId"],
+                  retryCountField: "retryCount",
+                  executionTimeField: "executionTime",
+                  createdTimeField: "createdTime",
+                  listPendingTasks: "",
+                },
+              ],
+              outputQueries: "./queries",
+              outputIndexes: "./indexes",
+            },
+            mockDefinitionResolver,
+            new Map<string, OutputContentBuilder>(),
+          ).generate(),
+        );
+
+        // Verify
+        assertThat(
+          error,
+          eqError(
+            new Error(
+              "createdTimeField createdTime must be a non-array number field",
+            ),
+          ),
           "error",
         );
       },

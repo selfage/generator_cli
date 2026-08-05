@@ -51,3 +51,36 @@ export let ORDER: MessageDescriptor<Order> = {
     messageType: ORDER_DETAILS,
   }],
 };
+
+export interface OrderTask {
+  taskId?: string,
+  order?: Order,
+  retryCount?: number,
+  executionTime?: number,
+  createdTime?: number,
+}
+
+export let ORDER_TASK: MessageDescriptor<OrderTask> = {
+  name: 'OrderTask',
+  fields: [{
+    name: 'taskId',
+    index: 1,
+    primitiveType: PrimitiveType.STRING,
+  }, {
+    name: 'order',
+    index: 2,
+    messageType: ORDER,
+  }, {
+    name: 'retryCount',
+    index: 3,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'executionTime',
+    index: 4,
+    primitiveType: PrimitiveType.NUMBER,
+  }, {
+    name: 'createdTime',
+    index: 5,
+    primitiveType: PrimitiveType.NUMBER,
+  }],
+};

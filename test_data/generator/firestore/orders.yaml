@@ -26,6 +26,24 @@
     - name: details
       type: OrderDetails
       index: 6
+- kind: Message
+  name: OrderTask
+  fields:
+    - name: taskId
+      type: string
+      index: 1
+    - name: order
+      type: Order
+      index: 2
+    - name: retryCount
+      type: number
+      index: 3
+    - name: executionTime
+      type: number
+      index: 4
+    - name: createdTime
+      type: number
+      index: 5
 - kind: FirestoreDatabase
   name: OrderDatabase
   collections:
@@ -114,5 +132,19 @@
       update: UpdateOrder
       get: GetOrder
       delete: DeleteOrder
+    - kind: TaskCollection
+      name: OrderTaskCollection
+      collectionName: orderTasks
+      message: OrderTask
+      primaryKeys:
+        - taskId
+      retryCountField: retryCount
+      executionTimeField: executionTime
+      createdTimeField: createdTime
+      insert: InsertOrderTask
+      update: UpdateOrderTask
+      get: GetOrderTask
+      delete: DeleteOrderTask
+      listPendingTasks: ListPendingOrderTasks
   outputQueries: ./test_data/generator/firestore/queries
   outputIndexes: ./test_data/generator/firestore/indexes

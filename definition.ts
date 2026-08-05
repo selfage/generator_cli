@@ -187,13 +187,36 @@ export interface FirestoreCollectionDefinition {
   delete?: string;
 }
 
+export interface FirestoreTaskCollectionDefinition
+  extends FirestoreCollectionDefinition {
+  kind: "TaskCollection";
+  // The inherited `insert`, `delete`, `get`, and `update` operation names must
+  // be provided. `get` also reads task metadata, while a sparse `update` can
+  // update only retry and execution metadata.
+  // A top-level non-array number field on the message. It stores the number of
+  // times the task has previously been attempted.
+  retryCountField: string;
+  // A top-level non-array number field on the message. It stores the time in
+  // milliseconds when the task becomes eligible to run. An ascending
+  // single-field index is always generated for this field.
+  executionTimeField: string;
+  // A top-level non-array number field on the message. It stores the task's
+  // creation time in milliseconds.
+  createdTimeField: string;
+  // Generates a query for tasks whose execution time is less than or equal to
+  // the supplied time.
+  listPendingTasks: string;
+}
+
 // Defines a Firestore Standard edition database in Native mode. Generated
 // code requires packages `@google-cloud/firestore` and `@selfage/message`.
 export interface FirestoreDatabaseDefinition {
   kind: "FirestoreDatabase";
   // Must be of CamelCase.
   name: string;
-  collections: Array<FirestoreCollectionDefinition>;
+  collections: Array<
+    FirestoreCollectionDefinition | FirestoreTaskCollectionDefinition
+  >;
   // The path to output generated TypeScript document and query functions,
   // relative to CWD. Do not include '.ts'.
   outputQueries: string;
