@@ -686,8 +686,8 @@ export function ${functionName}(
     task: ${taskCollectionDefinition.message},
   ) => void,
   handleErrorFn: (error: unknown) => void,
-): void {
-  firestore.collection("${taskCollectionDefinition.collectionName}").onSnapshot(
+): () => void {
+  return firestore.collection("${taskCollectionDefinition.collectionName}").onSnapshot(
     (snapshot) => {
       for (let change of snapshot.docChanges()) {
         if (change.type === "removed") {

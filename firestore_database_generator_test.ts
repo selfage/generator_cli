@@ -1441,8 +1441,8 @@ export function registerWorkingTaskSnapshotListener(
     task: WorkingTask,
   ) => void,
   handleErrorFn: (error: unknown) => void,
-): void {
-  firestore.collection("workingTasks").onSnapshot(
+): () => void {
+  return firestore.collection("workingTasks").onSnapshot(
     (snapshot) => {
       for (let change of snapshot.docChanges()) {
         if (change.type === "removed") {

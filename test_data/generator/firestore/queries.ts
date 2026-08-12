@@ -214,8 +214,8 @@ export function registerOrderTaskSnapshotListener(
     task: OrderTask,
   ) => void,
   handleErrorFn: (error: unknown) => void,
-): void {
-  firestore.collection("orderTasks").onSnapshot(
+): () => void {
+  return firestore.collection("orderTasks").onSnapshot(
     (snapshot) => {
       for (let change of snapshot.docChanges()) {
         if (change.type === "removed") {
