@@ -145,6 +145,7 @@ function newTaskDatabaseDefinition(): FirestoreDatabaseDefinition {
         get: "GetWorkingTask",
         delete: "DeleteWorkingTask",
         listPendingTasks: "ListPendingWorkingTasks",
+        registerSnapshotListener: "RegisterWorkingTaskSnapshotListener",
       },
     ],
     outputQueries: "./queries",
@@ -1430,6 +1431,35 @@ export async function listPendingWorkingTasks(
     : await query.get();
   return snapshot.docs.map((document) => parseMessage(document.data(), WORKING_TASK));
 }
+
+export function registerWorkingTaskSnapshotListener(
+  firestore: Firestore,
+  removeCallbackFn: (taskId: string) => void,
+  updateCallbackFn: (
+    taskId: string,
+    executionTimeMs: number,
+    task: WorkingTask,
+  ) => void,
+  handleErrorFn: (error: unknown) => void,
+): void {
+  firestore.collection("workingTasks").onSnapshot(
+    (snapshot) => {
+      for (let change of snapshot.docChanges()) {
+        if (change.type === "removed") {
+          removeCallbackFn(change.doc.id);
+          continue;
+        }
+
+        let task = parseMessage(
+          change.doc.data(),
+          WORKING_TASK,
+        );
+        updateCallbackFn(change.doc.id, task.executionTime!, task);
+      }
+    },
+    handleErrorFn,
+  );
+}
 `),
           "queries output",
         );
@@ -1503,6 +1533,7 @@ export async function listPendingWorkingTasks(
                   executionTimeField: "",
                   createdTimeField: "",
                   listPendingTasks: "",
+                  registerSnapshotListener: "",
                 },
               ],
               outputQueries: "./queries",
@@ -1574,6 +1605,7 @@ export async function listPendingWorkingTasks(
                   executionTimeField: "executionTime",
                   createdTimeField: "",
                   listPendingTasks: "",
+                  registerSnapshotListener: "",
                 },
               ],
               outputQueries: "./queries",
@@ -1649,6 +1681,7 @@ export async function listPendingWorkingTasks(
                   executionTimeField: "executionTime",
                   createdTimeField: "createdTime",
                   listPendingTasks: "",
+                  registerSnapshotListener: "",
                 },
               ],
               outputQueries: "./queries",

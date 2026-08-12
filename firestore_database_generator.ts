@@ -303,6 +303,11 @@ export class FirestoreDatabaseGenerator {
     if (!taskCollectionDefinition.listPendingTasks) {
       throw new Error(`${loggingPrefix} "listPendingTasks" is missing.`);
     }
+    if (!taskCollectionDefinition.registerSnapshotListener) {
+      throw new Error(
+        `${loggingPrefix} "registerSnapshotListener" is missing.`,
+      );
+    }
 
     this.generateIndex(
       `${loggingPrefix} within the implicit execution-time index,`,
@@ -321,6 +326,11 @@ export class FirestoreDatabaseGenerator {
         op: "<=",
       },
     });
+    this.generateTaskSnapshotListener(
+      loggingPrefix,
+      taskCollectionDefinition,
+      taskCollectionDefinition.registerSnapshotListener,
+    );
   }
 
   private validatePrimaryKeys(
@@ -643,6 +653,57 @@ export function ${functionName}(
 ${this.toArgsForPrimaryKeys(collectionDefinition)}  },
 ): void {
   transaction.delete(firestore.doc(${pathExpression}));
+}
+`);
+  }
+
+  private generateTaskSnapshotListener(
+    loggingPrefix: string,
+    taskCollectionDefinition: FirestoreTaskCollectionDefinition,
+    definitionName: string,
+  ): void {
+    loggingPrefix = `${loggingPrefix} within ${definitionName},`;
+    if (!PASCAL_CASE_REGEXP.test(definitionName)) {
+      throw new Error(
+        `${loggingPrefix} function definition name must be of CamelCase.`,
+      );
+    }
+    let functionName = toInitalLowercased(definitionName);
+    this.queriesContentBuilder.importFromDefinition(
+      taskCollectionDefinition.importMessage,
+      taskCollectionDefinition.message,
+      toUppercaseSnaked(taskCollectionDefinition.message),
+    );
+    this.queriesContentBuilder.importFromFirestore("Firestore");
+    this.queriesContentBuilder.importFromMessageParser("parseMessage");
+    this.queriesContentBuilder.push(`
+export function ${functionName}(
+  firestore: Firestore,
+  removeCallbackFn: (taskId: string) => void,
+  updateCallbackFn: (
+    taskId: string,
+    executionTimeMs: number,
+    task: ${taskCollectionDefinition.message},
+  ) => void,
+  handleErrorFn: (error: unknown) => void,
+): void {
+  firestore.collection("${taskCollectionDefinition.collectionName}").onSnapshot(
+    (snapshot) => {
+      for (let change of snapshot.docChanges()) {
+        if (change.type === "removed") {
+          removeCallbackFn(change.doc.id);
+          continue;
+        }
+
+        let task = parseMessage(
+          change.doc.data(),
+          ${toUppercaseSnaked(taskCollectionDefinition.message)},
+        );
+        updateCallbackFn(change.doc.id, task.${taskCollectionDefinition.executionTimeField}!, task);
+      }
+    },
+    handleErrorFn,
+  );
 }
 `);
   }

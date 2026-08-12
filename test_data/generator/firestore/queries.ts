@@ -204,3 +204,32 @@ export async function listPendingOrderTasks(
     : await query.get();
   return snapshot.docs.map((document) => parseMessage(document.data(), ORDER_TASK));
 }
+
+export function registerOrderTaskSnapshotListener(
+  firestore: Firestore,
+  removeCallbackFn: (taskId: string) => void,
+  updateCallbackFn: (
+    taskId: string,
+    executionTimeMs: number,
+    task: OrderTask,
+  ) => void,
+  handleErrorFn: (error: unknown) => void,
+): void {
+  firestore.collection("orderTasks").onSnapshot(
+    (snapshot) => {
+      for (let change of snapshot.docChanges()) {
+        if (change.type === "removed") {
+          removeCallbackFn(change.doc.id);
+          continue;
+        }
+
+        let task = parseMessage(
+          change.doc.data(),
+          ORDER_TASK,
+        );
+        updateCallbackFn(change.doc.id, task.executionTime!, task);
+      }
+    },
+    handleErrorFn,
+  );
+}

@@ -146,5 +146,6 @@
       get: GetOrderTask
       delete: DeleteOrderTask
       listPendingTasks: ListPendingOrderTasks
+      registerSnapshotListener: RegisterOrderTaskSnapshotListener
   outputQueries: ./test_data/generator/firestore/queries
   outputIndexes: ./test_data/generator/firestore/indexes

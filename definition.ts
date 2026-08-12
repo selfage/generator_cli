@@ -206,6 +206,9 @@ export interface FirestoreTaskCollectionDefinition
   // Generates a query for tasks whose execution time is less than or equal to
   // the supplied time.
   listPendingTasks: string;
+  // Generates a function that registers a collection snapshot listener for a
+  // task dispatcher.
+  registerSnapshotListener: string;
 }
 
 // Defines a Firestore Standard edition database in Native mode. Generated
